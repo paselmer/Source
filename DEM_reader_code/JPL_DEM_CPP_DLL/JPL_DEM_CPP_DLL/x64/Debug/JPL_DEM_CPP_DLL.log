@@ -1,0 +1,6 @@
+﻿  stdafx.cpp
+  JPL_DEM_CPP_DLL.cpp
+  dllmain.cpp
+  Generating Code...
+     Creating library C:\Users\pselmer\Documents\CAMAL\camal\DEM\JPL_DEM_CPP_DLL\x64\Debug\JPL_DEM_CPP_DLL.lib and object C:\Users\pselmer\Documents\CAMAL\camal\DEM\JPL_DEM_CPP_DLL\x64\Debug\JPL_DEM_CPP_DLL.exp
+  JPL_DEM_CPP_DLL.vcxproj -> C:\Users\pselmer\Documents\CAMAL\camal\DEM\JPL_DEM_CPP_DLL\x64\Debug\JPL_DEM_CPP_DLL.dll

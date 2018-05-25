@@ -1,0 +1,10 @@
+The Digital Elevation file matches latitude and longitude values with the elevation at that point. The R05 data depends on two new DEM files created by the team at JPL. One of the files is used for points occurring during the ascending part of the orbit and the other is for the point occurring during the descending part of the orbit.
+
+Each DEM covers latitudes from 83.00 N to -82.99 S and longitudes from -180.00 W to 179.99 E. There are 240 points per degree of latitude and 240 points per degree of longitude. This results in a DEM having dimensions of 39,840 rows and 86,400 columns.
+
+The files were creatively designed to maximize the use of space in order to keep each file at 6.4 GB. Each point is an unsigned 16 bit integer. The 2 most significant bits are a Land Ocean Coast Inland water mask (LOCI). 0=land or ocean, 1=coastline, 2=inland water, 3=inland mixed. The rest is the height in meters plus 3000.
+
+Each point is converted to its 1A-AUX output fields with the following algorithm. For input height values less than 2000, those points are ocean so the output LOCI flag is set to 2 and the output height is set to -9999. For height values greater than 2000, the output height is set to the input height minus 3000 and the output LOCI flag is set to 1 for land, 3 for coastline, 4 for inland water, and 5 for inland mixed.
+
+The horizontal coordinate system of each DEM is decimal degrees of latitude and longitude referenced to the EGS96 geoid. The vertical units represent elevation in meters offset from the geoid. The actual elevation values range from -743 to 8,251 meters.
+

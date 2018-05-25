@@ -1,0 +1,11 @@
+﻿  JPL_DEM_CPP_DLL.cpp
+c:\cpl\config\dem\jpl_dem_cpp_dll\jpl_dem_cpp_dll\jpl_dem_cpp_dll.cpp(155): warning C4244: 'initializing': conversion from 'ULONGLONG' to 'unsigned int', possible loss of data
+c:\cpl\config\dem\jpl_dem_cpp_dll\jpl_dem_cpp_dll\jpl_dem_cpp_dll.cpp(140): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files\windows kits\10\include\10.0.16299.0\ucrt\stdio.h(207): note: see declaration of 'fopen'
+     Creating library C:\CPL\Config\DEM\JPL_DEM_CPP_DLL\Release\JPL_DEM_CPP_DLL.lib and object C:\CPL\Config\DEM\JPL_DEM_CPP_DLL\Release\JPL_DEM_CPP_DLL.exp
+  Generating code
+  0 of 118 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  JPL_DEM_CPP_DLL.vcxproj -> C:\CPL\Config\DEM\JPL_DEM_CPP_DLL\Release\JPL_DEM_CPP_DLL.dll

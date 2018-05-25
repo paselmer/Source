@@ -1,0 +1,35 @@
+Hi Steve,
+
+I am glad to hear about your interest in using the DEM that Simone Tanelli and Gregg Dobrowalski developed at JPL, initially for CloudSat processing, and now for CALIPSO processing as well.
+
+Attached are the documentation and software files:
+
+DEM_description.txt - text file explaining the format of the DEM file
+
+C_DEM.h - DEM C++ class header file
+C_DEM.cpp - DEM C++ class file
+Main.cpp - C++ file with an example calling the C_DEM class to read the DEM
+
+You should also talk with Mark and his CALIPSO team to see what software routines they have developed for accessing the DEM.
+
+Following are the FTP site and credentials where you can retrieve the CloudSat DEM file:
+
+csftp2.cira.colostate.edu
+
+calipso
+jpldem
+
+The file is gzipped to make it smaller and easier to transfer (1GB instead of the uncompressed 6GB).
+
+Let me know when you have retrieved the DEM file so I can remove it from our server.
+
+Thanks!
+Dale
+______________________________________
+
+Dale Reinke
+CIRA/CSU (CloudSat Data Processing Center)
+Dale.Reinke@colostate.edu
+(970) 491-8928
+
+
