@@ -1,0 +1,5 @@
+#! /bin/tcsh
+
+# This code provides a fast way to run a Python code.
+
+/home/selmer/anaconda3/bin/python3 $1

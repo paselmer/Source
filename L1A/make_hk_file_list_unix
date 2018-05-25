@@ -1,0 +1,9 @@
+#! /bin/sh
+# 
+# Commands to create file list for UNIX-type operating systems.
+#
+# First argument should be the directory that the files are located in.
+
+cd $1
+
+ls -d1 $PWD/*hk*data

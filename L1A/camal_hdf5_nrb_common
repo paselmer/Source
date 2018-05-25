@@ -1,0 +1,5 @@
+; Common block(s) for all parameters in CAMAL NRB HDF5 files
+
+common CAMAL_NRB, meta, PGain, nav, laserspot, bin_alt_array, num_ff_bins, $
+       num_recs, ONA, DEM_nadir, DEM_nadir_surftype, DEM_laserspot, $
+       DEM_laserspot_surftype, EM, nrb

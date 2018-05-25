@@ -1,0 +1,47 @@
+*** glibc detected *** /home/selmer/anaconda3/bin/python3: double free or corruption (out): 0x00007f13ea087e00 ***
+1358716958.700000 1358716958.800000 125368 152208
+1358716958.800000 1358716958.900000 125368 152209
+0.000000 1358716958.900000 125369 152209
+
+125369, 152210
+
+plt.plot_date(CLS_data_1file['meta']['Nav']['UTC_Time'],CLS_data_1file['meta']['Nav']['RollAngle'],marker='o')
+plt.plot_date(cls_nav_data_all['UTC_Time'],cls_nav_data_all['RollAngle'],marker='x')
+plt.show()
+
+!tit = '532 nm NRB'
+!xlimits = [0,ONA_save.shape[0]]
+!ylimits = [966,0]#[900,500]
+!samp_chan = NRB[2,:,:] + NRB[3,:,:]
+!curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 1e9, hori_cap, pointing_dir,figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',[ylimits[0],ylimits[1]], 'recs',[xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir)
+
+labeled_image,bs,absmax,x,z,xtit,ytit,title,nxticks,nyticks,xresize,yresize,xmargin,ymargin,xpad,ypad,layerZ,dx,outfilename,xlab,ylab,$
+                  roundxnumbers=roundxnumbers,roundynumbers=roundynumbers,png=png,layers=layers,dist=dist
+				  
+ (Pdb) print(cls_nav_data_all[-10:]['UTC_Time'])
+[datetime.datetime(2007, 8, 9, 18, 3, 35)
+ datetime.datetime(2007, 8, 9, 18, 3, 35, 100000)
+ datetime.datetime(2007, 8, 9, 18, 3, 35, 200000)
+ datetime.datetime(2007, 8, 9, 18, 3, 35, 300000)
+ datetime.datetime(2007, 8, 9, 18, 3, 35, 400000)
+ datetime.datetime(2007, 8, 9, 18, 3, 35, 500000)
+ datetime.datetime(2007, 8, 9, 18, 3, 35, 600000)
+ datetime.datetime(2007, 8, 9, 18, 3, 35, 700000)
+ datetime.datetime(2007, 8, 9, 18, 3, 35, 800000)
+ datetime.datetime(2007, 8, 9, 18, 3, 35, 900000)]
+(Pdb) print(CLS_data_1file['meta']['Nav']['UTC_Time'][-10:])
+[datetime.datetime(2007, 8, 9, 18, 3, 36)
+ datetime.datetime(2007, 8, 9, 18, 3, 36)
+ datetime.datetime(2007, 8, 9, 18, 3, 36)
+ datetime.datetime(2007, 8, 9, 18, 3, 36)
+ datetime.datetime(2007, 8, 9, 18, 3, 36)
+ datetime.datetime(2007, 8, 9, 18, 3, 36)
+ datetime.datetime(2007, 8, 9, 18, 3, 36)
+ datetime.datetime(2007, 8, 9, 18, 3, 36)
+ datetime.datetime(2007, 8, 9, 18, 3, 36)
+ datetime.datetime(2007, 8, 9, 18, 3, 36)]
+ 
+for x in np.nditer(interp_UnixT[-10:]): print('{0:.10f}'.format(x))
+for x in np.nditer(Nav_interp_T_float64[-10:]): print('{0:.10f}'.format(x))
+
+ 

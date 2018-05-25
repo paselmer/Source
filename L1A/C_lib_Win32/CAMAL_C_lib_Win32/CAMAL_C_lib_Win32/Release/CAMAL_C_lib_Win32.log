@@ -1,0 +1,19 @@
+﻿  CAMAL_C_lib_Win32.c
+c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(70): warning C4018: '<': signed/unsigned mismatch
+c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(72): warning C4018: '<': signed/unsigned mismatch
+c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(74): warning C4018: '<': signed/unsigned mismatch
+c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(142): warning C4244: 'initializing': conversion from '__int64' to 'unsigned long', possible loss of data
+c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(152): warning C4477: 'printf' : format string '%ld' requires an argument of type 'long', but variadic argument 1 has type '__int64'
+  c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(152): note: consider using '%lld' in the format string
+  c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(152): note: consider using '%I64d' in the format string
+c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(152): warning C4477: 'printf' : format string '%ld' requires an argument of type 'long', but variadic argument 2 has type '__int64'
+  c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(152): note: consider using '%lld' in the format string
+  c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(152): note: consider using '%I64d' in the format string
+c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(152): warning C4477: 'printf' : format string '%ld' requires an argument of type 'long', but variadic argument 3 has type '__int64'
+  c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(152): note: consider using '%lld' in the format string
+  c:\cpl\source\python\l1a\c_lib_win32\camal_c_lib_win32\camal_c_lib_win32\camal_c_lib_win32.c(152): note: consider using '%I64d' in the format string
+     Creating library C:\CPL\Source\Python\L1A\C_lib_Win32\CAMAL_C_lib_Win32\Release\CAMAL_C_lib_Win32.lib and object C:\CPL\Source\Python\L1A\C_lib_Win32\CAMAL_C_lib_Win32\Release\CAMAL_C_lib_Win32.exp
+  Generating code
+  All 6 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  CAMAL_C_lib_Win32.vcxproj -> C:\CPL\Source\Python\L1A\C_lib_Win32\CAMAL_C_lib_Win32\Release\CAMAL_C_lib_Win32.dll

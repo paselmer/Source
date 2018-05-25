@@ -1,0 +1,9 @@
+#! /bin/tcsh
+# 
+# Commands to create file list for UNIX-type operating systems.
+#
+# First argument should be the directory that the files are located in.
+
+cp cpl_default_initializations.py initializations.py
+
+py3 cpl_l1a_beta.py

@@ -1,0 +1,50 @@
+structdef={structRawHeader,$
+                           RecordNumber:0L,$
+                           ExactTime:bytarr(27),$
+                           NumChannels:4B,$
+                           Resolution:30B,$
+                           DetectorSequence:bytarr(9),$
+                           NumberT_Probes:0B,$
+                           NumberV_Probes:0B,$
+                           Reserved:bytarr(20)};7 head items,1 reserved;64bytes
+structdef={structEngineeringData,$
+                                 LaserEnergyMonitors:lonarr(3),$
+                                 TemperatureMeasurements:lonarr(12),$
+                                 VoltageMeasurements:lonarr(3),$
+                                 Pressure:0L,$
+                                 Reserved:lonarr(16)};4 engineering items, 1reserved;140bytes
+structdef={structNavData_ER2,$
+                             Header:bytarr(2),$
+                             UTC_Time:bytarr(13),$
+                             Lat:bytarr(10),$
+                             Lon:bytarr(11),$
+                             TrueHeading:bytarr(7),$
+                             PitchAngle:bytarr(9),$
+                             RollAngle:bytarr(9),$
+                             GroundSpeed:bytarr(7),$
+                             TrackAngleTrue:bytarr(7),$
+                             InertialWindSpeed:bytarr(5),$
+                             InertialWindDirection:bytarr(6),$
+                             BodyLongitAccl:bytarr(7),$
+                             BodyLateralAccl:bytarr(7),$
+                             BodyNormalAccl:bytarr(7),$
+                             TrackAngleRate:bytarr(6),$
+                             PitchRate:bytarr(6),$
+                             RollRate:bytarr(6),$
+                             InertialVerticalSpeed:bytarr(7),$
+                              GPS_Altitude:bytarr(8),$
+                             GPS_Latitude:bytarr(10),$
+                             GPS_Longitude:bytarr(11),$
+                             StaticPressure:bytarr(9),$
+                             TotalPressure:bytarr(9),$
+                             DifferentialPressure:bytarr(7),$
+                             TotalTemperature:bytarr(7),$
+                             StaticTemperature:bytarr(7),$
+                             BarometricAltitude:bytarr(8),$
+                             MachNo:bytarr(6),$
+                             TrueAirSpeed:bytarr(7),$
+                             WindSpeed:bytarr(5),$
+                             WindDirection:bytarr(6),$
+                             SunElevation:bytarr(7),$
+                             SunAzimuth:bytarr(7),$
+                             Pad:bytarr(10)};256bytes;33 nav items,1pad array
