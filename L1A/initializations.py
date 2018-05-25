@@ -8,9 +8,9 @@ import datetime as DT
 #       for Unix vs. Windows
 
 # ******** SET THE NAME OF THE PROJECT & FLIGHT DATE ********
-proj_name = 'ACTA_18'
-flt_date = '29apr18' # in "CPL" form, not "CAMAL" form
-sortie = '18005'
+proj_name = 'Seac4rs'
+flt_date = '23aug13' # in "CPL" form, not "CAMAL" form
+sortie = '13-957'
 
 # ******** SET THE TIME RANGE BOUNDARIES FOR DATA PROCESSING ********
 process_start = DT.datetime(2000,9,1,0,0,0) #yr,mon,dy,hr,min,sec

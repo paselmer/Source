@@ -8,9 +8,9 @@ import datetime as DT
 #       for Unix vs. Windows
 
 # ******** SET THE NAME OF THE PROJECT & FLIGHT DATE ********
-proj_name = 'UAV-Attrex_13'
-flt_date = '26feb13' # in "CPL" form, not "CAMAL" form
-sortie = '13-206'
+proj_name = 'Seac4rs'
+flt_date = '23aug13' # in "CPL" form, not "CAMAL" form
+sortie = '13-957'
 
 # ******** SET THE TIME RANGE BOUNDARIES FOR DATA PROCESSING ********
 process_start = DT.datetime(2000,9,1,0,0,0) #yr,mon,dy,hr,min,sec
@@ -33,18 +33,18 @@ nshots = 500
 vrZ = 29.98
 # The laser rep rate in Hertz
 rep_rate = 5000.0
-# Start and end bin of solar background region
-bg_st_bin = 850
-bg_ed_bin = 950
-# Stand and end bin of solar background region in fixed frame
-ff_bg_st_bin = 770
-ff_bg_ed_bin = 820
+# Start and end bin of solar background region (GUI only)
+bg_st_bin = 500
+bg_ed_bin = 600
+# Start and end altitudes of solar background region (meters)
+bg_st_alt = -500.0
+bg_ed_alt = -1500.0
 # The bin resolution in the fixed frame (m)
 vrZ_ff = 30.0
 # List containing top and bottom altitudes (m) of the fixed frame
-ff_bot_alt,ff_top_alt = [-7e3,22.005e3]
+ff_bot_alt,ff_top_alt = [-25e3,12.005e3]
 # This flag tells the code which equations to use to convert energy
-e_flg = 6
+e_flg = 10
 # The number of wavelengths
 nwl = 3
 # Which channels #'s are which wavelengths? (0=355,1=532,2=1064)
@@ -72,26 +72,30 @@ IWG1_hz = 1.0
 # nav (refering to file type) records per second. (Please make it a float!) 
 nav_hz = 1.0
 # Set the Polarization Gain ratios for the wavelenghts [532nm, 1064nm]
-PGain = [0.00,0.00]
+PGain = [0.00,0.50]
 # Set this to the maximum possible count rate. Don't set > recs in DTT file!
 max_counts = 16000
 # Dead time tables [list]. List in channel order OR ELSE!!!
 DTT_files = ['dttable_355_9999-022410.xdr','dttable_532_11994-022410.xdr',
-    'dttable_1064par_11944-022410.xdr','dttable_1064per_11295-071912.xdr']
+    'dttable_1064par_11944-022410.xdr','dttable_1064per_20364-040116.xdr']
 # The overlap file to use
-overlap_file = '3wloverlap03750000.xdr'
+overlap_file = 'olaptable_c130cpl-061716_comb_acta.xdr'
 # The number of seconds needed to convert from the instrument's Unix time
 # to UTC. Typically either 5 hours (cold season) or 4 hours (warm season).
 secs_btwn_instr_UnixT_and_UTC = 18000
 # Roll and pitch offsets for GPS (degrees). Subtract these from read-in vals.
-gps_roll_offset = 0.033
-gps_pitch_offset = 0.088
+gps_roll_offset = 0.0
+gps_pitch_offset = 0.0
 # Subtract this number of seconds from CLS data to manually fudge a better
 # match to the Nav data.
 nudge = 0.0
 
 
 # ******** CONFIGURATION PARAMETERS ********
+# Average the data to this time. In seconds. Set to -99.9 for no averaging.
+secs2avg = 1.0
+# Minimum number of raw profiles than can be used in an average profile
+min_avg_profs = 4
 # horizontal averaging (# of raw profiles)
 nhori = 1
 # default scale of color bar
@@ -104,8 +108,8 @@ scale_alt_OofM = 1e3 #order of mag.
 minbin=1000
 maxbin=0
 # curtain plot width and height (inches)
-figW = 18
-figL = 10
+figW = 13
+figL = 9
 # profile plot width and height (inches)
 pp_figW = 6.5
 pp_figL = 7
@@ -131,7 +135,7 @@ Nav_source = 'cls' #'nav' 'gps' 'iwg1' or 'cls'
 # IWG1 data file
 IWG1_file = "IWG1.20Jan2013-2149"
 # Don't process any data when below this alt (m). Doesn't apply to GUI.
-alt_cutoff = 10000
+alt_cutoff = 500
 # Don't process any profiles where off-nadir angle exceeds this many radians.
 ONA_cutoff = 30.0 * (pi/180.0)
 # Invalid/bad Nav values get overwritten with this value - datetime.datetime object.
@@ -176,30 +180,30 @@ else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
 
     # ******** DEFINE ALL DIRECTORIES ********
     # Set the directory of the raw data
-    raw_dir = '/cpl3/'+proj_name+'/Raw_data/'+sortie+'/'
+    raw_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\'
     # Set the directory of the L0 data
-    L0_dir = '/cpl3/'+proj_name+'/L0/'
+    L0_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\L0\\'
     # Set the directory of the L1 data
-    L1_dir = '/cpl3/'+proj_name+'/L1/'
+    L1_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\L1\\'
     # Set the directory of the L2 data
-    L2_dir = '/cpl3/'+proj_name+'/L2/'
+    L2_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\L2\\'
     # Set the directory that contains configuration files
-    config_dir = '/cpl3/CAMAL/Config/'
+    config_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Config\\'
     # The source directory
-    source_dir = '/cpl3/CAMAL/Source/L1A/'
+    source_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Source\\L1A\\'
     # Directory to put output
-    out_dir = '/cpl3/'+proj_name+'/analysis/'
+    out_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\analysis\\'
     # Directory and name of library containing C codes
-    clib_path = source_dir + 'C_lib_unix/'
-    clib = 'CAMAL_C_lib_v0.so'
+    clib_path = source_dir + 'C_lib_Win64\\CAMAL_C_lib_Win64\\x64\\Release\\'
+    clib = 'CAMAL_C_lib_Win64.dll'
     # Directory containing dead time files    
-    dtt_dir = '/cpl/dhlavka/Cpl/Config/'
+    dtt_dir = config_dir
     # Directory containing overlap files
-    olap_dir = '/cpl/dhlavka/Cpl/Config/'    
+    olap_dir = config_dir    
     # Directory and name of the DEM
-    DEM_dir = config_dir + 'DEM/'
+    DEM_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\config_source\\DEM\\'
     DEM_name = 'JPL-CloudSat.dem'
     # Directory and name of C++ library with functions to read in DEM
-    DEM_lib_path = DEM_dir + 'JPL_DEM_CPP_SO/'
-    DEM_Cpp_name = 'JPL_DEM_CPP_FUNCTIONS.so'
+    DEM_lib_path = DEM_dir + 'JPL_DEM_CPP_DLL\\x64\\Release\\'
+    DEM_Cpp_name = 'JPL_DEM_CPP_DLL.dll'
 
