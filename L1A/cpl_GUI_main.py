@@ -247,6 +247,7 @@ def load_and_plot(*args):
         
     # Read in entire dataset ---
 
+    reinitialize_avgd_mask = False
     if CPL_data_obj.ingested is False:
         # Read in the data from selected files (controlled by file_ctrl)
         CPL_data_obj.data = read_entire_cls_dataset(file_ctrl)
@@ -266,6 +267,7 @@ def load_and_plot(*args):
         # CAMAL legacy. Delete later.
         ang_list.config(values=(cur_angles))
         ang_list.current(0)
+        reinitialize_avgd_mask = True	
 
     # Set the y-axis array and save other essential params ---  
     yax_type = yax_drop.get()      # get user-selected axis type
@@ -274,12 +276,12 @@ def load_and_plot(*args):
     CPL_data_obj.std_params = [CPL_data_obj.data['meta']['Header']['NumChannels'][0],nbins,nshots,1e-7,vrZ] #store in list
     nc = CPL_data_obj.std_params[0]
     nb = CPL_data_obj.std_params[1]
+    # Set the averaged mask here. In CAMAL GUI this is done outside this file.
+    if reinitialize_avgd_mask: CPL_data_obj.avgd_mask = np.zeros(nc,dtype=bool)
     #nshots = CPL_data_obj.std_params[2] -> Already defined in init file.
     vrT = CPL_data_obj.std_params[3]
     #vrZ = CPL_data_obj.std_params[4]    
-    nr = CPL_data_obj.nprofs
-    # Set the averaged mask here. In CAMAL GUI this is done outside this file.
-    CPL_data_obj.avgd_mask = np.zeros(nc,dtype=bool)    
+    nr = CPL_data_obj.nprofs    
     CPL_data_obj.z = compute_raw_bin_altitudes(nb,pointing_dir,CPL_data_obj.data['meta']['Nav']['GPS_Altitude'][0],vrZ,0.0)
     if yax_type != 'alt': CPL_data_obj.set_bin_alt_array(pointing_dir,yax_type,-1)
     curtain_type = curt_type.get() # radio button number
@@ -305,9 +307,9 @@ def load_and_plot(*args):
                 # Save the nprofs parameter. Masking out the data by look angle will
                 # alter nprofs. This will cause a bug in the code IF YOU DON'T SAVE
                 # IT HERE!!!!!!!!
-                CPL_data_obj.nprofs0 = CPL_data_obj.data.shape[0]                                             
+                CPL_data_obj.nprofs0 = CPL_data_obj.nprofs                                             
     # Use numpy method to sum together channels. Store in "samp_chan"
-    # This following statement is valid whether or not data were averaged                                    
+    # This following statement is valid whether or not data were averaged                                 
     samp_chan = CPL_data_obj.data['counts'][0:CPL_data_obj.nprofs0,
                                     selected_chan[0]-1:selected_chan[len(selected_chan)-1],
                                     :].sum(1)
