@@ -38,6 +38,12 @@
 # Laserspot computed with GPS vs. Nav wasn't matching too well.
 # Long story short, discovered I should just zero out "yaw" in 
 # GPS data for now.
+#
+# [5/29/18] Corrected range-correction
+# Fixed error of applying range-correction post-rebinning. Now background
+# subtraction and range correction are applied using the actual altitude
+# frame and before the "correct_raw_counts" routine is invoked. The
+# is done in the CPL code.
 
 
 # Import libraries <----------------------------------------------------
