@@ -140,6 +140,7 @@ alt_cutoff = 500
 ONA_cutoff = 30.0 * (pi/180.0)
 # Invalid/bad Nav values get overwritten with this value - datetime.datetime object.
 bad_cls_nav_time_value = DT.datetime(1970,1,1,0,0,0)
+# The attention bar
 attention_bar = '\n******************************\n'
 # The maximum number of hours a dataset is expected to be
 max_flt_hours = 30

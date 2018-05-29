@@ -9,7 +9,7 @@ import datetime as DT
 
 # ******** SET THE NAME OF THE PROJECT & FLIGHT DATE ********
 proj_name = 'CAMAL_17'
-flt_date = '20171205'
+flt_date = '20171207'
 
 # ******** DEFINE CONSTANTS & DATA PARAMS ********
 # Speed of light in meters per second
@@ -21,12 +21,12 @@ leapsecs = 16
 file_len_secs = 5 * 60
 # The laser rep rate in Hertz
 rep_rate = 5000.0
-# Start and end bin of solar background region
+# Start and end bin of solar background region (GUI only)
 bg_st_bin = 850
 bg_ed_bin = 950
-# Stand and end bin of solar background region in fixed frame
-ff_bg_st_bin = 770
-ff_bg_ed_bin = 820
+# Start and end altitudes of solar background region (meters)
+bg_st_alt = -500.0
+bg_ed_alt = -1500.0
 # The bin resolution in the fixed frame (m)
 vrZ_ff = 30.0
 # List containing top and bottom altitudes (m) of the fixed frame
@@ -80,7 +80,7 @@ secs_btwn_instr_UnixT_and_UTC = 18000
 # files doesn't provide an exact match to link to other clocks (seconds).
 nudge = 1.0
 # Set this to 'quick' to just grab the hard-coded time offsets below
-offset_choice = 'no'
+offset_choice = 'quick'
 def_time_offset_UnixT = DT.timedelta(seconds=1645.798)
 def_time_offset_IWG1 = DT.timedelta(seconds=33.0)
 # Roll and pitch offsets for GPS (degrees). Subtract these from read-in vals.
@@ -134,6 +134,8 @@ Nav_source = 'nav' #'nav' 'gps' or 'iwg1'
 IWG1_file = "IWG1.08Dec2017-0031.txt"
 # Don't process any data when below this alt (m). Doesn't apply to GUI.
 alt_cutoff = 10000
+# The attention bar
+attention_bar = '\n******************************\n'
 
 if (os.name != 'nt'): # IF UNIX-BASED MACHINE, DEFINE DIRECTORIES HERE
 
@@ -181,11 +183,11 @@ else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
     # Set the directory that contains configuration files
     config_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\config_source\\'
     # The source directory
-    source_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\source\\'
+    source_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\source\\L1A\\'
     # Directory to put output
     out_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\analysis\\'+proj_name+'\\'+flt_date+'\\'
     # Directory and name of library containing C codes
-    clib_path = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\source\\C_lib_Win64\\CAMAL_C_lib_Win64\\x64\\Release\\'
+    clib_path = source_dir+'C_lib_Win64\\CAMAL_C_lib_Win64\\x64\\Release\\'
     clib = 'CAMAL_C_lib_Win64.dll'
     # Directory of dead time tables
     dtt_dir = config_dir + 'dttables\\'
@@ -195,6 +197,6 @@ else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
     DEM_dir = config_dir + '\\DEM\\'
     DEM_name = 'JPL-CloudSat.dem'
     # Directory and name of C++ library with functions to read in DEM
-    DEM_lib_path = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\config_source\\DEM\\JPL_DEM_CPP_DLL\\x64\\Release\\'
+    DEM_lib_path = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\source\\DEM_reader_code\\JPL_DEM_CPP_DLL\\x64\\Release\\'
     DEM_Cpp_name = 'JPL_DEM_CPP_DLL.dll'
 

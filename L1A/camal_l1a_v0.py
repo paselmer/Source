@@ -303,7 +303,7 @@ for DTT_file in DTT_files:
 
 print('Starting core processing...') # <--------------------------------
 first_read = True
-for f in range(10,12):#range(0,nMCS_files):
+for f in range(0,nMCS_files):
     
     MCS_file = all_MCS_files[f]
     MCS_file = MCS_file.rstrip()
@@ -365,6 +365,8 @@ for f in range(10,12):#range(0,nMCS_files):
         nc = MCS_data_1file['meta']['nchans'][0]              # # of channels
         nshots = MCS_data_1file['meta']['nshots'][0]      
         vrT = MCS_data_1file['meta']['binwid'][0]
+        # Range vector, broadcast to nc x nb for vectorized operations later
+        bins_range=np.broadcast_to(np.arange(0,nb*vrZ,vrZ),(nc,nb))
         phi0_azi = 0.0
         Y = 0.0 * (pi/180.0)                                  # Initialize YPR
         P = 0.0 * (pi/180.0)
@@ -581,10 +583,29 @@ for f in range(10,12):#range(0,nMCS_files):
         if length_bin_alts > nb:
             print('Length of bin_alts vectors is > than nbins. Stopping code...')
             pdb.set_trace()
+
+        # Subtract background and correct raw counts for range (in scope of actual bin-alt frame)
+        # It's difficult to apply range correction once counts are in fixed frame.
+        counts_float32 = MCS_data_1file['counts'][i1f].astype(np.float32)
+        try:
+            bg_loc1 = np.argwhere(bin_alts <= bg_st_alt)[0][0]
+            bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[-1][0]
+            bg = np.broadcast_to(np.mean(counts_float32[:,bg_loc1:bg_loc2],axis=1),(nb,nc)).transpose()
+        except:
+            print(attention_bar)
+            print("!!!!!!! WARNING !!!!!!!")
+            print("No data within defined background region! Using background of zero.")
+            print(Nav_save[i1f]['UTC'],' ONA: ',ONA*(180.0/pi))
+            print("!!!!!!! WARNING !!!!!!!")
+            print(attention_bar)
+            bg = np.zeros((nc,nb)) 
+        range_cor_af_counts_float64 = ( ( counts_float32 - bg )
+                                          * bins_range**2  )              
     
         # Put the bins in the fixed altitude frame
-        counts_ff[:,i1f,:] = put_bins_onto_fixed_frame_C(np_clib,ffrme,
-            bin_alts,MCS_data_1file['counts'][i1f],nc) 
+        #counts_ff[:,i1f,:] = put_bins_onto_fixed_frame_C(np_clib,ffrme,
+            #bin_alts,MCS_data_1file['counts'][i1f],nc)
+        counts_ff[:,i1f,:] = put_bins_onto_fixed_frame(ffrme,bin_alts,range_cor_af_counts_float64)            
     
         i = i + 1    # increment record counter by 1
         i1f = i1f + 1  # increment record counter for current file by 1
@@ -595,10 +616,12 @@ for f in range(10,12):#range(0,nMCS_files):
     
     # Compute NRB
     EMs = convert_raw_energy_monitor_values(MCS_data_1file['meta']['EM'],nwl)
+    ff_bg_st_bin = np.argwhere(ffrme <= bg_st_alt)[0][0]
+    ff_bg_ed_bin = np.argwhere(ffrme >= bg_ed_alt)[-1][0]    
     for chan in range(0,nc):
         EMsubmit = EMs[:,wl_map[chan]]     
-        NRB[chan,:,:] = correct_raw_counts(counts_ff[chan,:,:],EMsubmit,np.arange(0,nb_ff*vrZ_ff,vrZ_ff),
-            i1f,nb_ff,ff_bg_st_bin,ff_bg_ed_bin,'NRB')
+        NRB[chan,:,:] = correct_raw_counts(counts_ff[chan,:,:],EMsubmit,
+            None,i1f,nb_ff,ff_bg_st_bin,ff_bg_ed_bin,'NRB_no_range')
             
     # Write out one file's worth of data to the hdf5 file
     meta_dset[i-nr_1file:i] = MCS_data_1file['meta']
@@ -629,19 +652,4 @@ print("NRB has been written to the HDF5 file:"+hdf5_fname)
 
 print('Total raw profiles processed: '+str(i))
 print("camal_l1a.py has finished normally.")
-#pdb.set_trace()
 
-######################################################################### BELOW THIS LINE SHALL NOT BE PART OF L1A PROCESS
-
-tit = '532 nm NRB'
-xlimits = [0,ONA_save.shape[0]]
-ylimits = [1200,200]#[900,500]
-samp_chan = NRB[2,:,:] + NRB[3,:,:]
-curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 3e9, hori_cap, pointing_dir,figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',[ylimits[0],ylimits[1]], 'recs',[xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir)
-
-#make_custom_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 3e9, hori_cap, pointing_dir,
-                      #figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',  
-                      #[ylimits[0],ylimits[1]], 'recs', [xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir, str(f).strip()+'.png',
-                      #np.arange(xlimits[0],xlimits[1]),MCS_data_1file['meta'][xlimits[0]:xlimits[1]]['scan_pos']+angle_offset,
-                      #np.arange(xlimits[0],xlimits[1]),MCS_data_1file['meta'][xlimits[0]:xlimits[1]]['scan_state'],
-                      #np.arange(xlimits[0],xlimits[1]),Nav_save['roll'][xlimits[0]:xlimits[1]])

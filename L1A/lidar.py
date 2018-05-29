@@ -88,7 +88,8 @@ def correct_raw_counts(rc,E,r,nr,nb,bg_st_bin,bg_ed_bin,opt):
     #         - NRB = NRB, corrected counts [nr,nb]
 
     # NOTES:
-    # [5/8/18] 'NRB_no_range' opt added. Select if counts are already range corrected.
+    # [5/8/18] 'NRB_no_range' opt added. Select if counts are already 
+    # background-subtracted and range-corrected.
     
     # Compute the solar background
     
