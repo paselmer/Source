@@ -15,14 +15,13 @@ import matplotlib.dates as mdates
 
 z0 = -500.0  # meters
 z1 = 20000.0
-t0 = DT.datetime(2000,8,9,15,41,30) # times
-t1 = DT.datetime(2027,8,9,15,44,45)
+t0 = DT.datetime(2014,9,18,22,40,0) # times
+t1 = DT.datetime(2014,9,19,4,0,0)
 wl_choice = 1 # 0=355, 1=532, 2=1064
-nhori = 50 # number of profiles to average
 
 # Load background-substracted counts file (NRB-style format)
 
-h5_file = '/cpl3/Podex_13/L1/NRB_Podex_13_20jan13_iwg1.hdf5'
+h5_file = L1_dir+'NRB_UAV-HS3_14_18sep14_iwg1.hdf5'
 h5f = h5py.File(h5_file, 'r')
 # Keys to data...
 #['DEM_laserspot', 'DEM_laserspot_surftype', 'DEM_nadir', 'DEM_nadir_surftype', 
@@ -87,9 +86,9 @@ ytit = 'altitude (km)'
 yax_type = 'alt'  # alt or bins
 xsize = 25
 ysize = 13
-im_file_name = 'ACEPOL_stack.png'
+im_file_name = 'NRB.png'
 
-curtain_plot(c.transpose(), nb, 30.0/1e3, z/1e3, 0, 1e9, hori_cap, pointing_dir,
+curtain_plot(c.transpose(), nb, 30.0/1e3, z/1e3, 0, 1e8, hori_cap, pointing_dir,
   xsize, ysize, CPpad, xtit, ytit, tit,  yax_type,[ylimits[0],ylimits[1]], xax_type,
   [xlimits[0],xlimits[1]], 1, 1, out_dir)
 pdb.set_trace()

@@ -8,9 +8,9 @@ import datetime as DT
 #       for Unix vs. Windows
 
 # ******** SET THE NAME OF THE PROJECT & FLIGHT DATE ********
-proj_name = 'Mabel-10'
-flt_date = '08dec10' # in "CPL" form, not "CAMAL" form
-sortie = '11-603'
+proj_name = 'UAV-HS3_14'
+flt_date = '18sep14' # in "CPL" form, not "CAMAL" form
+sortie = '14-218'
 
 # ******** SET THE TIME RANGE BOUNDARIES FOR DATA PROCESSING ********
 process_start = DT.datetime(2000,9,1,0,0,0) #yr,mon,dy,hr,min,sec
@@ -44,7 +44,7 @@ vrZ_ff = 30.0
 # List containing top and bottom altitudes (m) of the fixed frame
 ff_bot_alt,ff_top_alt = [-10e3,22.5e3]
 # This flag tells the code which equations to use to convert energy
-e_flg = 6
+e_flg = 7
 # The number of wavelengths
 nwl = 3
 # Which channels #'s are which wavelengths? (0=355,1=532,2=1064)
@@ -58,7 +58,7 @@ gps_hz = 2.0
 # An estimate of the number of records in 1 gps file
 est_gps_recs_1file = 5*60*10 + 30
 # A maximum # of IWG1 records. Data are 1 Hz and flight can be 8 hours.
-est_IWG1_recs = 30000
+est_IWG1_recs = 130000
 # An estimate of the number of nav records in 1 file
 est_nav_recs_1file = 5*60*10 + 30
 # CLS data records per second. Please make it a float!
@@ -72,17 +72,17 @@ IWG1_hz = 1.0
 # nav (refering to file type) records per second. (Please make it a float!) 
 nav_hz = 1.0
 # Set the Polarization Gain ratios for the wavelenghts [532nm, 1064nm]
-PGain = [0.00,0.50]
+PGain = [0.00,1.65]
 # Set this to the maximum possible count rate. Don't set > recs in DTT file!
 max_counts = 16000
 # Dead time tables [list]. List in channel order OR ELSE!!!
 DTT_files = ['dttable_355_9999-022410.xdr','dttable_532_11994-022410.xdr',
-    'dttable_1064par_11944-022410.xdr','dttable_1064per_20364-040116.xdr']
+    'dttable_1064par_11944-022410.xdr','dttable_1064per_11295-071912.xdr']
 # The overlap file to use
-overlap_file = 'olaptable_c130cpl-061716_comb_acta.xdr'
+overlap_file = 'olaptable_cpl-011014_comb_attrex14.xdr'
 # The number of seconds needed to convert from the instrument's Unix time
 # to UTC. Typically either 5 hours (cold season) or 4 hours (warm season).
-secs_btwn_instr_UnixT_and_UTC = 18000
+secs_btwn_instr_UnixT_and_UTC = 14400
 # Roll and pitch offsets for GPS (degrees). Subtract these from read-in vals.
 gps_roll_offset = 0.0
 gps_pitch_offset = 0.0
@@ -97,7 +97,7 @@ secs2avg = 1.0
 # Minimum number of raw profiles than can be used in an average profile
 min_avg_profs = 4
 # horizontal averaging (# of raw profiles)
-nhori = 10
+nhori = 1
 # default scale of color bar
 CBar_max = 50.0
 CBar_max_NRB = 5e13
@@ -118,7 +118,7 @@ pointing_dir = "Down"
 # default axes limits for profile plot [xmin,xmax]/[ymin,ymax]
 pp_xax_bounds_raw_counts = [0,100]
 pp_xax_bounds_bgsub_counts = [-15,45]
-pp_xax_bounds_NRB = [-7e12,5e13]
+pp_xax_bounds_NRB = [-7e12,5e10]
 pp_yax_bounds_bins = [1000,0]
 pp_yax_bounds_alt = [-10e3,20e3]
 # Y-axis bounds of the energy monitor plot
@@ -131,15 +131,16 @@ hori_cap = 20000
 # The padding around the curtain plot in inches
 CPpad = 0.1
 # For actual data processing (not the GUI), nav data source
-Nav_source = 'cls' #'nav' 'gps' 'iwg1' or 'cls'
+Nav_source = 'iwg1' #'nav' 'gps' 'iwg1' or 'cls'
 # IWG1 data file
-IWG1_file = "IWG1.20Jan2013-2149"
+IWG1_file = "IWG1_18sep14.txt"
 # Don't process any data when below this alt (m). Doesn't apply to GUI.
-alt_cutoff = 500
+alt_cutoff = 14000
 # Don't process any profiles where off-nadir angle exceeds this many radians.
 ONA_cutoff = 30.0 * (pi/180.0)
 # Invalid/bad Nav values get overwritten with this value - datetime.datetime object.
 bad_cls_nav_time_value = DT.datetime(1970,1,1,0,0,0)
+# The attention bar
 attention_bar = '\n******************************\n'
 # The maximum number of hours a dataset is expected to be
 max_flt_hours = 30
@@ -156,7 +157,7 @@ if (os.name != 'nt'): # IF UNIX-BASED MACHINE, DEFINE DIRECTORIES HERE
     # Set the directory of the L2 data
     L2_dir = '/cpl3/'+proj_name+'/L2/'
     # Set the directory that contains configuration files
-    config_dir = '/cpl3/CAMAL/Config/'
+    config_dir = '/cpl/dhlavka/Cpl/Config/'
     # The source directory
     source_dir = '/cpl3/CAMAL/Source/L1A/'
     # Directory to put output
@@ -169,7 +170,7 @@ if (os.name != 'nt'): # IF UNIX-BASED MACHINE, DEFINE DIRECTORIES HERE
     # Directory containing overlap files
     olap_dir = '/cpl/dhlavka/Cpl/Config/'
     # Directory and name of the DEM
-    DEM_dir = config_dir + 'DEM/'
+    DEM_dir = '/cpl3/CAMAL/Config/DEM/'
     DEM_name = 'JPL-CloudSat.dem'
     # Directory and name of C++ library with functions to read in DEM
     DEM_lib_path =  '/cpl3/CAMAL/Source/DEM_reader_code/JPL_DEM_CPP_SO/'

@@ -881,7 +881,7 @@ for f in range(0,nCLS_files):
     
         # Put the bins in the fixed altitude frame
         #counts_ff[:,i1f,:] = put_bins_onto_fixed_frame_C(np_clib,ffrme,
-        #    bin_alts,range_cor_af_counts_float32,nc) 
+            #bin_alts,range_cor_af_counts_float64,nc) 
         counts_ff[:,i1f,:] = put_bins_onto_fixed_frame(ffrme,bin_alts,range_cor_af_counts_float64)
     
         i = i + 1    # increment record counter by 1

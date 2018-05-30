@@ -532,7 +532,7 @@ first_read = True
 usable_file_indicies = range(usable_file_range[0],usable_file_range[1])
 trans_bin = [0,0]
 last_file = False 
-for f in range(0,nCLS_files):
+for f in range(4,5):#range(0,nCLS_files):
 
     if f not in usable_file_indicies:
         print(attention_bar)
@@ -1074,3 +1074,18 @@ print("NRB has been written to the HDF5 file:"+hdf5_fname)
 
 print('Total raw profiles processed: '+str(i))
 print("camal_l1a.py has finished normally.")
+
+######################################################################### BELOW THIS LINE SHALL NOT BE PART OF L1A PROCESS
+
+tit = '532 nm NRB'
+xlimits = [0,ONA_save.shape[0]]
+ylimits = [810,400]#[900,500]
+samp_chan = NRB[1,:,:]# + NRB[3,:,:]
+#curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 1e9, hori_cap, pointing_dir,figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',[ylimits[0],ylimits[1]], 'recs',[xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir)
+make_custom_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 1e9, hori_cap, pointing_dir,
+                      figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',  
+                      [ylimits[0],ylimits[1]], 'recs', [xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir, str(f).strip()+'.png',
+                      np.arange(xlimits[0],xlimits[1]),Nav_save['pitch'][xlimits[0]:xlimits[1]],
+                      np.arange(xlimits[0],xlimits[1]),ONA_save[xlimits[0]:xlimits[1]]*(180.0/np.pi),
+                      np.arange(xlimits[0],xlimits[1]),Nav_save['roll'][xlimits[0]:xlimits[1]])
+pdb.set_trace()

@@ -201,6 +201,25 @@ def convert_raw_energy_monitor_values(raw_EMs,nwl,instr='CAMAL',e_flg=None):
             m2_1064= -1.2727e-4
             m3_1064= 0.0
             emon_c[:,2]= m0_1064 + m1_1064*emon_t[:,2] + m2_1064*emon_t[:,2]**2 + m3_1064*emon_t[:,2]**3
+        elif e_flg == 7:
+            # GloPac10 settings (UAV-CPL) (initially valid 02/16/2010)
+            emon_t = raw_EMs.astype(np.float64)/500.0
+            emon_c = np.copy(emon_t)
+            m0_355= -2.4349
+            m1_355= 0.10332
+            m2_355= 2.5793e-04
+            m3_355= 0.0
+            emon_c[:,0]= m0_355 + m1_355*emon_t[:,0] + m2_355*emon_t[:,0]**2 + m3_355*emon_t[:,0]**3
+            m0_532= 0.36922
+            m1_532= 0.013169
+            m2_532= 2.4631e-07
+            m3_532= 0.0000
+            emon_c[:,1]= m0_532 + m1_532*emon_t[:,1] + m2_532*emon_t[:,1]**2 + m3_532*emon_t[:,1]**3
+            m0_1064= 5.2746
+            m1_1064= 0.047994
+            m2_1064= -7.1374e-06
+            m3_1064= 0.000
+            emon_c[:,2]= m0_1064 + m1_1064*emon_t[:,2] + m2_1064*emon_t[:,2]**2 + m3_1064*emon_t[:,2]**3
         elif e_flg == 9:
             # new laser box settings (ER2-CPL) 26Feb17	  
             emon_t = raw_EMs.astype(np.float64)/500.0
@@ -247,7 +266,28 @@ def convert_raw_energy_monitor_values(raw_EMs,nwl,instr='CAMAL',e_flg=None):
             m1_1064= 4.1418361e-2
             m2_1064= -4.2348e-7
             m3_1064= 0.0
-            emon_c[:,2]= m0_1064 + m1_1064*emon_t[:,2] + m2_1064*emon_t[:,2]**2 + m3_1064*emon_t[:,2]**3            
+            emon_c[:,2]= m0_1064 + m1_1064*emon_t[:,2] + m2_1064*emon_t[:,2]**2 + m3_1064*emon_t[:,2]**3 
+        elif e_flg == 12:
+            # ER2-CPL settings (initially valid 5/1/2018)
+            # Transcribed from email sent by Andrew Kupchock on 4/25/18
+            emon_t = raw_EMs.astype(np.float64)/250.0
+            emon_c = np.copy(emon_t)
+            m0_355= 0.098998716468010
+            m1_355= 2.300471133483622
+            m2_355= 0.0
+            m3_355= 0.0
+            emon_c[:,0]= m0_355*emon_t[:,0] + m1_355
+            m0_532= 0.091769246955732
+            m1_532= -1.671840124168081
+            m2_532= 0.0
+            m3_532= 0.0
+            emon_c[:,1]=  m0_532*emon_t[:,1] + m1_532
+            m0_1064= -0.000000000662217
+            m1_1064= 0.000001334169843
+            m2_1064= -0.000718950067427
+            m3_1064= 0.146344091037070
+            m4_1064= -3.508899821568728
+            emon_c[:,2]= m0_1064*emon_t[:,2]**4 + m1_1064*emon_t[:,2]**3 + m2_1064*emon_t[:,2]**2 + emon_t[:,2]*m3_1064 + m4_1064                      
         else:
              print(str(e_flg)+' is an invalid e_flg value. Stopping in Energy Monitor conversion funtion.')
              pdb.set_trace()

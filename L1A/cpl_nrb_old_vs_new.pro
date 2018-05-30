@@ -1,15 +1,15 @@
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD NEW >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-wlstr = '1064'
-datestr = '20sep12'
+wlstr = '532'
+datestr = '08dec10'
 tit_tag = 'CPL '+datestr+' '+wlstr
-filename = '/cpl3/Wallops_12/L1/NRB_Wallops_12_20sep12_cls.hdf5'
-outdir = '/cpl3/Wallops_12/analysis/'
+filename = '/cpl3/Mabel-10/L1/NRB_Mabel-10_08dec10_cls.hdf5'
+outdir = '/cpl3/Mabel-10/analysis/'
 alt1 = -0.5e3
 alt2 = 20e3
 r1 = 0
-r2 = 17400
-maxscale = 1e8
+r2 = 8000
+maxscale = 1e9
 !PATH = '/cpl/dhlavka/Cpl/Source/:' + !PATH
 
 @/cpl3/CAMAL/Source/L1A/camal_hdf5_nrb_common
@@ -32,7 +32,7 @@ STOP
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD OLD >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-NRB_file = '/cpl3/Wallops_12/Analy_complex/NRB_12922_20sep12.xdr'
+NRB_file = '/cpl3/Mabel-10/Analy_complex/NRB_11603_08dec10.xdr'
 
 fnum_nrb= 10
 fnum_cal= 11
