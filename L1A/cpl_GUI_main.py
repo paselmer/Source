@@ -545,7 +545,7 @@ def make_gps_plots():
     
     
 root = Tk()
-root.title("CPL GUI Beta")
+root.title("CPL GUI")
 
 # Set some "global" variables to initial values
 # NOTE: It seems you can only hold global data in classes!
@@ -571,7 +571,7 @@ LHSframe = ttk.Frame(root, borderwidth=2)
 
 # Image frame
 imgframe = ttk.Frame(root, width=1350, height=350, borderwidth= 2)
-im1 = source_dir+'def.png'
+im1 = source_dir+'def_cpl.png'
 photos = [ ImageTk.PhotoImage(Image.open(im1)), None ] # this list stays at main prog. level
 canvas_def_W = photos[0].width()
 canvas_def_H = photos[0].height()
