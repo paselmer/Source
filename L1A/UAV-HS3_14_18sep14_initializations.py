@@ -8,9 +8,9 @@ import datetime as DT
 #       for Unix vs. Windows
 
 # ******** SET THE NAME OF THE PROJECT & FLIGHT DATE ********
-proj_name = 'Podex_13'
-flt_date = '06feb13' # in "CPL" form, not "CAMAL" form
-sortie = '13-925'
+proj_name = 'UAV-HS3_14'
+flt_date = '18sep14' # in "CPL" form, not "CAMAL" form
+sortie = '14-218'
 
 # ******** SET THE TIME RANGE BOUNDARIES FOR DATA PROCESSING ********
 process_start = DT.datetime(2000,9,1,0,0,0) #yr,mon,dy,hr,min,sec
@@ -44,7 +44,7 @@ vrZ_ff = 30.0
 # List containing top and bottom altitudes (m) of the fixed frame
 ff_bot_alt,ff_top_alt = [-10e3,22.5e3]
 # This flag tells the code which equations to use to convert energy
-e_flg = 6
+e_flg = 7
 # The number of wavelengths
 nwl = 3
 # Which channels #'s are which wavelengths? (0=355,1=532,2=1064)
@@ -58,7 +58,7 @@ gps_hz = 2.0
 # An estimate of the number of records in 1 gps file
 est_gps_recs_1file = 5*60*10 + 30
 # A maximum # of IWG1 records. Data are 1 Hz and flight can be 8 hours.
-est_IWG1_recs = 30000
+est_IWG1_recs = 130000
 # An estimate of the number of nav records in 1 file
 est_nav_recs_1file = 5*60*10 + 30
 # CLS data records per second. Please make it a float!
@@ -72,23 +72,23 @@ IWG1_hz = 1.0
 # nav (refering to file type) records per second. (Please make it a float!) 
 nav_hz = 1.0
 # Set the Polarization Gain ratios for the wavelenghts [532nm, 1064nm]
-PGain = [0.00,0.766]
+PGain = [0.00,1.65]
 # Set this to the maximum possible count rate. Don't set > recs in DTT file!
 max_counts = 16000
 # Dead time tables [list]. List in channel order OR ELSE!!!
-DTT_files = ['dttable_355_0135-072102.xdr','dttable_532_11296-021009_30m.xdr',
-    'dttable_1064par_8351-021009_30m.xdr','dttable_1064per_8346-021009_30m.xdr']
+DTT_files = ['dttable_355_9999-022410.xdr','dttable_532_11994-022410.xdr',
+    'dttable_1064par_11944-022410.xdr','dttable_1064per_11295-071912.xdr']
 # The overlap file to use
-overlap_file = 'olaptable_cpl-ccviceax_comb_iceland12.xdr'
+overlap_file = 'olaptable_cpl-011014_comb_attrex14.xdr'
 # The number of seconds needed to convert from the instrument's Unix time
 # to UTC. Typically either 5 hours (cold season) or 4 hours (warm season).
-secs_btwn_instr_UnixT_and_UTC = 18000
+secs_btwn_instr_UnixT_and_UTC = 14400
 # Roll and pitch offsets for GPS (degrees). Subtract these from read-in vals.
 gps_roll_offset = 0.0
 gps_pitch_offset = 0.0
 # Subtract this number of seconds from CLS data to manually fudge a better
 # match to the Nav data.
-nudge = -1.0
+nudge = 0.0
 
 
 # ******** CONFIGURATION PARAMETERS ********
@@ -131,9 +131,9 @@ hori_cap = 20000
 # The padding around the curtain plot in inches
 CPpad = 0.1
 # For actual data processing (not the GUI), nav data source
-Nav_source = 'cls' #'nav' 'gps' 'iwg1' or 'cls'
+Nav_source = 'iwg1' #'nav' 'gps' 'iwg1' or 'cls'
 # IWG1 data file
-IWG1_file = "IWG1.20Jan2013-2149"
+IWG1_file = "IWG1_18sep14.txt"
 # Don't process any data when below this alt (m). Doesn't apply to GUI.
 alt_cutoff = 14000
 # Don't process any profiles where off-nadir angle exceeds this many radians.

@@ -1,14 +1,14 @@
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD NEW >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 wlstr = '532'
-datestr = '08dec10'
+datestr = '06feb13'
 tit_tag = 'CPL '+datestr+' '+wlstr
-filename = '/cpl3/Mabel-10/L1/NRB_Mabel-10_08dec10_cls.hdf5'
+filename = '/cpl3/Podex_13/L1/NRB_Podex_13_06feb13_cls.hdf5'
 outdir = '/cpl3/Mabel-10/analysis/'
 alt1 = -0.5e3
 alt2 = 20e3
 r1 = 0
-r2 = 8000
+r2 = 20000
 maxscale = 1e9
 !PATH = '/cpl/dhlavka/Cpl/Source/:' + !PATH
 
@@ -32,7 +32,7 @@ STOP
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD OLD >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-NRB_file = '/cpl3/Mabel-10/Analy_complex/NRB_11603_08dec10.xdr'
+NRB_file = '/cpl3/Podex_13/Analy_complex/NRB_13925_06feb13.xdr'
 
 fnum_nrb= 10
 fnum_cal= 11

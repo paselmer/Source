@@ -12,6 +12,12 @@
 # NRB first successfully calculated. Used Podex_13 data.
 #
 # [5/7/18] Variable time-averaging of data successful
+#
+# [5/31/18] "Banding" issue fixed
+# Fixed issue where banding would appear in NRB profiles
+# (very obvious in images) due to integer rounding of
+# counts array. Basically fixed by converting counts
+# array from an int array to float array.
 
 
 # Import libraries <----------------------------------------------------
@@ -807,18 +813,21 @@ for f in range(0,nCLS_files):
             i = i + 1
             i1f = i1f + 1
             continue
+
+        # Convert to float for subsequent manipulation within this loop
+        counts_float32 = CLS_data_1file['counts'][i1f].astype(np.float32)
             
         # Apply dead time and overlap corrections
         cc = 0 # count the channels
         for DTT_file in DTT_files:
             try:
-                CLS_data_1file['counts'][i1f][cc,:] = DTT[ cc, np.rint(CLS_data_1file['counts'][i1f][cc,:]).astype(np.uint32) ]
+                counts_float32[cc,:] = DTT[ cc, np.rint(counts_float32[cc,:]).astype(np.uint32) ]
             except IndexError:
                 # Probably a noise spike
-                spike_locs = np.where( CLS_data_1file['counts'][i1f][cc,:] > DTT.shape[1] )
-                CLS_data_1file['counts'][i1f][cc,spike_locs[0][0]] = 0
+                spike_locs = np.where( counts_float32[cc,:] > DTT.shape[1] )
+                counts_float32[cc,spike_locs[0][0]] = 0.0
             # In the following line, data are rounded to nearest integer due to data typing requirement
-            CLS_data_1file['counts'][i1f][cc,:] = overlaps[wl_map[cc],:] * CLS_data_1file['counts'][i1f][cc,:]
+            counts_float32[cc,:] = overlaps[wl_map[cc],:] * counts_float32[cc,:]
             cc += 1
     
         # Calculate the off nadir angle
@@ -863,7 +872,6 @@ for f in range(0,nCLS_files):
 
         # Subtract background and correct raw counts for range (in scope of actual bin-alt frame)
         # It's difficult to apply range correction once counts are in fixed frame.
-        counts_float32 = CLS_data_1file['counts'][i1f].astype(np.float32)
         try:
             bg_loc1 = np.argwhere(bin_alts <= bg_st_alt)[0][0]
             bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[-1][0]
@@ -881,7 +889,7 @@ for f in range(0,nCLS_files):
     
         # Put the bins in the fixed altitude frame
         #counts_ff[:,i1f,:] = put_bins_onto_fixed_frame_C(np_clib,ffrme,
-            #bin_alts,range_cor_af_counts_float64,nc) 
+        #    bin_alts,range_cor_af_counts_float32,nc) 
         counts_ff[:,i1f,:] = put_bins_onto_fixed_frame(ffrme,bin_alts,range_cor_af_counts_float64)
     
         i = i + 1    # increment record counter by 1

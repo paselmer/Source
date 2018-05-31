@@ -12,6 +12,12 @@
 # NRB first successfully calculated. Used Podex_13 data.
 #
 # [5/7/18] Variable time-averaging of data successful
+#
+# [5/31/18] "Banding" issue fixed
+# Fixed issue where banding would appear in NRB profiles
+# (very obvious in images) due to integer rounding of
+# counts array. Basically fixed by converting counts
+# array from an int array to float array.
 
 
 # Import libraries <----------------------------------------------------
@@ -532,7 +538,7 @@ first_read = True
 usable_file_indicies = range(usable_file_range[0],usable_file_range[1])
 trans_bin = [0,0]
 last_file = False 
-for f in range(4,5):#range(0,nCLS_files):
+for f in range(44,45):#range(0,nCLS_files):
 
     if f not in usable_file_indicies:
         print(attention_bar)
@@ -807,18 +813,21 @@ for f in range(4,5):#range(0,nCLS_files):
             i = i + 1
             i1f = i1f + 1
             continue
+
+        # Convert to float for subsequent manipulation within this loop
+        counts_float32 = CLS_data_1file['counts'][i1f].astype(np.float32)
             
         # Apply dead time and overlap corrections
         cc = 0 # count the channels
         for DTT_file in DTT_files:
             try:
-                CLS_data_1file['counts'][i1f][cc,:] = DTT[ cc, np.rint(CLS_data_1file['counts'][i1f][cc,:]).astype(np.uint32) ]
+                counts_float32[cc,:] = DTT[ cc, np.rint(counts_float32[cc,:]).astype(np.uint32) ]
             except IndexError:
                 # Probably a noise spike
-                spike_locs = np.where( CLS_data_1file['counts'][i1f][cc,:] > DTT.shape[1] )
-                CLS_data_1file['counts'][i1f][cc,spike_locs[0][0]] = 0
+                spike_locs = np.where( counts_float32[cc,:] > DTT.shape[1] )
+                counts_float32[cc,spike_locs[0][0]] = 0.0
             # In the following line, data are rounded to nearest integer due to data typing requirement
-            CLS_data_1file['counts'][i1f][cc,:] = overlaps[wl_map[cc],:] * CLS_data_1file['counts'][i1f][cc,:]
+            counts_float32[cc,:] = overlaps[wl_map[cc],:] * counts_float32[cc,:]
             cc += 1
     
         # Calculate the off nadir angle
@@ -863,7 +872,6 @@ for f in range(4,5):#range(0,nCLS_files):
 
         # Subtract background and correct raw counts for range (in scope of actual bin-alt frame)
         # It's difficult to apply range correction once counts are in fixed frame.
-        counts_float32 = CLS_data_1file['counts'][i1f].astype(np.float32)
         try:
             bg_loc1 = np.argwhere(bin_alts <= bg_st_alt)[0][0]
             bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[-1][0]
@@ -1079,10 +1087,14 @@ print("camal_l1a.py has finished normally.")
 
 tit = '532 nm NRB'
 xlimits = [0,ONA_save.shape[0]]
-ylimits = [810,400]#[900,500]
+ylimits = [810,0]#[900,500]
 samp_chan = NRB[1,:,:]# + NRB[3,:,:]
-#curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 1e9, hori_cap, pointing_dir,figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',[ylimits[0],ylimits[1]], 'recs',[xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir)
-make_custom_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 1e9, hori_cap, pointing_dir,
+curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 9e7, hori_cap, pointing_dir,
+                      figW, figL, CPpad, 'records', 'alt (m)', tit, 'alt', ylimits, 'recs', 
+                      xlimits, scale_alt_OofM, 1, out_dir)
+pdb.set_trace()
+
+make_custom_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 1e8, hori_cap, pointing_dir,
                       figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',  
                       [ylimits[0],ylimits[1]], 'recs', [xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir, str(f).strip()+'.png',
                       np.arange(xlimits[0],xlimits[1]),Nav_save['pitch'][xlimits[0]:xlimits[1]],
