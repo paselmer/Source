@@ -8,9 +8,9 @@ import datetime as DT
 #       for Unix vs. Windows
 
 # ******** SET THE NAME OF THE PROJECT & FLIGHT DATE ********
-proj_name = 'Podex_13'
-flt_date = '06feb13' # in "CPL" form, not "CAMAL" form
-sortie = '13-925'
+proj_name = 'Wallops_12'
+flt_date = '20sep12' # in "CPL" form, not "CAMAL" form
+sortie = '12-922'
 
 # ******** SET THE TIME RANGE BOUNDARIES FOR DATA PROCESSING ********
 process_start = DT.datetime(2000,9,1,0,0,0) #yr,mon,dy,hr,min,sec
@@ -82,7 +82,7 @@ DTT_files = ['dttable_355_0135-072102.xdr','dttable_532_11296-021009_30m.xdr',
 overlap_file = 'olaptable_cpl-ccviceax_comb_iceland12.xdr'
 # The number of seconds needed to convert from the instrument's Unix time
 # to UTC. Typically either 5 hours (cold season) or 4 hours (warm season).
-secs_btwn_instr_UnixT_and_UTC = 18000
+secs_btwn_instr_UnixT_and_UTC = 14400
 # Roll and pitch offsets for GPS (degrees). Subtract these from read-in vals.
 gps_roll_offset = 0.0
 gps_pitch_offset = 0.0
@@ -135,7 +135,7 @@ Nav_source = 'cls' #'nav' 'gps' 'iwg1' or 'cls'
 # IWG1 data file
 IWG1_file = "IWG1.20Jan2013-2149"
 # Don't process any data when below this alt (m). Doesn't apply to GUI.
-alt_cutoff = 14000
+alt_cutoff = 500
 # Don't process any profiles where off-nadir angle exceeds this many radians.
 ONA_cutoff = 30.0 * (pi/180.0)
 # Invalid/bad Nav values get overwritten with this value - datetime.datetime object.

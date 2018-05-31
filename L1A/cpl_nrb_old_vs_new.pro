@@ -1,15 +1,15 @@
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD NEW >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-wlstr = '532'
-datestr = '06feb13'
+wlstr = '1064'
+datestr = '20sep12'
 tit_tag = 'CPL '+datestr+' '+wlstr
-filename = '/cpl3/Podex_13/L1/NRB_Podex_13_06feb13_cls.hdf5'
-outdir = '/cpl3/Mabel-10/analysis/'
+filename = '/cpl3/Wallops_12/L1/NRB_Wallops_12_20sep12_cls.hdf5'
+outdir = '/cpl3/Wallops_12/analysis/'
 alt1 = -0.5e3
 alt2 = 20e3
 r1 = 0
-r2 = 20000
-maxscale = 1e9
+r2 = 17750
+maxscale = 1e8
 !PATH = '/cpl/dhlavka/Cpl/Source/:' + !PATH
 
 @/cpl3/CAMAL/Source/L1A/camal_hdf5_nrb_common
@@ -32,7 +32,7 @@ STOP
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD OLD >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-NRB_file = '/cpl3/Podex_13/Analy_complex/NRB_13925_06feb13.xdr'
+NRB_file = '/cpl3/Wallops_12/Analy_complex/NRB_12922_20sep12.xdr'
 
 fnum_nrb= 10
 fnum_cal= 11
