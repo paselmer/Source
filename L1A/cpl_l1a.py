@@ -897,6 +897,13 @@ for f in range(0,nCLS_files):
          
     if i == 0: continue
     
+    # Apply polarization gain ratio to 1064 perpendicular channel
+    print(attention_bar)
+    print("Applying pgain factor to hard-coded channel of index 3")
+    print("This should represent the 1064 nm channel")
+    print(attention_bar)
+    counts_ff[3,:,:] = counts_ff[3,:,:] * PGain[1]
+    
     # Compute NRB
     EMs = convert_raw_energy_monitor_values(CLS_data_1file['meta']['Engineering']['LaserEnergyMonitors'],nwl,'CPL',e_flg)
     ff_bg_st_bin = np.argwhere(ffrme <= bg_st_alt)[0][0]

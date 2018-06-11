@@ -46,7 +46,7 @@ def create_a_file_list_in_Windows(file_list,search_str):
     cmd_feedback = check_output(cmd, shell=True)
     cmd = 'del ' + file_list
     cmd_feedback = check_output(cmd, shell=True)
-    cmd = 'dir ' + raw_dir + search_str + ' /B/S/OD > ' + file_list 
+    cmd = 'dir ' + raw_dir + search_str + ' /B/S/ON > ' + file_list 
     cmd_feedback = check_output(cmd, shell=True)
     
     
