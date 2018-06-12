@@ -8,9 +8,9 @@ import datetime as DT
 #       for Unix vs. Windows
 
 # ******** SET THE NAME OF THE PROJECT & FLIGHT DATE ********
-proj_name = 'Iceax11'
-flt_date = '24mar11' # in "CPL" form, not "CAMAL" form
-sortie = '11-624'
+proj_name = 'Wallops_12'
+flt_date = '20sep12' # in "CPL" form, not "CAMAL" form
+sortie = '12-922'
 
 # ******** SET THE TIME RANGE BOUNDARIES FOR DATA PROCESSING ********
 process_start = DT.datetime(2000,9,1,0,0,0) #yr,mon,dy,hr,min,sec
@@ -38,7 +38,7 @@ bg_st_bin = 730
 bg_ed_bin = 800
 # Start and end altitudes of solar background region (meters)
 bg_st_alt = -500.0
-bg_ed_alt = -1500.0
+bg_ed_alt = -2600.0
 # The bin resolution in the fixed frame (m)
 vrZ_ff = 30.0
 # List containing top and bottom altitudes (m) of the fixed frame
@@ -72,14 +72,14 @@ IWG1_hz = 1.0
 # nav (refering to file type) records per second. (Please make it a float!) 
 nav_hz = 1.0
 # Set the Polarization Gain ratios for the wavelenghts [532nm, 1064nm]
-PGain = [0.00,0.74]
+PGain = [0.00,0.766]
 # Set this to the maximum possible count rate. Don't set > recs in DTT file!
 max_counts = 16000
 # Dead time tables [list]. List in channel order OR ELSE!!!
 DTT_files = ['dttable_355_0135-072102.xdr','dttable_532_11296-021009_30m.xdr',
     'dttable_1064par_8351-021009_30m.xdr','dttable_1064per_8346-021009_30m.xdr']
 # The overlap file to use
-overlap_file = 'olaptable_cpl-clasmabavgw_comb_mabel10.xdr'
+overlap_file = 'olaptable_cpl-ccviceax_comb_iceland12.xdr'
 # The number of seconds needed to convert from the instrument's Unix time
 # to UTC. Typically either 5 hours (cold season) or 4 hours (warm season).
 secs_btwn_instr_UnixT_and_UTC = 14400
@@ -181,19 +181,19 @@ else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
 
     # ******** DEFINE ALL DIRECTORIES ********
     # Set the directory of the raw data
-    raw_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\'
+    raw_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\'+sortie+'\\'
     # Set the directory of the L0 data
-    L0_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\L0\\'
+    L0_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\L0\\'
     # Set the directory of the L1 data
-    L1_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\L1\\'
+    L1_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\L1\\'
     # Set the directory of the L2 data
-    L2_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\L2\\'
+    L2_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\L2\\'
     # Set the directory that contains configuration files
     config_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Config\\'
     # The source directory
     source_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Source\\L1A\\'
     # Directory to put output
-    out_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\analysis\\'
+    out_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\analysis\\'
     # Directory and name of library containing C codes
     clib_path = source_dir + 'C_lib_Win64\\CAMAL_C_lib_Win64\\x64\\Release\\'
     clib = 'CAMAL_C_lib_Win64.dll'
@@ -205,6 +205,6 @@ else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
     DEM_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\config_source\\DEM\\'
     DEM_name = 'JPL-CloudSat.dem'
     # Directory and name of C++ library with functions to read in DEM
-    DEM_lib_path = DEM_dir + 'JPL_DEM_CPP_DLL\\x64\\Release\\'
+    DEM_lib_path = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Source\\DEM_reader_code\\JPL_DEM_CPP_DLL\\x64\\Release\\'
     DEM_Cpp_name = 'JPL_DEM_CPP_DLL.dll'
 
