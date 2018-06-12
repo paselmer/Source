@@ -1,19 +1,20 @@
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD NEW >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-wlstr = '1064'
-datestr = '20sep12'
+wlstr = '355'
+datestr = '06feb13'
 tit_tag = 'CPL '+datestr+' '+wlstr
-filename = '/cpl3/Wallops_12/L1/NRB_Wallops_12_20sep12_cls.hdf5'
-outdir = '/cpl3/Wallops_12/analysis/'
+filename = '/cpl3/Podex_13/L1/NRB_Podex_13_06feb13_cls.hdf5'
+outdir = '/cpl3/Podex_13/analysis/'
 alt1 = -0.5e3
 alt2 = 20e3
 r1 = 0
-r2 = 17750
-maxscale = 1e8
+r2 = -99 ;-99 for all
+maxscale = 5e8
 !PATH = '/cpl/dhlavka/Cpl/Source/:' + !PATH
 
 @/cpl3/CAMAL/Source/L1A/camal_hdf5_nrb_common
 cpl_hdf5_nrb_reader, filename
+if r2 eq -99 then r2 = num_recs[0]-1
 
 ; Only use 1 wavelength to save memory. NRB files are huge at raw rez.
 if wlstr eq '355' then nrb = transpose( nrb[*,r1:r2,0] )
@@ -32,7 +33,7 @@ STOP
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD OLD >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-NRB_file = '/cpl3/Wallops_12/Analy_complex/NRB_12922_20sep12.xdr'
+NRB_file = '/cpl3/Podex_13/Analy_complex/NRB_13925_06feb13.xdr'
 
 fnum_nrb= 10
 fnum_cal= 11
@@ -118,7 +119,7 @@ NRB_RD4_BLOCK_PAS, num_vbins,nwl,eof_nrb,proftot,profcnt,frame_top, $
 
 if wlstr eq '355' then nrb = transpose( reform( nrb_smo[*,0,r1:r2] ) )
 if wlstr eq '532' then nrb = transpose( reform( nrb_smo[*,1,r1:r2] ) )
-if wlstr eq '1064' then nrb = transpose( reform( nrb_smo[*,2,r1:r2]+nrb_smo[*,3,*] ) )
+if wlstr eq '1064' then nrb = transpose( reform( nrb_smo[*,2,r1:r2] ) )
 vlocs = where((ht_m ge alt1) and (ht_m le alt2))
 nrb = nrb[*,vlocs]
 ht_m = ht_m[vlocs]

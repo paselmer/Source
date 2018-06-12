@@ -18,6 +18,11 @@
 # (very obvious in images) due to integer rounding of
 # counts array. Basically fixed by converting counts
 # array from an int array to float array.
+#
+# [6/12/18] Code modified to accomodate wonky overlap
+# Noticeable vertical "banding" was present in images of NRB.
+# Determined that it was caused by CPL's strange overlaps.
+# Fixed the issue by applying overlap after background sub.
 
 
 # Import libraries <----------------------------------------------------
@@ -634,7 +639,7 @@ for f in range(0,nCLS_files):
         #nshots set in config file. not in raw data (CLS) [4/6/18]
         vrT = 1e-7 #CLS_data_1file['meta']['binwid'][0]
         # Range vector, broadcast to nc x nb for vectorized operations later
-        bins_range=np.broadcast_to(np.arange(0,nb*vrZ,vrZ),(nc,nb))
+        bins_range=np.broadcast_to(np.arange(0,nb*vrZ,vrZ,dtype=np.float32),(nc,nb))
         Y = 0.0 * (pi/180.0)                                  # Initialize YPR
         P = 0.0 * (pi/180.0)
         R = 0.0 * (pi/180.0)
@@ -657,9 +662,18 @@ for f in range(0,nCLS_files):
         # Overlap is one long array, where first nbins (833) are
         # 355, next nbins are 532, and next (final) nbins are 1064.
         overlaps = overlap_vector.reshape((nwl,nb))
+        # Make the overlap_vector into an array where the 1st dim. lines up sequentially
+        # with the channels
+        overlaps_chan_seq = np.ones((nc,nb),dtype=overlaps.dtype)
+        for chan in range(0,nc):
+            overlaps_chan_seq[chan,:] = overlaps[wl_map[chan],:]
         # Open the hdf5 file and create the datasets
         hdf5_fname = L1_dir+'NRB_'+proj_name+'_'+flt_date+'_'+Nav_source+'.hdf5'
-        hdf5_file = h5py.File(hdf5_fname, 'a')         
+        hdf5_file = h5py.File(hdf5_fname, 'a')
+        # Open the lat/lon GEOS met data sampling CSV file
+        GEOS_samp_fname = L1_dir+'lat_lon_UTC_'+proj_name+'_'+flt_date+'_'+Nav_source+'.txt'
+        GEOS_fobj = open(GEOS_samp_fname, 'wt')
+        GEOS_fobj.write('lon,lat,time\n') # file header     
         try:
             PGain_dset = hdf5_file.create_dataset("PGain", (len(PGain),), np.float32)
             nav_dset = hdf5_file.create_dataset("nav", (1,), maxshape=(None,), dtype=nav_save_struct)
@@ -733,12 +747,15 @@ for f in range(0,nCLS_files):
             Nav_save[i1f]['heading'] = np.arctan2(Nav_match['east'],Nav_match['north'])*(180.0/np.pi)
             Nav_save[i1f]['lon'] = Nav_match['lon']
             Nav_save[i1f]['lat'] = Nav_match['lat'] 
-            Nav_save[i1f]['GPS_alt'] = Nav_match['alt']           
-            Nav_save[i1f]['UTC'] = np.asarray(list(gps_UTC_interp[interp2orig_indicies[i1f]].strftime(
-                "%Y-%m-%dT%H:%M:%S.%f").encode('utf8')),dtype=np.uint8)
+            Nav_save[i1f]['GPS_alt'] = Nav_match['alt']
+            time_str = gps_UTC_interp[interp2orig_indicies[i1f]].strftime("%Y-%m-%dT%H:%M:%S.%f")           
+            Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
             Y = 0.0# Nav_match['yaw'] * (pi/180.0) Woah! This isn't what I think yaw should be [3/22/18]
             P = Nav_match['pitch'] * (pi/180.0)
-            R = Nav_match['roll'] * (pi/180.0)             
+            R = Nav_match['roll'] * (pi/180.0) 
+            # Write 'lat,lon,UTC' out to file
+            GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['lon'],Nav_match['lat'],time_str[:19])
+            GEOS_fobj.write(GEOS_out_str)            
         
         elif Nav_source == 'nav':
   
@@ -756,12 +773,15 @@ for f in range(0,nCLS_files):
             Nav_save[i1f]['heading'] = Nav_match['heading']
             Nav_save[i1f]['lon'] = Nav_match['lon']
             Nav_save[i1f]['lat'] = Nav_match['lat']
-            Nav_save[i1f]['UTC'] = np.asarray(list(Nav_match['UTC'].strftime(
-                "%Y-%m-%dT%H:%M:%S.%f").encode('utf8')),dtype=np.uint8)
+            time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")
+            Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt']
             Y = Nav_match['drift'] * (pi/180.0) 
             P = Nav_match['pitch'] * (pi/180.0)
             R = Nav_match['roll'] * (pi/180.0)  
+            # Write 'lat,lon,UTC' out to file
+            GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['lon'],Nav_match['lat'],time_str[:19])
+            GEOS_fobj.write(GEOS_out_str)
             
         elif Nav_source == 'iwg1':
             
@@ -777,12 +797,15 @@ for f in range(0,nCLS_files):
             # The following line is necessary to get a clean, interpretable,
             # time to write out to the HDF5 file. It will essetially be a
             # byte array for IDL.
-            Nav_save[i1f]['UTC'] = np.asarray(list(Nav_match['UTC'].strftime(
-                "%Y-%m-%dT%H:%M:%S.%f").encode('utf8')),dtype=np.uint8)
+            time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")
+            Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt']
             Y = 0.0 #Nav_match['drift'] * (pi/180.0) 
             P = Nav_match['pitch'] * (pi/180.0)
             R = Nav_match['roll'] * (pi/180.0)
+            # Write 'lat,lon,UTC' out to file
+            GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['lon'],Nav_match['lat'],time_str[:19])
+            GEOS_fobj.write(GEOS_out_str)
 
         elif Nav_source == 'cls':
 
@@ -798,12 +821,15 @@ for f in range(0,nCLS_files):
             # The following line is necessary to get a clean, interpretable,
             # time to write out to the HDF5 file. It will essetially be a
             # byte array for IDL.
-            Nav_save[i1f]['UTC'] = np.asarray(list(Nav_match['UTC_Time'].strftime(
-                "%Y-%m-%dT%H:%M:%S.%f").encode('utf8')),dtype=np.uint8)
+            time_str = Nav_match['UTC_Time'].strftime("%Y-%m-%dT%H:%M:%S.%f")
+            Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_Altitude']
             Y = 0.0 #Nav_match['drift'] * (pi/180.0) 
             P = Nav_match['PitchAngle'] * (pi/180.0)
             R = Nav_match['RollAngle'] * (pi/180.0)                        
+            # Write 'lat,lon,UTC' out to file
+            GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['GPS_Longitude'],Nav_match['GPS_Latitude'],time_str[:19])
+            GEOS_fobj.write(GEOS_out_str)
     
         # Proceed no farther in processing if altitude is not high enough
         if Nav_save[i1f]['GPS_alt'] < alt_cutoff:
@@ -817,17 +843,15 @@ for f in range(0,nCLS_files):
         # Convert to float for subsequent manipulation within this loop
         counts_float32 = CLS_data_1file['counts'][i1f].astype(np.float32)
             
-        # Apply dead time and overlap corrections
+        # Apply dead time correction
         cc = 0 # count the channels
         for DTT_file in DTT_files:
             try:
-                counts_float32[cc,:] = DTT[ cc, np.rint(counts_float32[cc,:]).astype(np.uint32) ]
+                counts_float32[cc,:] = DTT[ cc, CLS_data_1file['counts'][i1f,cc,:] ]
             except IndexError:
                 # Probably a noise spike
                 spike_locs = np.where( counts_float32[cc,:] > DTT.shape[1] )
                 counts_float32[cc,spike_locs[0][0]] = 0.0
-            # In the following line, data are rounded to nearest integer due to data typing requirement
-            counts_float32[cc,:] = overlaps[wl_map[cc],:] * counts_float32[cc,:]
             cc += 1
     
         # Calculate the off nadir angle
@@ -874,7 +898,7 @@ for f in range(0,nCLS_files):
         # It's difficult to apply range correction once counts are in fixed frame.
         try:
             bg_loc1 = np.argwhere(bin_alts <= bg_st_alt)[0][0]
-            bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[-1][0]
+            bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[-1][0]	    
             bg = np.broadcast_to(np.mean(counts_float32[:,bg_loc1:bg_loc2],axis=1),(nb,nc)).transpose()
         except:
             print(attention_bar)
@@ -883,14 +907,19 @@ for f in range(0,nCLS_files):
             print(Nav_save[i1f]['UTC'],' ONA: ',ONA*(180.0/pi))
             print("!!!!!!! WARNING !!!!!!!")
             print(attention_bar)
-            bg = np.zeros((nc,nb)) 
-        range_cor_af_counts_float64 = ( ( counts_float32 - bg )
-                                          * bins_range**2  )  
+            bg = np.zeros((nc,nb))
+        range_cor_af_counts_float32 = ( ( counts_float32 - bg )
+                                          * bins_range**2  ) 
+
+        # Apply overlap correction here. I would have applied it at the same time as the
+        # deadtime, except CPL's overlaps can be funky in far ranges, which interferes with
+        # background sub.
+        range_cor_af_counts_float32 = range_cor_af_counts_float32 * overlaps_chan_seq
     
         # Put the bins in the fixed altitude frame
         #counts_ff[:,i1f,:] = put_bins_onto_fixed_frame_C(np_clib,ffrme,
         #    bin_alts,range_cor_af_counts_float32,nc) 
-        counts_ff[:,i1f,:] = put_bins_onto_fixed_frame(ffrme,bin_alts,range_cor_af_counts_float64)
+        counts_ff[:,i1f,:] = put_bins_onto_fixed_frame(ffrme,bin_alts,range_cor_af_counts_float32)
     
         i = i + 1    # increment record counter by 1
         i1f = i1f + 1  # increment record counter for current file by 1
@@ -1083,6 +1112,7 @@ print('Main L1A execution finished at: ',DT.datetime.now())
 
 num_recs_dset[:] = nrecs
 hdf5_file.close()
+GEOS_fobj.close()
 print("NRB has been written to the HDF5 file:"+hdf5_fname)
 
 # The final message
@@ -1092,11 +1122,11 @@ print("camal_l1a.py has finished normally.")
 
 ######################################################################### BELOW THIS LINE SHALL NOT BE PART OF L1A PROCESS
 
-tit = '532 nm NRB'
+tit = '355 nm NRB'
 xlimits = [0,ONA_save.shape[0]]
 ylimits = [810,0]#[900,500]
-samp_chan = NRB[1,:,:]# + NRB[3,:,:]
-curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 9e7, hori_cap, pointing_dir,
+samp_chan = NRB[0,:,:]# + NRB[3,:,:]
+curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 5e8, hori_cap, pointing_dir,
                       figW, figL, CPpad, 'records', 'alt (m)', tit, 'alt', ylimits, 'recs', 
                       xlimits, scale_alt_OofM, 1, out_dir)
 pdb.set_trace()

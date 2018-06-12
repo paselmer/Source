@@ -93,7 +93,7 @@ def correct_raw_counts(rc,E,r,nr,nb,bg_st_bin,bg_ed_bin,opt):
     
     # Compute the solar background
     
-    bg = compute_solar_background(rc,bg_st_bin,bg_ed_bin)
+    bg = compute_solar_background(rc,bg_st_bin,bg_ed_bin)  
     
     # Compute NRB
 
