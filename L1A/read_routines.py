@@ -269,10 +269,16 @@ def read_in_IWG1_data(fname,est_recs):
             
             
             
-def read_in_nav_data(fname, est_recs, UTC_adj):
+def read_in_nav_data(fname, est_recs, UTC_adj=DT.timedelta(0,0,0)):
     """ Routine to read in the IWG1 data in from those "nav" files 
         captured by the instrument.
     """
+    
+    # [6/18/18]
+    # Now works for files produced by CPL, in addition to those produced
+    # by CAMAL! First, code tries to read in CAMAL-style, then it tries
+    # CPL. If neither works, it assumes bad file/data. The 2 file formats
+    # only differ in their first column.
     
     nav_data_1file = np.zeros(est_recs,dtype=nav_struct)
     
@@ -296,8 +302,14 @@ def read_in_nav_data(fname, est_recs, UTC_adj):
             # invalids, but just to be extra safe (say, user passes a
             # non-IWG1 file to this routine), this try/except block will
             # safety stop code in debug mode.
-            try:
+            print_once = True
+            try: # CAMAL style?
                 nav_data_1file['UnixT'][r] = DT.datetime.strptime(row[0],datetimeformatA) + UTC_adj
+            except:
+                if print_once: print(attention_bar+"Not a CAMAL-style Nav text file"+attention_bar)
+                print_once = False
+                pass
+            try: #Same format after row[0] for CAMAL, ACATS, & CPL
                 nav_data_1file['UTC'][r] = DT.datetime.strptime(row[1],datetimeformatB)
                 nav_data_1file['lat'][r] = row[2]
                 nav_data_1file['lon'][r] = row[3]
@@ -330,7 +342,7 @@ def read_in_nav_data(fname, est_recs, UTC_adj):
                 nav_data_1file['air_sun_elev'][r] = row[30]
                 nav_data_1file['so_azi'][r] = row[31]
                 nav_data_1file['air_sun_azi'][r] = row[32]
-                r += 1
+                r += 1  
             except:
                 print('There is a bad record in this file.')
                 print('Bad record in : '+fname)
@@ -430,11 +442,17 @@ def read_entire_gps_dataset(scrub='no'):
     return [gps_data_all, gps_UTC] 
     
     
-def read_entire_nav_dataset():
+def read_entire_nav_dataset(search_str = '*nav*'):
     """ Read in entire nav file dataset (all files) """
+    
+    # [6/18/18] 
+    # Changed search_str from 'nav*' to '*nav*' so that
+    # code would be able to read the CPL-style nav files. Made this a
+    # default argument to this function, as opposed to hard-coding it
+    # into the body of the function so that it can easily be adapting to
+    # calling code's needs.
 
     nav_file_list = 'nav_file_list.txt'
-    search_str = 'nav*'
     create_a_file_list(nav_file_list,search_str)    
             
     with open(nav_file_list) as nav_list_fobj:

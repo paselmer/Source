@@ -25,7 +25,14 @@
 # Fixed the issue by applying overlap after background sub.
 # GEOS-lon-lat-UTC output file is now created by this code.
 # Prior to this date it had not been.
-
+#
+# [6/18/18] Nav_source of "nav" now tested for first time
+# Tested using "nav" text files as the source of nav data for processing
+# for ACTA-18 27apr18 flight. Worked out a few kinks - Windows being
+# dumb with its 'dir' command, slight difference between CAMAL and CPL
+# style nav text files. Visually compared images of NRB processed using
+# CLS and NRB processed using Nav. They appeared identical. 20-degree 
+# rolls throughout.
 
 # Import libraries <----------------------------------------------------
 
@@ -83,7 +90,7 @@ def compute_time_offset_IWG1_CLS(cls_files):
 
     if abs(time_offsets[0] - time_offsets[1]) > 2.0:
         print("The time offsets between 2 sample files differs by too much.")
-        print("Enter 0 for first time offset, zero for second.")
+        print("Enter 0 for first time offset, 1 for second.")
         print("Time offsets: ",time_offsets)
         choice = int( input("Enter your choice.") )
         time_offset = time_offsets[choice]
@@ -264,11 +271,21 @@ elif Nav_source == 'nav':
     # NOTE: "Nav" variables will apply generically to whichever of the
     #       several Nav_source's is selected. "nav" variables will
     #       refer to CAMAL/ACTS "nav*.data" files.
+    
+    # "Dummy out" these variables, which are only need valid values for CLS-Nav processing
+    cls_meta_data_all = None
+    nav2cls_indx = np.zeros((1000,2))
+    FL_trunc = None 
+    usable_file_range = [0,1000]
+
+    # Compute offset between IWG1 time and CLS Instrument Time ("ExactTime")
+    # This data is the IWG1 data.
+    iwg1_cls_t_offset = compute_time_offset_IWG1_CLS(all_CLS_files)    
 
     # Load the entire nav dataset into memory
-    nav_data_all = read_entire_nav_dataset()
+    nav_data_all = read_entire_nav_dataset('*.nav*')
     
-    # Interpolate data records to match CAMAL's data rate.
+    # Interpolate data records to match CPL's data rate.
     # 10 Hz as of 2/2/18. Data rate set in initializations.
     
     del_t = np.zeros(nav_data_all.shape[0],dtype=DT.datetime)
@@ -293,11 +310,11 @@ elif Nav_source == 'nav':
         nav_interp[field] = np.interp(ix, elapsed_secs, nav_data_all[field])
     # Now handle population of interp time field
     for k in range(0,n_interp): 
-        nav_interp['UnixT'][k] = nav_data_all['UnixT'][0] + DT.timedelta(seconds=ix[k])
-        Nav_interp_T_float64[k] = (nav_interp['UnixT'][k] - UnixT_epoch).total_seconds() + nudge
+        #nav_interp['UnixT'][k] = nav_data_all['UnixT'][0] + DT.timedelta(seconds=ix[k])
         # offsets in following line convert to CLS UTC
         nav_interp['UTC'][k] = ( nav_data_all['UTC'][0] + DT.timedelta(seconds=ix[k]) 
-            - time_offset_IWG1 + DT.timedelta(seconds=nudge) )
+            + DT.timedelta(seconds=nudge) )
+        Nav_interp_T_float64[k] = (nav_interp['UTC'][k] - UnixT_epoch).total_seconds()
     
     # NOW, set the array that will be used in processing, nav_data_all equal
     # to the interpolated array that was just created, nav_interp.
@@ -673,7 +690,7 @@ for f in range(0,nCLS_files):
         hdf5_fname = L1_dir+'NRB_'+proj_name+'_'+flt_date+'_'+Nav_source+'.hdf5'
         hdf5_file = h5py.File(hdf5_fname, 'a')
         # Open the lat/lon GEOS met data sampling CSV file
-        GEOS_samp_fname = L1_dir+'lat_lon_UTC_'+proj_name+'_'+flt_date+'_'+Nav_source+'.txt'
+        GEOS_samp_fname = L1_dir+'lon_lat_UTC_'+proj_name+'_'+flt_date+'_'+Nav_source+'.txt'
         GEOS_fobj = open(GEOS_samp_fname, 'wt')
         GEOS_fobj.write('lon,lat,time\n') # file header     
         try:
@@ -777,7 +794,7 @@ for f in range(0,nCLS_files):
             Nav_save[i1f]['lat'] = Nav_match['lat']
             time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
-            Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt']
+            Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt_msl']
             Y = Nav_match['drift'] * (pi/180.0) 
             P = Nav_match['pitch'] * (pi/180.0)
             R = Nav_match['roll'] * (pi/180.0)  
