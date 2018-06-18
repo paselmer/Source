@@ -23,7 +23,8 @@
 # Noticeable vertical "banding" was present in images of NRB.
 # Determined that it was caused by CPL's strange overlaps.
 # Fixed the issue by applying overlap after background sub.
-
+# GEOS-lon-lat-UTC output file is now created by this code.
+# Prior to this date it had not been.
 
 # Import libraries <----------------------------------------------------
 
