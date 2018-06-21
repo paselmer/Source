@@ -3,6 +3,119 @@
 #       "cpl_l1a.py." All versions of the code must be saved as
 #       "cpl_l1a_vX.py" but not actually be source file that's exectued.
 
+# DESCRIPTION:
+#
+# [6/21/18] Version 0 (v0)
+#
+# This code processes raw CPL ".cls" files into NRB HDF5 files. It also
+# produces a text file of lon,lat,&time for the purpose of sampling
+# model data.
+#
+# This code can be thought of as having several main parts:
+#
+# 1) Nav ingestion, cleanup, and interpolation 
+# 2) Nav-to-CLS time syncronization {per file basis}
+# 3) Initialization of arrays & HDF5 parameters {per file basis}
+# 4) Nav-to-CLS record matching {per raw record basis}
+# 5) Compuation/population of various parameters,
+#    preparation for NRB computation {per raw record basis}
+# 6) PGain application & actual NRB computation {per file basis}
+# 7) Deletion of bad records {per file basis}
+# 8) Averaging of data & final HDF5 output {per file basis}
+#
+# Explanation of each part:
+#
+# 1) Nav ingestion, cleanup, and interpolation
+# Oh boy, this part is a doozy. There are a couple functions defined at
+# the top. One computes a time offset between IWG1 Nav data and the
+# instrument. The other function reads in one CLS file and provides the
+# arrays needed for time syncronization. The later function isn't used
+# until the file loop (part 2).
+# The Nav_source is chosen via the initialization file and the
+# corresponding block of code is chosen. In each block, the same
+# general things happen - the data are read in, then interpolated to the
+# CLS data rate.
+# The 'cls' block is more complex due to the inconsistent sampling of
+# the IWG1 feed by the CPL data system (a single IWG1 record does not
+# always repeat for 10 +/-3 records). In the 'cls' block the data
+# rate is computed and compared to the data rate that the user input
+# in the initialization file. If the difference is too much, the code
+# just prints out a warning message then proceeds to use the user input
+# data rate. Since the Nav time has a 1 Hz  rez and the photon
+# data have a ~10 Hz rez, an array of interpolated (to ~10 Hz) times 
+# replaces the original CLS Nav times. Additional data cleanup
+# is done within the 'cls' block due to things like "status records"
+# being at the beginnings/ends of the flight.
+#
+# 2) Nav-to-CLS time syncronization {per file basis}
+# At the top of the file loop, data from the first CLS file are read.
+# The interpolated instrument time and the interpolated Nav time
+# (from whatever Nav_source was chosen) are sent to a C function
+# in an external library. This C function uses those arrays to return
+# an array of subscripts which map the Nav_source records to the CLS
+# records. There should be a subscript for each record of the current
+# CLS file. Doing this means that the matching implied by part 4 is 
+# essentially already done.
+# 
+# 3) Initialization of arrays & HDF5 parameters {per file basis}
+# During the first iteration of the file loop, various arrays and
+# HDF5 dataset objects are initialized. The two output files, HDF5 and
+# text, are opened. A small number of parameters are reinitialized each
+# iteration of the file loop.
+#
+# 4) Nav-to-CLS record matching {per raw record basis}
+# The work of finding matches is already done by this point, as
+# mentioned in part 2's explanation. The Nav record that matches the
+# current CLS profile is found by applying the subscript computed
+# in part 2. A different 'if' block is executed depending on the Nav_source.
+# Each if block does the same things - stores the matched Nav into
+# the Nav_save array and writes the lon,lat,UTC out to the GEOS text
+# file. Nav_save is a standardized structure. It gets populated here
+# no matter the Nav_source.
+#
+# 5) Compuation/population of various parameters,
+#    preparation for NRB computation {per raw record basis}
+# Now that you have the matching Nav data, a whole host of 
+# computations take place...dead time correction, off-nadir angle, overlap
+# geolocation, bin altitude. Background subtraction and range correction
+# are applied here because they're hard to do after the counts are
+# put into a fixed altitude frame. Immediately  after this, the counts
+# are put into a fixed altitude frame.
+#
+# 6) PGain application & actual NRB computation {per file basis}
+# At this point, you've gone through every raw rez profile in a single
+# CLS file and are back in the file loop. PGain is applied here, and the
+# final NRB is computed. These things are done here to increase speed by
+# vectorizing the computation (ie - implicit loops across recs & bins
+# instead of explicit loop); you'll notice, there's no bins loop in
+# this code.
+#
+# 7) Deletion of bad records {per file basis}
+# A boolean (bool) array, good_recs_bool, is created anew for each
+# iteration of the file loop. It is initialized to all True (1's).
+# At several points in the code, the current record can be flagged as
+# bad, False (0), under certain conditions (altitude too low, off-nadir
+# angle too high, etc.). In this relatively small block of code the
+# bad records are deleted by logic of keeping only the remaining good 
+# records. Arrays are adjusted accordingly.
+#
+# 8) Averaging of data & final HDF5 output {per file basis}
+# Data are averaged here, file by file...
+# Here's the logic behind this averging section:
+# The data are averaged one file at a time, with any leftover records
+# carried-over until the next file is processed. The carried-over records
+# are then averaged with the first 'x' records of the next file, where 'x'
+# represents the number of records required to meet the time-average criterion.
+# The logic is a bit tricky when processing the first and last files, and these
+# details are dealt with using the "first_read" and "cutbegin" variables. Also,
+# n_expand (how much to expand datasets) and expanded_length variables are
+# computed differently for the edge versus middle files. The reason averaging
+# is done one file at a time is to limit usage of RAM on the computer.
+# Within the averaging section, the averaged data are dumped into the HDF5 file.
+# The code concludes outside the loops by simply recording the total number of
+# CLS records and closing the output files.
+
+
 # UPDATE LOG:
 #
 # [4/2/18] Beta version started.
@@ -33,6 +146,15 @@
 # style nav text files. Visually compared images of NRB processed using
 # CLS and NRB processed using Nav. They appeared identical. 20-degree 
 # rolls throughout.
+#
+# [6/20/18] All-zeros first record fixed
+# Rebecca discovered that the first record of every file I gave her
+# had all zeros for NRB in the first record. I discovered that this
+# was due to a flaw in logic in how the averaging section of this 
+# code handled the HDF5 dataset resizing of the first file. I added
+# a couple more lines of logic and the problem seems to be fixed.
+#
+# [6/21/18] v0 description written
 
 # Import libraries <----------------------------------------------------
 
@@ -674,7 +796,7 @@ for f in range(0,nCLS_files):
         ffrme = set_fixed_bin_alt_frame(ff_bot_alt,ff_top_alt,vrZ_ff,nb,pointing_dir)
         ffrme = np.require(ffrme,float,['ALIGNED','C_CONTIGUOUS'])
         nb_ff = ffrme.shape[0] # number of bins in the fixed frame
-        # Create histogram bin boundaries. If first_read, created farther down in first_read block.
+        # Create histogram bin boundaries.
         time_bins = np.arange(CLS_UnixT_float64_orig[0],CLS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
         # Load the overlap table
         overlap_vector = read_in_overlap_table(olap_dir+overlap_file)
@@ -984,6 +1106,17 @@ for f in range(0,nCLS_files):
 
     # Average the data
     # Remainder data at end of each file is carried-over to next file
+    #
+    # Here's the logic behind this averging section:
+    # The data are averaged one file at a time, with any leftover records
+    # carried-over until the next file is processed. The carried-over records
+    # are then averaged with the first 'x' records of the next file, where 'x'
+    # represents the number of records required to meet the time-average criterion.
+    # The logic is a bit tricky when processing the first and last files, and these
+    # details are dealt with using the "first_read" and "cutbegin" variables. Also,
+    # n_expand (how much to expand datasets) and expanded_length variables are
+    # computed differently for the edge versus middle files. The reason averaging
+    # is done one file at a time is to limit usage of RAM on the computer.
     if secs2avg > 0.0: # if < 0, don't average
 
         bin_numbers = np.digitize(CLS_UnixT_float64_new,time_bins)
@@ -1041,7 +1174,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_avg[tb] = np.mean(DEM_laserspot[rr:rr+ncounts[tb]])
             DEM_laserspot_surftype_avg[tb] = stats.mode(DEM_laserspot_surftype[rr:rr+ncounts[tb]])[0][0]
             EMs_avg[tb,:] = np.mean(EMs[rr:rr+ncounts[tb],:],axis=0)
-            NRB_avg[:,tb,:] = np.mean(NRB[:,rr:rr+ncounts[tb],:],axis=1)
+            NRB_avg[:,tb,:] = np.mean(NRB[:,rr:rr+ncounts[tb],:],axis=1)	    
             #print('iter: ',u[tb],CLS_UnixT_float64_new[rr])
             rr += ncounts[tb]
 
@@ -1069,8 +1202,12 @@ for f in range(0,nCLS_files):
         cutbegin = 0
         if ((first_read) and (ncounts[0] < min_avg_profs)): cutbegin = 1
         n_expand = u.shape[0]-1-cutbegin
-        if ((last_file) and (ncounts[-1] > min_avg_profs)): n_expand = u.shape[0]
+        if ( (last_file) and (ncounts[-1] > min_avg_profs) ): n_expand = u.shape[0]
         expanded_length = nav_dset.shape[0]+n_expand
+        # Now, if it's the first_read, nav_dset has an initialized length of 1; therefore,
+        # if you use the expanded_length in the previous line the first_read, you'll 
+        # get a dataset size that is too long by 1. The following line fixes this.
+        if first_read: expanded_length = n_expand
         nav_dset.resize(expanded_length, axis=0)
         laserspot_dset.resize(expanded_length, axis=0)
         ONA_dset.resize(expanded_length, axis=0)
