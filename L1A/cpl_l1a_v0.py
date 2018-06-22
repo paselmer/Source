@@ -155,6 +155,19 @@
 # a couple more lines of logic and the problem seems to be fixed.
 #
 # [6/21/18] v0 description written
+#
+# [6/22/18] More "nav" Nav_source capability
+# Those nav text files produced by the various instruments (CAMAL,CPLs)
+# have different formats depending on the instrument & aircraft.
+# Code can now read & process with nav text files produced by ER2-CPL,
+# UAV-CPL, and CAMAL - all of which have different formats. Processing
+# with all 3 types mentioned here has been tested.
+# ...
+# Improved some logic in the "nav" Nav_source block within the profile
+# loop. Code will now pick the max between GPS_alt and GPS_alt_msl.
+# They can be various combinations of invalid. Right now, "nav" should
+# be a second or third processing choice, in my opinion. Use IWG1 files
+# for best results.
 
 # Import libraries <----------------------------------------------------
 
@@ -413,6 +426,7 @@ elif Nav_source == 'nav':
     del_t = np.zeros(nav_data_all.shape[0],dtype=DT.datetime)
     del_t[1:] = nav_data_all['UTC'][1:] - nav_data_all['UTC'][:-1]
     del_t[0] = del_t[1]*0.0
+    pdb.set_trace()
     
     # Compute # of elapsed seconds since first record (float)
     
@@ -466,7 +480,7 @@ elif Nav_source == 'iwg1':
     
     del_t = np.zeros(IWG1_data.shape[0],dtype=DT.datetime)
     del_t[1:] = IWG1_data['UTC'][1:] - IWG1_data['UTC'][:-1]
-    del_t[0] = del_t[1]*0.0
+    del_t[0] = del_t[1]*0.0   
     
     # Compute # of elapsed seconds since first record (float)
     
@@ -916,13 +930,14 @@ for f in range(0,nCLS_files):
             Nav_save[i1f]['lat'] = Nav_match['lat']
             time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
-            Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt_msl']
+            # NOTE on next line: Invalids are -999.9, so max should choose valid if exists
+            Nav_save[i1f]['GPS_alt'] = max(Nav_match['GPS_alt_msl'],Nav_match['GPS_alt'])
             Y = Nav_match['drift'] * (pi/180.0) 
             P = Nav_match['pitch'] * (pi/180.0)
             R = Nav_match['roll'] * (pi/180.0)  
             # Write 'lat,lon,UTC' out to file
             GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['lon'],Nav_match['lat'],time_str[:19])
-            GEOS_fobj.write(GEOS_out_str)
+            GEOS_fobj.write(GEOS_out_str)	    
             
         elif Nav_source == 'iwg1':
             
@@ -1001,7 +1016,7 @@ for f in range(0,nCLS_files):
         [ONA, xy_ang] = calculate_off_nadir_angle(0.0,0.0,Y,P,R,xy_ang=True)   # accepted way as of [1/31/18]
         #ONA = calculate_off_nadir_angle(0.0,0.0,Y,P,R+(-1.0*phi0)) # accepted way as of [1/25/18]
         ONA_save[i1f] = ONA
-        if ONA > ONA_cutoff:
+        if ONA > ONA_cutoff:	
             good_rec_bool[i1f] = False
             i = i + 1
             i1f = i1f + 1

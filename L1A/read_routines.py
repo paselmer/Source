@@ -267,214 +267,6 @@ def read_in_IWG1_data(fname,est_recs):
     IWG1_data_1file = IWG1_data_1file[0:r]
     return IWG1_data_1file
             
-            
-            
-def read_in_nav_data(fname, est_recs, UTC_adj=DT.timedelta(0,0,0)):
-    """ Routine to read in the IWG1 data in from those "nav" files 
-        captured by the instrument.
-    """
-    
-    # [6/18/18]
-    # Now works for files produced by CPL, in addition to those produced
-    # by CAMAL! First, code tries to read in CAMAL-style, then it tries
-    # CPL. If neither works, it assumes bad file/data. The 2 file formats
-    # only differ in their first column.
-    
-    nav_data_1file = np.zeros(est_recs,dtype=nav_struct)
-    
-    with open(fname,'r') as csvfile:
-        
-        csvreader = csv.reader(csvfile)
-        r=0
-        datetimeformatA = "%Y%m%d_%H%M%S: IWG1"
-        datetimeformatB = "%Y-%m-%dT%H:%M:%S.%f"
-        
-        for row in csvreader:
-            
-            # Put invalids (-999.9) in blank fields
-            c = 0
-            for col in row:
-                if col == '':
-                    row[c] = -999.9
-                c += 1
-            
-            # This invalids block above should have taken care of all the
-            # invalids, but just to be extra safe (say, user passes a
-            # non-IWG1 file to this routine), this try/except block will
-            # safety stop code in debug mode.
-            print_once = True
-            try: # CAMAL style?
-                nav_data_1file['UnixT'][r] = DT.datetime.strptime(row[0],datetimeformatA) + UTC_adj
-            except:
-                if print_once: print(attention_bar+"Not a CAMAL-style Nav text file"+attention_bar)
-                print_once = False
-                pass
-            try: #Same format after row[0] for CAMAL, ACATS, & CPL
-                nav_data_1file['UTC'][r] = DT.datetime.strptime(row[1],datetimeformatB)
-                nav_data_1file['lat'][r] = row[2]
-                nav_data_1file['lon'][r] = row[3]
-                nav_data_1file['GPS_alt_msl'][r] =  row[4]
-                nav_data_1file['GPS_alt'][r] = row[5] 
-                nav_data_1file['press_alt'][r] = row[6] 
-                nav_data_1file['rad_alt'][r] = row[7] 
-                nav_data_1file['ground_spd'][r] = row[8]
-                nav_data_1file['true_airspd'][r] = row[9] 
-                nav_data_1file['ind_airspd'][r] = row[10]
-                nav_data_1file['mach_num'][r] = row[11] 
-                nav_data_1file['vert_spd'][r] = row[12]
-                nav_data_1file['heading'][r] = row[13]    # use as yaw
-                nav_data_1file['track'][r] = row[14]
-                nav_data_1file['drift'][r] = row[15] 
-                nav_data_1file['pitch'][r] = row[16]
-                nav_data_1file['roll'][r] = row[17]
-                nav_data_1file['slip'][r] = row[18]
-                nav_data_1file['attack'][r] = row[19]
-                nav_data_1file['S_air_temp'][r] = row[20]
-                nav_data_1file['dewp_temp'][r] = row[21] 
-                nav_data_1file['T_air_temp'][r] = row[22]
-                nav_data_1file['static_p'][r] = row[23] 
-                nav_data_1file['dynmc_p'][r] = row[24]
-                nav_data_1file['cabin_p'][r] = row[25] 
-                nav_data_1file['wind_spd'][r] = row[26]
-                nav_data_1file['wind_dir'][r] = row[27]
-                nav_data_1file['vert_wind_spd'][r] = row[28]
-                nav_data_1file['sol_zen'][r] = row[29] 
-                nav_data_1file['air_sun_elev'][r] = row[30]
-                nav_data_1file['so_azi'][r] = row[31]
-                nav_data_1file['air_sun_azi'][r] = row[32]
-                r += 1  
-            except:
-                print('There is a bad record in this file.')
-                print('Bad record in : '+fname)
-                print('row # : ' + str(r))
-                continue
-
-                
-    nav_data_1file = nav_data_1file[0:r]
-    return nav_data_1file
-
-    
-def read_in_dead_time_table(fname):
-    """ Code to read in CAMAL's dead time table files and return the 
-        table within as (a) numpy array(s).
-
-        Should be able to read in dead time tables for CPL too, since
-        they are the same format.
-    """
-    
-    # NOTES:
-    #
-    # [3/6/18]
-    # Code currently reads in files that are in CPL's XDR format, originally
-    # instated by Mr. Dennis Hlavka (now retired).
-    
-    data_list = []
-    
-    with open(fname,'rb') as f_obj:
-        for block in iter(partial(f_obj.read, 4),''):
-            try:
-                data_list.append(xdrlib.Unpacker(block).unpack_float())
-            except EOFError:
-                break
-    print("Done reading in dead time table:\n"+fname)
-    
-    # Convert list to array then return array
-    return np.asarray(data_list,dtype=np.float32)
-    
-    
-def read_entire_gps_dataset(scrub='no'):
-    """ Read in entire gps file dataset (all files). Return a gps_struct
-        array of the data, as well as separate, gps_UTC datetime.datetime
-        array (for convenience   ).
-    """
-    
-    # NOTES:
-    # 
-    # This function is COMPLETELY RELIANT on the initializations file,
-    # so no arguments are required by the calling routine in the scope of
-    # CAMAL's processing. If scrub == 'scrub' bad data records will be 
-    # filtered out.
-    
-    GPS_file_list = 'gps_file_list.txt'
-    search_str = 'gps*'
-    create_a_file_list(GPS_file_list,search_str)
-    
-    with open(GPS_file_list) as GPS_list_fobj:
-        all_GPS_files = GPS_list_fobj.readlines()
-    nGPS_files = len(all_GPS_files)
-    
-    j = 0
-    est_gps_recs = int((file_len_secs * (gps_hz+1))*nGPS_files) # add a little buffer
-    gps_data_all = np.zeros(est_gps_recs,dtype=gps_struct)
-    for GPS_file in all_GPS_files:
-        gps_data_1file = read_in_gps_data(GPS_file.strip())
-        try:
-            gps_data_all[j:j+gps_data_1file.shape[0]] = gps_data_1file
-        except ValueError:
-            pdb.set_trace()
-        except AttributeError:
-            continue
-        j += gps_data_1file.shape[0]      
-    gps_data_all = gps_data_all[0:j] # trim the fat
-    
-    epoch = DT.datetime.strptime("1980-01-06 00:00:00","%Y-%m-%d %H:%M:%S")
-    gps_UTC = np.zeros(gps_data_all.shape[0],dtype=DT.datetime)
-    for j in range(0,gps_data_all.shape[0]):
-        try:
-            gps_UTC[j] = weeksecondstoutc(gps_data_all['GpsWeek'][j]*1.0,
-                gps_data_all['Gps_sec'][j],leapsecs)
-        except:
-            gps_UTC[j] = epoch
-            
-    # Filter out bad GPS times. It seems like there will be many.
-    # Try to do this in an automated way that doesn't require more
-    # initialization file variables.
-    if scrub == 'scrub':
-        tlim0 = weeksecondstoutc(np.median(gps_data_all['GpsWeek'])-1.0,0.0,leapsecs)      
-        tlim1 = weeksecondstoutc(np.median(gps_data_all['GpsWeek'])+1.0,0.0,leapsecs)
-        mask0 = gps_UTC >= tlim0
-        t_stage0 = gps_UTC[mask0]
-        gps_data_all = gps_data_all[mask0]
-        mask1 = t_stage0 <= tlim1
-        gps_UTC = t_stage0[mask1]
-        gps_data_all = gps_data_all[mask1]
-
-    return [gps_data_all, gps_UTC] 
-    
-    
-def read_entire_nav_dataset(search_str = '*nav*'):
-    """ Read in entire nav file dataset (all files) """
-    
-    # [6/18/18] 
-    # Changed search_str from 'nav*' to '*nav*' so that
-    # code would be able to read the CPL-style nav files. Made this a
-    # default argument to this function, as opposed to hard-coding it
-    # into the body of the function so that it can easily be adapting to
-    # calling code's needs.
-
-    nav_file_list = 'nav_file_list.txt'
-    create_a_file_list(nav_file_list,search_str)    
-            
-    with open(nav_file_list) as nav_list_fobj:
-        all_nav_files = nav_list_fobj.readlines()
-    nnav_files = len(all_nav_files)
-    
-    est_nav_recs = est_nav_recs_1file*nnav_files
-    nav_data_all = np.zeros(est_nav_recs,dtype=nav_struct)
-    j = 0
-    for i in range(0,nnav_files):
-        nav_file = all_nav_files[i]
-        nav_file = nav_file.strip()
-        nav_data_1file = read_in_nav_data(nav_file, est_nav_recs_1file, DT.timedelta(seconds=secs_btwn_instr_UnixT_and_UTC))
-        try:
-            nav_data_all[j:j+nav_data_1file.shape[0]] = nav_data_1file
-        except ValueError:
-            pdb.set_trace()
-        j += nav_data_1file.shape[0]
-    nav_data_all = nav_data_all[0:j] # trim the fat
-    
-    return nav_data_all
-
 
 def decode_er2_nav_string(Nav_fields,signs):
     """ This function decodes an input ER2-style CLS Nav list of strings into its
@@ -674,6 +466,276 @@ def decode_uav_nav_string(Nav_fields):
         CLS_decoded_nav_data['StaticPressure'][0] = -999.9
 
     return CLS_decoded_nav_data    
+            
+            
+def read_in_nav_data(fname, est_recs, UTC_adj=DT.timedelta(0,0,0)):
+    """ Routine to read in the IWG1 data in from those "nav" files 
+        captured by the instrument.
+    """
+    
+    # [6/18/18]
+    # Now works for files produced by CPL, in addition to those produced
+    # by CAMAL! First, code tries to read in CAMAL-style, then it tries
+    # CPL. If neither works, it assumes bad file/data. The 2 file formats
+    # only differ in their first column.
+    #
+    # [6/22/18]
+    # Realized the nav text files are different for UAV/ER2 CPL. I 
+    # redesigned this code so that now it determines & reads the 
+    # appropriate data structure. Bottom line: This function now
+    # reads CAMAL, UAV-CPL, & ER2-CPL style nav text files.
+    
+    nav_data_1file = np.zeros(est_recs,dtype=nav_struct)
+    
+    with open(fname,'rb') as navfile:
+        
+        r=0
+        first_read = True	
+        datetimeformatA = "%Y%m%d_%H%M%S: IWG1"
+        datetimeformatB = "%Y-%m-%dT%H:%M:%S.%f"
+        
+        for line in navfile:
+	
+            # Split the line into an array of byte objects
+            row_byte_list = line.split(b",")
+            row = [] # row of strings
+            
+            # Determine nav text file style
+            if first_read:
+                first_read = False
+                if len(row_byte_list) < 3:
+                    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+                    print('ER2 Nav-style text file detected')
+                    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+                    file_style = 'ER2'
+                    signs = { 'S':-1.0, 'N':1.0, 'W':-1.0, 'E':1.0, '-':-1.0, '+':1.0 }
+                elif row_byte_list[0] == b"IWG1":
+                    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+                    print('UAV Nav-style text file detected')
+                    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+                    file_style = 'UAV'
+                else:
+                    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+                    print('CAMAL Nav-style text file detected')
+                    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+                    file_style = 'CAMAL'
+           
+            # Put invalids (-999.9) in blank fields
+            # Also, convert byte obj to str obj
+            if file_style == 'ER2': 
+                row_byte_list = line.split()   
+                row.append('intentionally_blank')
+            c = 0
+            for col in row_byte_list:
+                if col == b"":
+                    row.append(-999.9)
+                else:
+                    row.append(col.decode('utf8','replace'))
+                c += 1
+
+            try:    
+                # These 2 file_styles are identical, save the first column
+                if ((file_style == 'CAMAL') or (file_style == 'UAV')):
+                    if file_style == 'CAMAL': 
+                      nav_data_1file['UnixT'][r] = DT.datetime.strptime(row[0],datetimeformatA) + UTC_adj
+                    nav_data_1file['UTC'][r] = DT.datetime.strptime(row[1],datetimeformatB)
+                    nav_data_1file['lat'][r] = row[2]
+                    nav_data_1file['lon'][r] = row[3]
+                    nav_data_1file['GPS_alt_msl'][r] =  row[4]
+                    nav_data_1file['GPS_alt'][r] = row[5] 
+                    nav_data_1file['press_alt'][r] = row[6] 
+                    nav_data_1file['rad_alt'][r] = row[7] 
+                    nav_data_1file['ground_spd'][r] = row[8]
+                    nav_data_1file['true_airspd'][r] = row[9] 
+                    nav_data_1file['ind_airspd'][r] = row[10]
+                    nav_data_1file['mach_num'][r] = row[11] 
+                    nav_data_1file['vert_spd'][r] = row[12]
+                    nav_data_1file['heading'][r] = row[13]    # use as yaw
+                    nav_data_1file['track'][r] = row[14]
+                    nav_data_1file['drift'][r] = row[15] 
+                    nav_data_1file['pitch'][r] = row[16]
+                    nav_data_1file['roll'][r] = row[17]
+                    nav_data_1file['slip'][r] = row[18]
+                    nav_data_1file['attack'][r] = row[19]
+                    nav_data_1file['S_air_temp'][r] = row[20]
+                    nav_data_1file['dewp_temp'][r] = row[21] 
+                    nav_data_1file['T_air_temp'][r] = row[22]
+                    nav_data_1file['static_p'][r] = row[23] 
+                    nav_data_1file['dynmc_p'][r] = row[24]
+                    nav_data_1file['cabin_p'][r] = row[25] 
+                    nav_data_1file['wind_spd'][r] = row[26]
+                    nav_data_1file['wind_dir'][r] = row[27]
+                    nav_data_1file['vert_wind_spd'][r] = row[28]
+                    nav_data_1file['sol_zen'][r] = row[29] 
+                    nav_data_1file['air_sun_elev'][r] = row[30]
+                    nav_data_1file['so_azi'][r] = row[31]
+                    #nav_data_1file['air_sun_azi'][r] = row[32]
+                elif file_style == 'ER2':
+                    # You need to decode this first...
+                    cls_decoded_nav = decode_er2_nav_string(row,signs)
+                    nav_data_1file['UTC'][r] = cls_decoded_nav['UTC_Time'][0]
+                    nav_data_1file['lat'][r] = cls_decoded_nav['GPS_Latitude'][0]
+                    nav_data_1file['lon'][r] = cls_decoded_nav['GPS_Longitude'][0]
+                    nav_data_1file['GPS_alt_msl'][r] =  cls_decoded_nav['GPS_Altitude'][0]
+                    nav_data_1file['GPS_alt'][r] = cls_decoded_nav['GPS_Altitude'][0]
+                    nav_data_1file['press_alt'][r] = cls_decoded_nav['BarometricAltitude'][0]
+                    nav_data_1file['rad_alt'][r] = -999.9
+                    nav_data_1file['ground_spd'][r] = cls_decoded_nav['GroundSpeed'][0]
+                    nav_data_1file['true_airspd'][r] = cls_decoded_nav['TrueAirSpeed'][0]
+                    nav_data_1file['ind_airspd'][r] = -999.9
+                    nav_data_1file['mach_num'][r] = cls_decoded_nav['MachNo'][0]
+                    nav_data_1file['vert_spd'][r] = cls_decoded_nav['InertialVerticalSpeed'][0]
+                    nav_data_1file['heading'][r] = cls_decoded_nav['TrueHeading'][0] # use as yaw
+                    nav_data_1file['track'][r] = cls_decoded_nav['TrackAngleTrue'][0]
+                    nav_data_1file['drift'][r] = -999.9
+                    nav_data_1file['pitch'][r] = cls_decoded_nav['PitchAngle'][0]
+                    nav_data_1file['roll'][r] = cls_decoded_nav['RollAngle'][0]
+                    nav_data_1file['slip'][r] = -999.9
+                    nav_data_1file['attack'][r] = -999.9
+                    nav_data_1file['S_air_temp'][r] = cls_decoded_nav['StaticTemperature'][0]
+                    nav_data_1file['dewp_temp'][r] = -999.9
+                    nav_data_1file['T_air_temp'][r] = cls_decoded_nav['TotalTemperature'][0]
+                    nav_data_1file['static_p'][r] = cls_decoded_nav['StaticPressure'][0]
+                    nav_data_1file['dynmc_p'][r] = cls_decoded_nav['DifferentialPressure'][0]
+                    nav_data_1file['cabin_p'][r] = -999.9
+                    nav_data_1file['wind_spd'][r] = cls_decoded_nav['WindSpeed'][0]
+                    nav_data_1file['wind_dir'][r] = cls_decoded_nav['InertialWindDirection'][0]
+                    nav_data_1file['vert_wind_spd'][r] = cls_decoded_nav['InertialVerticalSpeed'][0]
+                    nav_data_1file['sol_zen'][r] = -999.9
+                    nav_data_1file['air_sun_elev'][r] = cls_decoded_nav['SunElevation'][0]
+                    nav_data_1file['so_azi'][r] = cls_decoded_nav['SunAzimuth'][0]
+                r += 1  
+            except:
+                print('There is a bad record in this file.')
+                print('Bad record in : '+fname)
+                print('row # : ' + str(r))
+                continue
+
+                
+    nav_data_1file = nav_data_1file[0:r]
+    return nav_data_1file
+
+    
+def read_in_dead_time_table(fname):
+    """ Code to read in CAMAL's dead time table files and return the 
+        table within as (a) numpy array(s).
+
+        Should be able to read in dead time tables for CPL too, since
+        they are the same format.
+    """
+    
+    # NOTES:
+    #
+    # [3/6/18]
+    # Code currently reads in files that are in CPL's XDR format, originally
+    # instated by Mr. Dennis Hlavka (now retired).
+    
+    data_list = []
+    
+    with open(fname,'rb') as f_obj:
+        for block in iter(partial(f_obj.read, 4),''):
+            try:
+                data_list.append(xdrlib.Unpacker(block).unpack_float())
+            except EOFError:
+                break
+    print("Done reading in dead time table:\n"+fname)
+    
+    # Convert list to array then return array
+    return np.asarray(data_list,dtype=np.float32)
+    
+    
+def read_entire_gps_dataset(scrub='no'):
+    """ Read in entire gps file dataset (all files). Return a gps_struct
+        array of the data, as well as separate, gps_UTC datetime.datetime
+        array (for convenience   ).
+    """
+    
+    # NOTES:
+    # 
+    # This function is COMPLETELY RELIANT on the initializations file,
+    # so no arguments are required by the calling routine in the scope of
+    # CAMAL's processing. If scrub == 'scrub' bad data records will be 
+    # filtered out.
+    
+    GPS_file_list = 'gps_file_list.txt'
+    search_str = 'gps*'
+    create_a_file_list(GPS_file_list,search_str)
+    
+    with open(GPS_file_list) as GPS_list_fobj:
+        all_GPS_files = GPS_list_fobj.readlines()
+    nGPS_files = len(all_GPS_files)
+    
+    j = 0
+    est_gps_recs = int((file_len_secs * (gps_hz+1))*nGPS_files) # add a little buffer
+    gps_data_all = np.zeros(est_gps_recs,dtype=gps_struct)
+    for GPS_file in all_GPS_files:
+        gps_data_1file = read_in_gps_data(GPS_file.strip())
+        try:
+            gps_data_all[j:j+gps_data_1file.shape[0]] = gps_data_1file
+        except ValueError:
+            pdb.set_trace()
+        except AttributeError:
+            continue
+        j += gps_data_1file.shape[0]      
+    gps_data_all = gps_data_all[0:j] # trim the fat
+    
+    epoch = DT.datetime.strptime("1980-01-06 00:00:00","%Y-%m-%d %H:%M:%S")
+    gps_UTC = np.zeros(gps_data_all.shape[0],dtype=DT.datetime)
+    for j in range(0,gps_data_all.shape[0]):
+        try:
+            gps_UTC[j] = weeksecondstoutc(gps_data_all['GpsWeek'][j]*1.0,
+                gps_data_all['Gps_sec'][j],leapsecs)
+        except:
+            gps_UTC[j] = epoch
+            
+    # Filter out bad GPS times. It seems like there will be many.
+    # Try to do this in an automated way that doesn't require more
+    # initialization file variables.
+    if scrub == 'scrub':
+        tlim0 = weeksecondstoutc(np.median(gps_data_all['GpsWeek'])-1.0,0.0,leapsecs)      
+        tlim1 = weeksecondstoutc(np.median(gps_data_all['GpsWeek'])+1.0,0.0,leapsecs)
+        mask0 = gps_UTC >= tlim0
+        t_stage0 = gps_UTC[mask0]
+        gps_data_all = gps_data_all[mask0]
+        mask1 = t_stage0 <= tlim1
+        gps_UTC = t_stage0[mask1]
+        gps_data_all = gps_data_all[mask1]
+
+    return [gps_data_all, gps_UTC] 
+    
+    
+def read_entire_nav_dataset(search_str = '*nav*'):
+    """ Read in entire nav file dataset (all files) """
+    
+    # [6/18/18] 
+    # Changed search_str from 'nav*' to '*nav*' so that
+    # code would be able to read the CPL-style nav files. Made this a
+    # default argument to this function, as opposed to hard-coding it
+    # into the body of the function so that it can easily be adapting to
+    # calling code's needs.
+
+    nav_file_list = 'nav_file_list.txt'
+    create_a_file_list(nav_file_list,search_str)    
+            
+    with open(nav_file_list) as nav_list_fobj:
+        all_nav_files = nav_list_fobj.readlines()
+    nnav_files = len(all_nav_files)
+    
+    est_nav_recs = est_nav_recs_1file*nnav_files
+    nav_data_all = np.zeros(est_nav_recs,dtype=nav_struct)
+    j = 0
+    for i in range(0,nnav_files):
+        nav_file = all_nav_files[i]
+        nav_file = nav_file.strip()
+        nav_data_1file = read_in_nav_data(nav_file, est_nav_recs_1file, DT.timedelta(seconds=secs_btwn_instr_UnixT_and_UTC))
+        try:
+            nav_data_all[j:j+nav_data_1file.shape[0]] = nav_data_1file
+        except ValueError:
+            pdb.set_trace()
+        j += nav_data_1file.shape[0]
+    nav_data_all = nav_data_all[0:j] # trim the fat
+    
+    return nav_data_all
 
 
 def read_in_cls_data(fname,return_nav_dict=False):
