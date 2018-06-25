@@ -546,6 +546,7 @@ def make_gps_plots():
     
 root = Tk()
 root.title("CPL GUI")
+root.bind("<Return>",load_and_plot)
 
 # Set some "global" variables to initial values
 # NOTE: It seems you can only hold global data in classes!

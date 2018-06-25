@@ -9,6 +9,7 @@ import matplotlib.transforms as tf
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.dates as mdates
+from matplotlib.ticker import FormatStrFormatter
 import datetime as DT
 import math as math
 # Stuff that I've created...
@@ -399,6 +400,8 @@ def make_curtain_plot(counts_imgarr, nb, vrZ, z, canvas_ctrl, cb_min, cb_max,
     ytick_lab = ytick_lab[actual_ticks_mask]
     ytick_ind = ytick_ind[actual_ticks_mask]          	    
     plt.yticks(ytick_ind,ytick_lab)
+    # Format the ytick labels
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))  
         
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right",size="5%",pad=0.05)
