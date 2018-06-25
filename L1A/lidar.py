@@ -10,6 +10,7 @@ from scipy import constants as const
 import ctypes
 import matplotlib.dates as mdates
 
+
 def average_lidar_data(a,ne,nd):
     """Average lidar data (or other arrays).
        INPUTS: 
