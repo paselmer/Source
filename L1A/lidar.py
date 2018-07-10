@@ -107,7 +107,7 @@ def correct_raw_counts(rc,E,r,nr,nb,bg_st_bin,bg_ed_bin,opt):
         NRB =  ((rc - bg) * r**2) / E 
     elif opt == 'bg_sub':
         NRB = rc - bg
-    elif opt == 'NRB_no_range':
+    elif opt == 'NRB_no_range':  
         NRB = rc / E
     else:
         print('Invalid option entered. stopping execution in lidar.py')

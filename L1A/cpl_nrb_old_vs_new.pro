@@ -1,14 +1,16 @@
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD NEW >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-wlstr = '355'
-datestr = '06feb13'
+proj_dir = '/cpl3/Seac4rs/'
+wlstr = '532'
+datestr = '06aug13'
+sortie='13950'
 tit_tag = 'CPL '+datestr+' '+wlstr
-filename = '/cpl3/Podex_13/L1/NRB_Podex_13_06feb13_cls.hdf5'
-outdir = '/cpl3/Podex_13/analysis/'
+filename = proj_dir+'L1/NRB_Seac4rs_'+datestr+'_cls.hdf5'
+outdir = '/cpl3/Seac4rs/analysis/'
 alt1 = -0.5e3
 alt2 = 20e3
 r1 = 0
-r2 = -99 ;-99 for all
+r2 = 17000 ;-99 for all
 maxscale = 5e8
 !PATH = '/cpl/dhlavka/Cpl/Source/:' + !PATH
 
@@ -23,6 +25,9 @@ if wlstr eq '1064' then nrb = transpose( nrb[*,r1:r2,2]+nrb[*,r1:r2,3] )
 vlocs = where((bin_alt_array ge alt1) and (bin_alt_array le alt2))
 nrb = nrb[*,vlocs] ;if you go too far below 0.0 alt, you'll reach no-data zone
 bin_alt_array = bin_alt_array[vlocs]
+; Save for avg'd prof plot comparison
+newnrb = nrb
+newz = bin_alt_array
 
 ; Make a curtain plot of the NRB
 
@@ -33,7 +38,7 @@ STOP
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD OLD >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-NRB_file = '/cpl3/Podex_13/Analy_complex/NRB_13925_06feb13.xdr'
+NRB_file = proj_dir+'Analy_complex/NRB_'+sortie+'_'+datestr+'.xdr'
 
 fnum_nrb= 10
 fnum_cal= 11
@@ -123,8 +128,25 @@ if wlstr eq '1064' then nrb = transpose( reform( nrb_smo[*,2,r1:r2] ) )
 vlocs = where((ht_m ge alt1) and (ht_m le alt2))
 nrb = nrb[*,vlocs]
 ht_m = ht_m[vlocs]
+; Save for avg'd prof plot comparison
+oldnrb = nrb
+oldz = ht_m
 
 labeled_image,nrb,maxscale,findgen(n_elements(nrb[*,0]))/100.0,ht_m,'recs','alt (m)',tit_tag+' - old NRB (IDL, XDR)',20,20,1300,900,70,50,70,50,'layerZ', $
                    20.0,outdir+'old_'+wlstr+'_NRB_'+datestr+'.png',0,0,/roundxnumbers,/roundynumbers,/png
+
+
+
+; Compare average profile of new vs. old
+new = mean(newnrb,dimension=1)
+old = mean(oldnrb,dimension=1)
+window,2,xsize=800,ysize=1000
+colors=plot_colors()
+plot,new,newz,color=0,background=colors[160],charsize=2.0,thick=2.0,$
+    title=datestr,xtitle='NRB',ytitle='alt (m)',yrange=[alt1,alt2],ystyle=1, $
+    xrange=[0,1e8],xstyle=1
+oplot,old,oldz,color=colors[3],thick=2.0
+a=tvrd()
+write_png,'avgd_prof_plot.png',a
 
 end

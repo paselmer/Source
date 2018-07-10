@@ -168,6 +168,17 @@
 # They can be various combinations of invalid. Right now, "nav" should
 # be a second or third processing choice, in my opinion. Use IWG1 files
 # for best results.
+#
+# [7/9/18] Overlap correction fixed
+# This is embarrassing. I was multiplying by the overlap factor in those
+# XDR files instead of dividing by it. This was causing the weird slope
+# in the calibration region (especially in 532 nm). This has been fixed
+# so that now division is performed.
+#  The following is overlap application in AM.pro...
+#  "
+#  RSqOverLap.RsqOL(0:(NumSamples-1),i)=$
+#             RSqOverLap.RsqOL(0:(NumSamples-1),i)/OL(*,IndxOL)
+#  "
 
 # Import libraries <----------------------------------------------------
 
@@ -1070,7 +1081,7 @@ for f in range(0,nCLS_files):
         # Apply overlap correction here. I would have applied it at the same time as the
         # deadtime, except CPL's overlaps can be funky in far ranges, which interferes with
         # background sub.
-        range_cor_af_counts_float32 = range_cor_af_counts_float32 * overlaps_chan_seq
+        range_cor_af_counts_float32 = range_cor_af_counts_float32 / overlaps_chan_seq
     
         # Put the bins in the fixed altitude frame
         #counts_ff[:,i1f,:] = put_bins_onto_fixed_frame_C(np_clib,ffrme,
@@ -1096,7 +1107,7 @@ for f in range(0,nCLS_files):
     for chan in range(0,nc):
         EMsubmit = EMs[:,wl_map[chan]]     
         NRB[chan,:,:] = correct_raw_counts(counts_ff[chan,:,:],EMsubmit,None,
-            i1f,nb_ff,ff_bg_st_bin,ff_bg_ed_bin,'NRB_no_range')
+            i1f,nb_ff,ff_bg_st_bin,ff_bg_ed_bin,'NRB_no_range')    
 
     # Delete bad records from output arrays
     tot_good_recs = good_rec_bool.sum()
