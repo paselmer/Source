@@ -266,6 +266,43 @@ def read_in_IWG1_data(fname,est_recs):
                 
     IWG1_data_1file = IWG1_data_1file[0:r]
     return IWG1_data_1file
+
+
+def decode_er2_like_wb57_nav_string(Nav_string,signs):
+    """ The WB57 Nav format is different from the ER2-style format.
+        Andrew Kupchock wrote code that rewrites the WB57 Nav into the
+        CLS files so that's it's compatible with the old, ER2-style
+        CPL processing (which decoded by byte position). He did this by 
+        just leaving whitespace in the string for variables that didn't 
+        match up. Unfortunately, this new CPL processing splits
+        the Nav string on whitespace. Therefore, this function will handle
+        these particular files (started with the REThinC 2017 campaign), since
+        the existing ER2 Nav decode function cannot correctly decode these.
+    """
+
+    # INPUTS:
+    #
+    # Nav_string -> The Nav string (not split) in the CLS files
+    # signs -> A dictionary matching various symbols to arthimetic sign
+    #
+    # OUTPUTS:
+    #
+    # CLS_decoded_nav_data -> 1-element array of dtype CLS_decoded_nav_struct
+
+    CLS_decoded_nav_data = np.zeros(1,dtype=CLS_decoded_nav_struct)
+
+    CLS_decoded_nav_data['UTC_Time'][0] = DT.datetime.strptime(flt_date[5:7]+'-'+Nav_string[4:16],'%y-%j:%H:%M:%S')
+    CLS_decoded_nav_data['TrueHeading'][0] = float(Nav_string[37:44])
+    CLS_decoded_nav_data['PitchAngle'][0] = float(Nav_string[45:53])
+    CLS_decoded_nav_data['RollAngle'][0] = float(Nav_string[54:62])
+    CLS_decoded_nav_data['GroundSpeed'][0] = float(Nav_string[63:70])
+    CLS_decoded_nav_data['GPS_Altitude'][0] = float(Nav_string[134:141])
+    CLS_decoded_nav_data['GPS_Latitude'][0] = float(Nav_string[143:151]) * signs[Nav_string[142]]
+    CLS_decoded_nav_data['GPS_Longitude'][0] = float(Nav_string[153:161]) * signs[Nav_string[152]]
+    CLS_decoded_nav_data['SunElevation'][0] = float(Nav_string[235:241])
+    CLS_decoded_nav_data['SunAzimuth'][0] = float(Nav_string[242:248])
+
+    return CLS_decoded_nav_data
             
 
 def decode_er2_nav_string(Nav_fields,signs):
@@ -578,6 +615,7 @@ def read_in_nav_data(fname, est_recs, UTC_adj=DT.timedelta(0,0,0)):
                     nav_data_1file['lon'][r] = cls_decoded_nav['GPS_Longitude'][0]
                     nav_data_1file['GPS_alt_msl'][r] =  cls_decoded_nav['GPS_Altitude'][0]
                     nav_data_1file['GPS_alt'][r] = cls_decoded_nav['GPS_Altitude'][0]
+                    pdb.set_trace()
                     nav_data_1file['press_alt'][r] = cls_decoded_nav['BarometricAltitude'][0]
                     nav_data_1file['rad_alt'][r] = -999.9
                     nav_data_1file['ground_spd'][r] = cls_decoded_nav['GroundSpeed'][0]
@@ -774,6 +812,14 @@ def read_in_cls_data(fname,return_nav_dict=False):
         navSview =  'S'+str(UAV_nav_nbytes).strip()
         Nav_delim = ','
         cls_type = 'UAV'
+    elif num_nav_fields < 17:
+        print('\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+        print("WB57-to-ER2-style CLS file detected!")
+        print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')        
+        CLS_meta_struct = define_CLS_meta_struct(ER2_nav_nbytes)       
+        navSview =  'S'+str(ER2_nav_nbytes).strip()
+        Nav_delim = None
+        cls_type = 'WB57-to-ER2'  
     else:
         print('\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
         print("ER2-style CLS file detected!")
@@ -829,8 +875,12 @@ def read_in_cls_data(fname,return_nav_dict=False):
         if cls_type == 'ER2':
             #WRITE CODE TO PARSE ER2-STYLE NAV RECORD
             CLS_decoded_data['meta']['Nav'][i] = decode_er2_nav_string(Nav_fields,signs)
+        elif cls_type == 'UAV':
+            CLS_decoded_data['meta']['Nav'][i] = decode_uav_nav_string(Nav_fields)
         else:
-             CLS_decoded_data['meta']['Nav'][i] = decode_uav_nav_string(Nav_fields) 
+            #Don't split. We're going to decode by byte position
+            Nav_fields = str( CLS_data['meta']['Nav'][i].view(navSview) )
+            CLS_decoded_data['meta']['Nav'][i] = decode_er2_like_wb57_nav_string(Nav_fields,signs)
         
         
         if CLS_decoded_data['meta']['Nav']['UTC_Time'][i] != UTC_Time_last_rec: 
