@@ -83,10 +83,16 @@ EM = H5D_READ(dataset_id)
 H5D_CLOSE, dataset_id
 help,EM
 
-; Read in the NRB data (#chans x #records x #bins, float64 array)
+; Read in the NRB data (#chans x #records x #bins, float32 array)
 dataset_id = H5D_OPEN(file_id,'nrb')
 nrb = H5D_READ(dataset_id)
 H5D_CLOSE, dataset_id
 help,nrb
+
+; Read in the NRB data (#chans x #records, float32 array)
+dataset_id = H5D_OPEN(file_id,'saturate_ht')
+saturate_ht = H5D_READ(dataset_id)
+H5D_CLOSE, dataset_id
+help,saturate_ht
 
 end

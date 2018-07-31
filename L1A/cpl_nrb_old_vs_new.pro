@@ -1,22 +1,22 @@
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD NEW >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-proj_dir = '/cpl3/Seac4rs/'
+proj_dir = '/cpl3/Podex_13/'
 wlstr = '532'
-datestr = '06aug13'
-sortie='13950'
+datestr = '22jan13'
+sortie='13920'
 tit_tag = 'CPL '+datestr+' '+wlstr
-filename = proj_dir+'L1/NRB_Seac4rs_'+datestr+'_cls.hdf5'
-outdir = '/cpl3/Seac4rs/analysis/'
+filename = proj_dir+'L1/NRB_REThinC_17_'+datestr+'_cls.hdf5'
+outdir = '/cpl3/REThinC_17/analysis/'
 alt1 = -0.5e3
 alt2 = 20e3
 r1 = 0
-r2 = 17000 ;-99 for all
+r2 = -99 ;-99 for all
 maxscale = 5e8
 !PATH = '/cpl/dhlavka/Cpl/Source/:' + !PATH
 
 @/cpl3/CAMAL/Source/L1A/camal_hdf5_nrb_common
 cpl_hdf5_nrb_reader, filename
-if r2 eq -99 then r2 = num_recs[0]-1
+if r2 eq 11000 then r2 = num_recs[0]-1
 
 ; Only use 1 wavelength to save memory. NRB files are huge at raw rez.
 if wlstr eq '355' then nrb = transpose( nrb[*,r1:r2,0] )

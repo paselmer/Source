@@ -179,6 +179,16 @@
 #  RSqOverLap.RsqOL(0:(NumSamples-1),i)=$
 #             RSqOverLap.RsqOL(0:(NumSamples-1),i)/OL(*,IndxOL)
 #  "
+#
+# [7/30/18] Started addition of saturate_ht
+# This variable is required by current CPL L2 process.
+#
+# [7/31/18] Finished adding saturate_ht
+# Each iteration of the file loop, a flag is set (satur_flag) based on a 
+# broad check of whether any bins might be saturated.
+# Within the profile loop saturate_ht is populated with heights of bins
+# that exceed the saturation_values. These bins are referenced to the actual
+# bin height and not the fixed-frame altituded. This is fine by me.
 
 # Import libraries <----------------------------------------------------
 
@@ -736,6 +746,7 @@ for f in range(0,nCLS_files):
         continue  
     nr_1file = CLS_data_1file.shape[0]                          # # of records in current file
     good_rec_bool = np.ones(CLS_data_1file.shape[0],dtype=bool) # is 'True' for good records, 'False' for bad
+    satur_flag = False # Will turn True if any bin in current file is potentially saturated.
 
     # Create histogram bin boundaries. If first_read, created farther down in first_read block.
     if not first_read: time_bins = np.arange(trans_bin[0],CLS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
@@ -854,6 +865,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,), dtype=np.int8)
             EM_dset = hdf5_file.create_dataset("EM", (1,nwl) , maxshape=(None,nwl), dtype=np.float32)
             NRB_dset = hdf5_file.create_dataset("nrb", (nc,1,nb_ff), maxshape=(nc,None,nb_ff), dtype=np.float32)
+            saturate_ht_dset = hdf5_file.create_dataset("saturate_ht", (nc,1), maxshape=(nc,None), dtype=np.float32)
         except RuntimeError:
             print("HDF5 file for this dataset already exists, overwriting old file...")
             hdf5_file.close() #close, delete, reopen...
@@ -872,6 +884,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,), dtype=np.int8)       
             EM_dset = hdf5_file.create_dataset("EM", (1,nwl) , maxshape=(None,nwl), dtype=np.float32)
             NRB_dset = hdf5_file.create_dataset("nrb", (nc,1,nb_ff), maxshape=(nc,None,nb_ff), dtype=np.float32)
+            saturate_ht_dset = hdf5_file.create_dataset("saturate_ht", (nc,1), maxshape=(nc,None), dtype=np.float32)
         except:
             print("An unanticipated error occurred while trying to create the HDF5 datasets. Stopping execution.")
             pdb.set_trace()
@@ -890,6 +903,20 @@ for f in range(0,nCLS_files):
     DEM_nadir_surftype = np.zeros(nr_1file,dtype=np.int8)-9
     DEM_laserspot = np.zeros(nr_1file,dtype=np.float32)
     DEM_laserspot_surftype = np.zeros(nr_1file,dtype=np.int8)-9
+    saturate_ht = np.zeros((nc,nr_1file),dtype=np.float32)-99999.9
+
+    # Right here, right now, test to see if any bin in current file is potentially saturated
+
+    # Quick, broad test...
+    satur_locs = []
+    satur_locs_indx = 0
+    if (CLS_data_1file['counts'].max() > min(saturation_values)): satur_flag = True
+    if satur_flag:
+        print('\n'+all_CLS_files[f]+' has saturated bin values in it!\n')
+        # satur_locs will have [recs x chan x bin] as each row. recs dim should increase
+        # towards higher indexes.
+        satur_locs = np.argwhere(CLS_data_1file['counts'] > min(saturation_values))
+                
     
     # Begin main record loop
     
@@ -1056,6 +1083,15 @@ for f in range(0,nCLS_files):
         bin_alts = compute_raw_bin_altitudes(nb, pointing_dir,Nav_save[i1f]['GPS_alt'],
                    vrZ, ONA)
 
+        # Populate saturate_ht with bin alts if any bins in current profile are saturated
+        # NOTE: The order of cond's matters in if blocks in this code paragraph
+        if ((satur_flag) and (i1f in satur_locs[:,0])):
+            while ((satur_locs_indx < satur_locs.shape[0]) and (satur_locs[satur_locs_indx,0] == i1f)):
+                indx = satur_locs[satur_locs_indx,:] #Will always have 3 dims in same order
+                if (CLS_data_1file['counts'][indx[0],indx[1],indx[2]] > saturation_values[indx[1]]):
+                    saturate_ht[indx[1],i1f] = bin_alts[indx[2]]
+                satur_locs_indx += 1
+
         length_bin_alts = bin_alts.shape[0]
         if length_bin_alts > nb:
             print('Length of bin_alts vectors is > than nbins. Stopping code...')
@@ -1100,11 +1136,11 @@ for f in range(0,nCLS_files):
     print(attention_bar)
     counts_ff[3,:,:] = counts_ff[3,:,:] * PGain[1]
     
-    # Compute NRB
+    # Compute NRB & populate saturate_ht array
     EMs = convert_raw_energy_monitor_values(CLS_data_1file['meta']['Engineering']['LaserEnergyMonitors'],nwl,'CPL',e_flg)
     ff_bg_st_bin = np.argwhere(ffrme <= bg_st_alt)[0][0]
     ff_bg_ed_bin = np.argwhere(ffrme >= bg_ed_alt)[-1][0]
-    for chan in range(0,nc):
+    for chan in range(0,nc):    
         EMsubmit = EMs[:,wl_map[chan]]     
         NRB[chan,:,:] = correct_raw_counts(counts_ff[chan,:,:],EMsubmit,None,
             i1f,nb_ff,ff_bg_st_bin,ff_bg_ed_bin,'NRB_no_range')    
@@ -1156,6 +1192,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype_avg = np.zeros(u.shape[0],dtype=DEM_laserspot_surftype.dtype)
         EMs_avg = np.zeros((u.shape[0],nwl),dtype=EMs.dtype)
         NRB_avg = np.zeros((nc,u.shape[0],nb_ff),dtype=NRB.dtype)
+        saturate_ht_max = np.zeros((nc,u.shape[0]),dtype=saturate_ht.dtype)
         rr = 0 # raw record number
     
         ei = ui.shape[0]-1
@@ -1179,6 +1216,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_surftype_avg[0] = stats.mode( np.concatenate((DEM_laserspot_surftype_carryover, DEM_laserspot_surftype[rr:rr+ncounts[0]])) )[0][0]
             EMs_avg[0,:] = (EMs_sum + EMs[rr:rr+ncounts[0],:].sum(axis=0))/trans_total
             NRB_avg[:,0,:] = (NRB_sum + NRB[:,rr:rr+ncounts[0],:].sum(axis=1))/trans_total
+            saturate_ht_max[:,0] = np.asarray( (saturate_ht_carryover.max(axis=1), saturate_ht[:,rr:rr+ncounts[0]].max(axis=1)) ).max(axis=0)
             print('trans_ncounts = ',trans_ncounts)
         else:
             si = 0
@@ -1201,6 +1239,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_surftype_avg[tb] = stats.mode(DEM_laserspot_surftype[rr:rr+ncounts[tb]])[0][0]
             EMs_avg[tb,:] = np.mean(EMs[rr:rr+ncounts[tb],:],axis=0)
             NRB_avg[:,tb,:] = np.mean(NRB[:,rr:rr+ncounts[tb],:],axis=1)	    
+            saturate_ht_max[:,tb] = np.max(saturate_ht[:,rr:rr+ncounts[tb]],axis=1)
             #print('iter: ',u[tb],CLS_UnixT_float64_new[rr])
             rr += ncounts[tb]
 
@@ -1220,6 +1259,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_surftype_carryover = DEM_laserspot_surftype[rr:rr+ncounts[-1]]
             EMs_sum = EMs[rr:rr+ncounts[-1],:].sum(axis=0)
             NRB_sum = NRB[:,rr:rr+ncounts[-1],:].sum(axis=1)
+            saturate_ht_carryover = saturate_ht[:,rr:rr+ncounts[-1]]
             # following line defines the "trasfer" bin; trans_bin
             trans_bin = time_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
             trans_ncounts = ncounts[-1]
@@ -1243,6 +1283,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype_dset.resize(expanded_length, axis=0)
         EM_dset.resize(expanded_length, axis=0)
         NRB_dset.resize(expanded_length, axis=1)
+        saturate_ht_dset.resize(expanded_length, axis=1)	
                         
         # Write out one file's worth of data to the hdf5 file
         nav_dset[expanded_length-n_expand:expanded_length] = Nav_save_avg[cutbegin:n_expand+cutbegin]
@@ -1254,6 +1295,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype_dset[expanded_length-n_expand:expanded_length] = DEM_laserspot_surftype_avg[cutbegin:n_expand+cutbegin]    
         EM_dset[expanded_length-n_expand:expanded_length,:] = EMs_avg[cutbegin:n_expand+cutbegin,:]
         NRB_dset[:,expanded_length-n_expand:expanded_length,:] = NRB_avg[:,cutbegin:n_expand+cutbegin,:]
+        saturate_ht_dset[:,expanded_length-n_expand:expanded_length] = saturate_ht_max[:,cutbegin:n_expand+cutbegin]
         nrecs = expanded_length
 
     else: # No averaging
@@ -1268,6 +1310,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype_dset.resize(i, axis=0)
         EM_dset.resize(i, axis=0)
         NRB_dset.resize(i, axis=1)
+        saturate_ht_dset.resize(i, axis=1)
                         
         # Write out one file's worth of data to the hdf5 file
         nav_dset[i-nr_1file:i] = Nav_save
@@ -1279,6 +1322,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype_dset[i-nr_1file:i] = DEM_laserspot_surftype    
         EM_dset[i-nr_1file:i,:] = EMs
         NRB_dset[:,i-nr_1file:i,:] = NRB
+        saturate_ht_dset[:,i-nr_1file:i] = saturate_ht
         nrecs = i
 
     first_read = False
