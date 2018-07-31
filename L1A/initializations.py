@@ -38,7 +38,7 @@ bg_st_bin = 730
 bg_ed_bin = 800
 # Start and end altitudes of solar background region (meters)
 bg_st_alt = -500.0
-bg_ed_alt = -2600.0
+bg_ed_alt = -1500.0
 # The bin resolution in the fixed frame (m)
 vrZ_ff = 30.0
 # List containing top and bottom altitudes (m) of the fixed frame
@@ -78,6 +78,8 @@ max_counts = 16000
 # Dead time tables [list]. List in channel order OR ELSE!!!
 DTT_files = ['dttable_355_0135-072102.xdr','dttable_532_11296-021009_30m.xdr',
     'dttable_1064par_8351-021009_30m.xdr','dttable_1064per_8346-021009_30m.xdr']
+# Saturation values, per bin per 500 shots. List in detector order.
+saturation_values = [3080.9, 1570.0, 1420.0, 1470.0]
 # The overlap file to use
 overlap_file = 'olaptable_cpl-ccviceax_comb_iceland12.xdr'
 # The number of seconds needed to convert from the instrument's Unix time
@@ -181,19 +183,19 @@ else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
 
     # ******** DEFINE ALL DIRECTORIES ********
     # Set the directory of the raw data
-    raw_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\'+sortie+'\\'
+    raw_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\'
     # Set the directory of the L0 data
-    L0_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\L0\\'
+    L0_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\L0\\'
     # Set the directory of the L1 data
-    L1_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\L1\\'
+    L1_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\L1\\'
     # Set the directory of the L2 data
-    L2_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\L2\\'
+    L2_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\L2\\'
     # Set the directory that contains configuration files
     config_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Config\\'
     # The source directory
     source_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Source\\L1A\\'
     # Directory to put output
-    out_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\analysis\\'
+    out_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\ACT-A\\'+proj_name+'\\'+flt_date+'\\analysis\\'
     # Directory and name of library containing C codes
     clib_path = source_dir + 'C_lib_Win64\\CAMAL_C_lib_Win64\\x64\\Release\\'
     clib = 'CAMAL_C_lib_Win64.dll'
@@ -205,6 +207,6 @@ else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
     DEM_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\config_source\\DEM\\'
     DEM_name = 'JPL-CloudSat.dem'
     # Directory and name of C++ library with functions to read in DEM
-    DEM_lib_path = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Source\\DEM_reader_code\\JPL_DEM_CPP_DLL\\x64\\Release\\'
+    DEM_lib_path = DEM_dir + 'JPL_DEM_CPP_DLL\\x64\\Release\\'
     DEM_Cpp_name = 'JPL_DEM_CPP_DLL.dll'
 

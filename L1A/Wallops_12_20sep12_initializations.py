@@ -78,6 +78,8 @@ max_counts = 16000
 # Dead time tables [list]. List in channel order OR ELSE!!!
 DTT_files = ['dttable_355_0135-072102.xdr','dttable_532_11296-021009_30m.xdr',
     'dttable_1064par_8351-021009_30m.xdr','dttable_1064per_8346-021009_30m.xdr']
+# Saturation values, per bin per 500 shots. List in detector order.
+saturation_values = [3080.9, 1570.0, 1420.0, 1470.0]
 # The overlap file to use
 overlap_file = 'olaptable_cpl-ccviceax_comb_iceland12.xdr'
 # The number of seconds needed to convert from the instrument's Unix time
