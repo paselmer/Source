@@ -188,7 +188,7 @@
 # broad check of whether any bins might be saturated.
 # Within the profile loop saturate_ht is populated with heights of bins
 # that exceed the saturation_values. These bins are referenced to the actual
-# bin height and not the fixed-frame altituded. This is fine by me.
+# bin height and not the fixed-frame altitude. This is fine by me.
 
 # Import libraries <----------------------------------------------------
 
