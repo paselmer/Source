@@ -1013,7 +1013,7 @@ def read_entire_cls_dataset(Fcontrol=None):
         cls_data_all = np.zeros(est_cls_recs,dtype=define_CLS_decoded_structure(max_chan,nbins))
     else:                  # GUI
         n_files = min(ncls_files,len(Fcontrol.sel_file_list))
-        est_cls_recs = int(rep_rate/nshots)*file_len_secs*n_files
+        est_cls_recs = file_len_recs*n_files
         cls_data_all = np.zeros(est_cls_recs,dtype=define_CLS_decoded_structure(max_chan,nbins))   
              
     j = 0
