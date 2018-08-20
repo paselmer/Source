@@ -17,11 +17,12 @@ z0 = -500.0  # meters
 z1 = 20000.0
 t0 = DT.datetime(2010,9,18,22,40,0) # times
 t1 = DT.datetime(2019,9,19,4,0,0)
-wl_choice = 0 # 0=355, 1=532, 2=1064
+wl_choice = 1 # 0=355, 1=532, 2=1064
+NRB_scale = 1e9
 
 # Load background-substracted counts file (NRB-style format)
 
-h5_file = L1_dir+'NRB_Iceax11_24mar11_cls.hdf5'
+h5_file = L1_dir+'NRB_REThinC_18_13aug18_cls.hdf5'
 h5f = h5py.File(h5_file, 'r')
 # Keys to data...
 #['DEM_laserspot', 'DEM_laserspot_surftype', 'DEM_nadir', 'DEM_nadir_surftype', 
@@ -88,7 +89,7 @@ xsize = 25
 ysize = 13
 im_file_name = 'NRB.png'
 
-curtain_plot(c.transpose(), nb, 30.0/1e3, z/1e3, 0, 8e8, hori_cap, pointing_dir,
+curtain_plot(c.transpose(), nb, 30.0/1e3, z/1e3, 0, NRB_scale, hori_cap, pointing_dir,
   xsize, ysize, CPpad, xtit, ytit, tit,  yax_type,[ylimits[0],ylimits[1]], xax_type,
   [xlimits[0],xlimits[1]], 1, 1, out_dir)
 pdb.set_trace()
