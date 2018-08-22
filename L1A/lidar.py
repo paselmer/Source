@@ -271,24 +271,28 @@ def convert_raw_energy_monitor_values(raw_EMs,nwl,instr='CAMAL',e_flg=None):
         elif e_flg == 12:
             # ER2-CPL settings (initially valid 5/1/2018)
             # Transcribed from email sent by Andrew Kupchock on 4/25/18
+            # [8/22/18] UPDATE
+            # According to Andrew, this EM conversion was changed in June after more
+            # tinkering in the lab. The May 1, 2018 version was never used outside of the lab
+            # so I am overwriting it with the June version which is currently being used for
+            # the first time during the REThinC 2018 campaign. 	    
             emon_t = raw_EMs.astype(np.float64)/250.0
             emon_c = np.copy(emon_t)
-            m0_355= 0.098998716468010
-            m1_355= 2.300471133483622
-            m2_355= 0.0
+            m0_355= -0.000166416385199
+            m1_355= 0.161304322
+            m2_355= -1.086938077
             m3_355= 0.0
-            emon_c[:,0]= m0_355*emon_t[:,0] + m1_355
-            m0_532= 0.091769246955732
-            m1_532= -1.671840124168081
+            emon_c[:,0]= m0_355*emon_t[:,0]**2 + m1_355*emon_t[:,0] + m2_355
+            m0_532= 0.09809502
+            m1_532= -1.017836594
             m2_532= 0.0
             m3_532= 0.0
             emon_c[:,1]=  m0_532*emon_t[:,1] + m1_532
-            m0_1064= -0.000000000662217
-            m1_1064= 0.000001334169843
-            m2_1064= -0.000718950067427
-            m3_1064= 0.146344091037070
-            m4_1064= -3.508899821568728
-            emon_c[:,2]= m0_1064*emon_t[:,2]**4 + m1_1064*emon_t[:,2]**3 + m2_1064*emon_t[:,2]**2 + emon_t[:,2]*m3_1064 + m4_1064                      
+            m0_1064= -2.45355E-06
+            m1_1064= 0.001553344
+            m2_1064= -0.018753417
+            m3_1064= 0.973099563
+            emon_c[:,2]= m0_1064*emon_t[:,2]**3 + m1_1064*emon_t[:,2]**2 + m2_1064*emon_t[:,2] + m3_1064                      
         else:
              print(str(e_flg)+' is an invalid e_flg value. Stopping in Energy Monitor conversion funtion.')
              pdb.set_trace()
