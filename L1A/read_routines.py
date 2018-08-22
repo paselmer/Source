@@ -56,13 +56,13 @@ def create_a_file_list_in_Unix(file_list,search_str):
         so code can be reused to search for different systematically
         named types of files.
     """
+
+    # [8/22/18]
+    # 'touch' command determined unnessessary and removed from script.
     
     # *** NOTE *** 
     # This code relies on an external C-shell script.
-
-    cmd = 'touch ' + file_list
-    cmd_feedback = check_output(cmd, shell=True)
-    cmd = 'rm ' + file_list
+    cmd = 'rm -f ' + file_list #-f added 8/22/18, making touch unnessessary
     cmd_feedback = check_output(cmd, shell=True)
     cmd = './make_file_list_unix ' + raw_dir + ' ' + search_str + ' > ' + file_list
     cmd_feedback = check_output(cmd, shell=True)   
@@ -535,7 +535,7 @@ def read_in_nav_data(fname, est_recs, UTC_adj=DT.timedelta(0,0,0)):
 	
             # Split the line into an array of byte objects
             row_byte_list = line.split(b",")
-            row = [] # row of strings
+            row = [] # row of strings  
             
             # Determine nav text file style
             if first_read:
@@ -992,13 +992,6 @@ def read_entire_cls_dataset(Fcontrol=None):
     # [5/24/18]
     # Fcontrol, or file control, added to ease recycling of CAMAL GUI code
     # to create CPL GUI
-    #
-    # [8/8/18]
-    # Memory is now saved by allocating array space only for as many
-    # files were selected, as opposed to total number of files. This was
-    # done to allow GUI to run on PC's will 4 GB or less of RAM. This is
-    # actually what has always been done with the CAMAL GUI.
-    # file_indx variable removed. It was unused.
 
     cls_file_list = 'cls_file_list_for_nav_only.txt'
     search_str = '*.cls'
@@ -1008,14 +1001,9 @@ def read_entire_cls_dataset(Fcontrol=None):
         all_cls_files = cls_list_fobj.readlines()
     ncls_files = len(all_cls_files)
     
-    if Fcontrol is None:   # not GUI
-        est_cls_recs = file_len_recs*ncls_files
-        cls_data_all = np.zeros(est_cls_recs,dtype=define_CLS_decoded_structure(max_chan,nbins))
-    else:                  # GUI
-        n_files = min(ncls_files,len(Fcontrol.sel_file_list))
-        est_cls_recs = file_len_recs*n_files
-        cls_data_all = np.zeros(est_cls_recs,dtype=define_CLS_decoded_structure(max_chan,nbins))   
-             
+    est_cls_recs = file_len_recs*ncls_files
+    cls_data_all = np.zeros(est_cls_recs,dtype=define_CLS_decoded_structure(max_chan,nbins))
+    file_indx = np.zeros((ncls_files,2),dtype=np.uint32)
     j = 0
     for i in range(0,ncls_files):
         if i not in Fcontrol.sel_file_list: continue		
