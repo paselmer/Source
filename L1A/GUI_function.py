@@ -323,8 +323,11 @@ def make_curtain_plot(counts_imgarr, nb, vrZ, z, canvas_ctrl, cb_min, cb_max,
     # mess up anything outside this scope. Therefore it can be sliced and
     # diced here, without crashing anything outside this scope.
 
-    # expand vertical dimension of image by using np.repeat [retired Oct 2017]
-    # subsetting array by user-input bins installed [12/6/17]
+    # Expand vertical dimension of image by using np.repeat [retired Oct 2017]
+    # Subsetting array by user-input bins installed [12/6/17]
+    # Bug fixed where formatting yaxis cancelled out appropriate labels for [9/18/18]
+    # the case where the user wanted an 'alt' y-axis in the GUI curtain.
+    
     counts_imgarr = counts_imgarr[int(min(yax_lims)):int(max(yax_lims)),:]
     img_arr_shape = counts_imgarr.shape
     print('The shape of counts_imgarr is: ',img_arr_shape)
@@ -398,11 +401,11 @@ def make_curtain_plot(counts_imgarr, nb, vrZ, z, canvas_ctrl, cb_min, cb_max,
             k=k+1
     actual_ticks_mask = ytick_ind != 999
     ytick_lab = ytick_lab[actual_ticks_mask]
-    ytick_ind = ytick_ind[actual_ticks_mask]          	    
-    plt.yticks(ytick_ind,ytick_lab)
-    # Format the ytick labels
-    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))  
-        
+    ytick_ind = ytick_ind[actual_ticks_mask]     	    
+    plt.yticks(ytick_ind)
+    # The above plt.yticks command doesn't seem to work in the GUI, so...
+    ax.set_yticklabels([str(item) for item in ytick_lab])
+    
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right",size="5%",pad=0.05)
     plt.colorbar(im, cax=cax)
