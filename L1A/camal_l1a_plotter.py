@@ -15,9 +15,11 @@ import matplotlib.dates as mdates
 
 z0 = -500.0  # meters
 z1 = 20000.0
-t0 = DT.datetime(2000,8,9,15,41,30) # times
-t1 = DT.datetime(2027,8,9,15,44,45)
+t0 = DT.datetime(2017,12,7,21,20,0) # times
+t1 = DT.datetime(2017,12,7,21,50,0)
 wl_choice = 1 # 0=355, 1=532, 2=1064
+n_avg = 100  # number of profs to avg. 0 = don't average.
+cscale = 1e8 #1e9 # color bar scaling
 
 # Load background-substracted counts file (NRB-style format)
 
@@ -69,6 +71,9 @@ z = z[b0:b1+1]
 nav = nav[r0:r1+1]
 t = t[r0:r1+1]
 print('Shape of c is ',c.shape)
+if n_avg > 0:
+    c = average_lidar_data(c,n_avg,0)
+
 
 # Close the file once you've extracted the necessary data.
 h5f.close()
@@ -87,7 +92,7 @@ xsize = 25
 ysize = 13
 im_file_name = 'ACEPOL_stack.png'
 
-curtain_plot(c.transpose(), nb, 30.0/1e3, z/1e3, 0, 1e9, hori_cap, pointing_dir,
+curtain_plot(c.transpose(), nb, 30.0/1e3, z/1e3, 0, cscale, hori_cap, pointing_dir,
   xsize, ysize, CPpad, xtit, ytit, tit,  yax_type,[ylimits[0],ylimits[1]], xax_type,
   [xlimits[0],xlimits[1]], 1, 1, out_dir)
 pdb.set_trace()
