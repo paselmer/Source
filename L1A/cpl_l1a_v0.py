@@ -189,6 +189,13 @@
 # Within the profile loop saturate_ht is populated with heights of bins
 # that exceed the saturation_values. These bins are referenced to the actual
 # bin height and not the fixed-frame altitude. This is fine by me.
+#
+# [9/24/18] Fixed time range boundaries error
+# There was a pretty obvious error in the block of code that masks out
+# records not within the user specified time range. The error specifically
+# the np.extract() call. Also, np.extract() needed to be applied to CLS_UnixT_float64_orig.
+# I must have never actually tested this feature of the L1A code. It works
+# now.
 
 # Import libraries <----------------------------------------------------
 
@@ -757,7 +764,8 @@ for f in range(0,nCLS_files):
         time_range_mask_low = CLS_data_1file['meta']['Header']['ExactTime'] > process_start
         time_range_mask_high = CLS_data_1file['meta']['Header']['ExactTime'] < process_end
         time_range_mask = time_range_mask_low * time_range_mask_high
-        CLS_data_1file = np.extract(time_range_mask,cls_meta_data_all)
+        CLS_data_1file = np.extract(time_range_mask,CLS_data_1file)
+        CLS_UnixT_float64_orig = np.extract(time_range_mask,CLS_UnixT_float64_orig)
         good_rec_bool = np.ones(CLS_data_1file.shape[0],dtype=bool) # is 'True' for good records, 'False' for bad
         print(attention_bar)
         print('In file '+CLS_file+'...')

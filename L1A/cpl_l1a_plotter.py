@@ -22,7 +22,7 @@ NRB_scale = 1e9
 
 # Load background-substracted counts file (NRB-style format)
 
-h5_file = L1_dir+'NRB_REThinC_18_13aug18_cls.hdf5'
+h5_file = L1_dir+'NRB_Wallops_12_20sep12_cls.hdf5'
 h5f = h5py.File(h5_file, 'r')
 # Keys to data...
 #['DEM_laserspot', 'DEM_laserspot_surftype', 'DEM_nadir', 'DEM_nadir_surftype', 
