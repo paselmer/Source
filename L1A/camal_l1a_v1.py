@@ -75,6 +75,10 @@
 # if "interp_UnixT" has zero length/shape. I ran the 2017-12-07 dataset
 # on Bubba using camal_l1a_v0.py and verified that no exception was thrown.
 # Please note, only camal_l1a_v1 onward will have this fix.
+#
+# [10/1/18] Averaging 'by_records_only' now working
+# Code still needs to be written for the 'by_scan' averaging method, but
+# I tested the 'by_records_only' method and it seems to working well.
 
 
 # Import libraries <----------------------------------------------------
@@ -83,6 +87,7 @@
 import os
 import pdb
 import numpy as np
+from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
@@ -488,39 +493,41 @@ for f in range(0,nMCS_files):
         hdf5_fname = L1_dir+'NRB_'+proj_name+'_'+flt_date+'_'+Nav_source+'.hdf5'
         hdf5_file = h5py.File(hdf5_fname, 'a')         
         try:            
-            meta_dset = hdf5_file.create_dataset("meta", (nr_1file,), maxshape=(None,), dtype=MCS_meta_struct)
+            meta_dset = hdf5_file.create_dataset("meta", (1,), maxshape=(None,), dtype=MCS_meta_struct)
             PGain_dset = hdf5_file.create_dataset("PGain", (len(PGain),), np.float32)
-            nav_dset = hdf5_file.create_dataset("nav", (nr_1file,), maxshape=(None,), dtype=nav_save_struct)
-            laserspot_dset = hdf5_file.create_dataset("laserspot", (nr_1file,2) , maxshape=(None,2), dtype=np.float32)
-            ONA_dset = hdf5_file.create_dataset("ONA", (nr_1file,), maxshape=(None,), dtype=np.float32)
+            nav_dset = hdf5_file.create_dataset("nav", (1,), maxshape=(None,), dtype=nav_save_struct)
+            laserspot_dset = hdf5_file.create_dataset("laserspot", (1,2) , maxshape=(None,2), dtype=np.float32)
+            ONA_dset = hdf5_file.create_dataset("ONA", (1,), maxshape=(None,), dtype=np.float32)
             bin_alt_dset = hdf5_file.create_dataset("bin_alt_array", ffrme.shape, ffrme.dtype)
             nb_ff_dset = hdf5_file.create_dataset("num_ff_bins", (1,), np.uint32)
             num_recs_dset = hdf5_file.create_dataset("num_recs", (1,), np.uint32)
-            DEM_nadir_dset = hdf5_file.create_dataset("DEM_nadir", (nr_1file,), maxshape=(None,), dtype=np.float32)
-            DEM_nadir_surftype_dset = hdf5_file.create_dataset("DEM_nadir_surftype", (nr_1file,), maxshape=(None,), dtype=np.int8)            
-            DEM_laserspot_dset = hdf5_file.create_dataset("DEM_laserspot", (nr_1file,), maxshape=(None,), dtype=np.float32)
-            DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (nr_1file,), maxshape=(None,), dtype=np.int8)
-            EM_dset = hdf5_file.create_dataset("EM", (nr_1file,nwl) , maxshape=(None,nwl), dtype=np.float32)
-            NRB_dset = hdf5_file.create_dataset("nrb", (nc,nr_1file,nb_ff), maxshape=(nc,None,nb_ff), dtype=np.float32)
+            DEM_nadir_dset = hdf5_file.create_dataset("DEM_nadir", (1,), maxshape=(None,), dtype=np.float32)
+            DEM_nadir_surftype_dset = hdf5_file.create_dataset("DEM_nadir_surftype", (1,), maxshape=(None,), dtype=np.int8)            
+            DEM_laserspot_dset = hdf5_file.create_dataset("DEM_laserspot", (1,), maxshape=(None,), dtype=np.float32)
+            DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,), dtype=np.int8)
+            EM_dset = hdf5_file.create_dataset("EM", (1,nwl) , maxshape=(None,nwl), dtype=np.float32)
+            NRB_dset = hdf5_file.create_dataset("nrb", (nc,1,nb_ff), maxshape=(nc,None,nb_ff), dtype=np.float32)
+            saturate_ht_dset = hdf5_file.create_dataset("saturate_ht", (nc,1), maxshape=(nc,None), dtype=np.float32)
         except RuntimeError:
             print("HDF5 file for this dataset already exists, overwriting old file...")
             hdf5_file.close() #close, delete, reopen...
             delete_file(hdf5_fname)
             hdf5_file = h5py.File(hdf5_fname, 'a')
-            meta_dset = hdf5_file.create_dataset("meta", (nr_1file,), maxshape=(None,), dtype=MCS_meta_struct)
+            meta_dset = hdf5_file.create_dataset("meta", (1,), maxshape=(None,), dtype=MCS_meta_struct)
             PGain_dset = hdf5_file.create_dataset("PGain", (len(PGain),), np.float32)
-            nav_dset = hdf5_file.create_dataset("nav", (nr_1file,), maxshape=(None,), dtype=nav_save_struct)
-            laserspot_dset = hdf5_file.create_dataset("laserspot", (nr_1file,2) , maxshape=(None,2), dtype=np.float32)
-            ONA_dset = hdf5_file.create_dataset("ONA", (nr_1file,), maxshape=(None,), dtype=np.float32)
+            nav_dset = hdf5_file.create_dataset("nav", (1,), maxshape=(None,), dtype=nav_save_struct)
+            laserspot_dset = hdf5_file.create_dataset("laserspot", (1,2) , maxshape=(None,2), dtype=np.float32)
+            ONA_dset = hdf5_file.create_dataset("ONA", (1,), maxshape=(None,), dtype=np.float32)
             bin_alt_dset = hdf5_file.create_dataset("bin_alt_array", ffrme.shape, ffrme.dtype)
             nb_ff_dset = hdf5_file.create_dataset("num_ff_bins", (1,), np.uint32)
             num_recs_dset = hdf5_file.create_dataset("num_recs", (1,), np.uint32)
-            DEM_nadir_dset = hdf5_file.create_dataset("DEM_nadir", (nr_1file,), maxshape=(None,), dtype=np.float32)
-            DEM_nadir_surftype_dset = hdf5_file.create_dataset("DEM_nadir_surftype", (nr_1file,), maxshape=(None,), dtype=np.int8)            
-            DEM_laserspot_dset = hdf5_file.create_dataset("DEM_laserspot", (nr_1file,), maxshape=(None,), dtype=np.float32)
-            DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (nr_1file,), maxshape=(None,), dtype=np.int8)       
-            EM_dset = hdf5_file.create_dataset("EM", (nr_1file,nwl) , maxshape=(None,nwl), dtype=np.float32)
-            NRB_dset = hdf5_file.create_dataset("nrb", (nc,nr_1file,nb_ff), maxshape=(nc,None,nb_ff), dtype=np.float32)
+            DEM_nadir_dset = hdf5_file.create_dataset("DEM_nadir", (1,), maxshape=(None,), dtype=np.float32)
+            DEM_nadir_surftype_dset = hdf5_file.create_dataset("DEM_nadir_surftype", (1,), maxshape=(None,), dtype=np.int8)            
+            DEM_laserspot_dset = hdf5_file.create_dataset("DEM_laserspot", (1,), maxshape=(None,), dtype=np.float32)
+            DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,), dtype=np.int8)       
+            EM_dset = hdf5_file.create_dataset("EM", (1,nwl) , maxshape=(None,nwl), dtype=np.float32)
+            NRB_dset = hdf5_file.create_dataset("nrb", (nc,1,nb_ff), maxshape=(nc,None,nb_ff), dtype=np.float32)
+            saturate_ht_dset = hdf5_file.create_dataset("saturate_ht", (nc,1), maxshape=(nc,None), dtype=np.float32)
         except:
             print("An unanticipated error occurred while trying to create \
                 the HDF5 datasets. Stopping execution.")
@@ -529,19 +536,6 @@ for f in range(0,nMCS_files):
         PGain_dset[:] = np.asarray(PGain) # convert list to array
         bin_alt_dset[:] = ffrme
         nb_ff_dset[:] = nb_ff
-    else:
-        # Expand dataset sizes to accomodate next input MCS file
-        meta_dset.resize(meta_dset.shape[0]+nr_1file, axis=0)
-        nav_dset.resize(nav_dset.shape[0]+nr_1file, axis=0)
-        laserspot_dset.resize(laserspot_dset.shape[0]+nr_1file, axis=0)
-        ONA_dset.resize(ONA_dset.shape[0]+nr_1file, axis=0)
-        DEM_nadir_dset.resize(DEM_nadir_dset.shape[0]+nr_1file, axis=0)
-        DEM_nadir_surftype_dset.resize(DEM_nadir_surftype_dset.shape[0]+nr_1file, axis=0)
-        DEM_laserspot_dset.resize(DEM_laserspot_dset.shape[0]+nr_1file, axis=0)
-        DEM_laserspot_surftype_dset.resize(DEM_laserspot_surftype_dset.shape[0]+nr_1file, axis=0)
-        EM_dset.resize(EM_dset.shape[0]+nr_1file, axis=0)
-        NRB_dset.resize(NRB_dset.shape[1]+nr_1file, axis=1)
-		
         
     counts_ff = np.zeros((nc,nr_1file,nb_ff),dtype=np.float32)
     NRB = np.empty_like(counts_ff)
@@ -553,6 +547,19 @@ for f in range(0,nMCS_files):
     DEM_nadir_surftype = np.zeros(nr_1file,dtype=np.int8)-9
     DEM_laserspot = np.zeros(nr_1file,dtype=np.float32)
     DEM_laserspot_surftype = np.zeros(nr_1file,dtype=np.int8)-9
+    saturate_ht = np.zeros((nc,nr_1file),dtype=np.float32)-99999.9
+    
+    # Right here, right now, test to see if any bin in current file is potentially saturated
+
+    # Quick, broad test...
+    satur_locs = []
+    satur_locs_indx = 0
+    if (MCS_data_1file['counts'].max() > min(saturation_values)): satur_flag = True
+    if satur_flag:
+        print('\n'+all_MCS_files[f]+' has saturated bin values in it!\n')
+        # satur_locs will have [recs x chan x bin] as each row. recs dim should increase
+        # towards higher indexes.
+        satur_locs = np.argwhere(MCS_data_1file['counts'] > min(saturation_values))
     
     # Begin main record loop
     
@@ -681,6 +688,15 @@ for f in range(0,nMCS_files):
         bin_alts = compute_raw_bin_altitudes(nb, pointing_dir,Nav_save[i1f]['GPS_alt'],
                    vrZ, ONA)
 
+        # Populate saturate_ht with bin alts if any bins in current profile are saturated
+        # NOTE: The order of cond's matters in if blocks in this code paragraph
+        if ((satur_flag) and (i1f in satur_locs[:,0])):
+            while ((satur_locs_indx < satur_locs.shape[0]) and (satur_locs[satur_locs_indx,0] == i1f)):
+                indx = satur_locs[satur_locs_indx,:] #Will always have 3 dims in same order
+                if (MCS_data_1file['counts'][indx[0],indx[1],indx[2]] > saturation_values[indx[1]]):
+                    saturate_ht[indx[1],i1f] = bin_alts[indx[2]]
+                satur_locs_indx += 1        
+
         length_bin_alts = bin_alts.shape[0]
         if length_bin_alts > nb:
             print('Length of bin_alts vectors is > than nbins. Stopping code...')
@@ -743,6 +759,7 @@ for f in range(0,nMCS_files):
         DEM_laserspot_surftype = DEM_laserspot_surftype[good_rec_bool]
         EMs = EMs[good_rec_bool,:]
         NRB = NRB[:,good_rec_bool,:]
+        saturate_ht = saturate_ht[:,good_rec_bool]
         print('\nXXXXXXXXXXXXXXXXXXXXXXX')
         deleted_recs = nr_1file - tot_good_recs
         print(str(deleted_recs).strip()+' records deleted!')
@@ -794,7 +811,6 @@ for f in range(0,nMCS_files):
             pdb.set_trace()
             ui[1:] = change_indx
             pdb.set_trace()
-        pdb.set_trace()
         Nav_save_avg = np.zeros(u.shape[0],dtype=Nav_save.dtype)
         laserspot_avg = np.zeros((u.shape[0],2),dtype=laserspot.dtype)
         ONA_save_avg = np.zeros(u.shape[0],dtype=ONA_save.dtype)
@@ -850,7 +866,7 @@ for f in range(0,nMCS_files):
             DEM_laserspot_avg[tb] = np.mean(DEM_laserspot[rr:rr+ncounts[tb]])
             DEM_laserspot_surftype_avg[tb] = stats.mode(DEM_laserspot_surftype[rr:rr+ncounts[tb]])[0][0]
             EMs_avg[tb,:] = np.mean(EMs[rr:rr+ncounts[tb],:],axis=0)
-            NRB_avg[:,tb,:] = np.mean(NRB[:,rr:rr+ncounts[tb],:],axis=1)	    
+            NRB_avg[:,tb,:] = np.mean(NRB[:,rr:rr+ncounts[tb],:],axis=1)
             saturate_ht_max[:,tb] = np.max(saturate_ht[:,rr:rr+ncounts[tb]],axis=1)
             rr += ncounts[tb]
 
@@ -911,6 +927,18 @@ for f in range(0,nMCS_files):
         
     else: # No averaging            
             
+        # Expand dataset sizes to accomodate next input MCS file
+        nav_dset.resize(i, axis=0)
+        laserspot_dset.resize(i, axis=0)
+        ONA_dset.resize(i, axis=0)
+        DEM_nadir_dset.resize(i, axis=0)
+        DEM_nadir_surftype_dset.resize(i, axis=0)
+        DEM_laserspot_dset.resize(i, axis=0)
+        DEM_laserspot_surftype_dset.resize(i, axis=0)
+        EM_dset.resize(i, axis=0)
+        NRB_dset.resize(i, axis=1)
+        saturate_ht_dset.resize(i, axis=1)
+        
         # Write out one file's worth of data to the hdf5 file
         meta_dset[i-nr_1file:i] = MCS_data_1file['meta']
         nav_dset[i-nr_1file:i] = Nav_save
@@ -922,6 +950,8 @@ for f in range(0,nMCS_files):
         DEM_laserspot_surftype_dset[i-nr_1file:i] = DEM_laserspot_surftype    
         EM_dset[i-nr_1file:i,:] = EMs
         NRB_dset[:,i-nr_1file:i,:] = NRB
+        saturate_ht_dset[:,i-nr_1file:i] = saturate_ht
+        nrecs = i
         
     print('\n**********************************')
     print('\nDone with file: '+MCS_file+'\n')
@@ -932,7 +962,7 @@ print('Main L1A execution finished at: ',DT.datetime.now())
 
 # Write out any final parameters to the HDF5 file that needed to wait
 
-num_recs_dset[:] = i
+num_recs_dset[:] = nrecs
 hdf5_file.close()
 print("NRB has been written to the HDF5 file:"+hdf5_fname)
 
