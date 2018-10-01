@@ -196,6 +196,14 @@
 # the np.extract() call. Also, np.extract() needed to be applied to CLS_UnixT_float64_orig.
 # I must have never actually tested this feature of the L1A code. It works
 # now.
+#
+# [10/1/18] saturate_ht issue fixed
+# This issue has yet to have caused a crash; however, when looking at
+# camal_l1a_v1 and cpl_l1a_v0 side-by-side, I noticed that I neglected
+# filter out the bad records for saturate_ht within the CPL code.
+# I'm guessing this never caused a crash because all CPL flights
+# used to test since saturate_ht was added probably had nice, continuous
+# data.
 
 # Import libraries <----------------------------------------------------
 
@@ -1166,6 +1174,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype = DEM_laserspot_surftype[good_rec_bool]
         EMs = EMs[good_rec_bool,:]
         NRB = NRB[:,good_rec_bool,:]
+        saturate_ht = saturate_ht[:,good_rec_bool]
         print('\nXXXXXXXXXXXXXXXXXXXXXXX')
         deleted_recs = nr_1file - tot_good_recs
         print(str(deleted_recs).strip()+' records deleted!')
