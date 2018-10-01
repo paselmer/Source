@@ -9,6 +9,8 @@ import math as math
 from scipy import constants as const
 import ctypes
 import matplotlib.dates as mdates
+from read_routines import read_in_raw_data
+from initializations import *
 
 
 def average_lidar_data(a,ne,nd):
@@ -869,37 +871,109 @@ def curtain_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_d
     
     return None  
     
+# Commented out 9/26/18
+# IF you're seeing this commented out more than one year from now, delete
+# this commented-out version of the determine_look_angles function
+#def determine_look_angles(angle_arr, scan_pos_uplim, scan_pos_lowlim, scan_pos_bw ):
+    #""" 
+    #This function will determine all the look angles within data.
+    #Originally wittten with CAMAL in mind because CAMAL has
+    #programmable, continuously variable scan angles.
     
-def determine_look_angles(angle_arr, scan_pos_uplim, scan_pos_lowlim, scan_pos_bw ):
+    #This function will produce a list of the float values of the
+    #angles. 
+    #"""
+        
+    ## NOTE: Any angle offset should already be incorporated into 
+    ##       angle_arr before entering this function
+    
+    ## The histogram parameters here come from the initialization file
+    #nhbins = int( (scan_pos_uplim - scan_pos_lowlim)/scan_pos_bw )
+    #dens, edges = np.histogram(angle_arr,
+                  #bins=nhbins,range=(scan_pos_lowlim,scan_pos_uplim))
+    #delta = float(scan_pos_uplim - scan_pos_lowlim) / float(nhbins)
+    #print("delta is ",delta)
+    #center = edges[:len(dens)] + delta
+    #mask = dens != 0
+    ##print("The bin edges are :",edges)
+    #print("This many bins have a freq of at least 1: ",dens[mask].shape)
+    #print("These are the bins: ",center[mask])
+    #hist_bin_centers = center[mask]
+    #hist_bin_width = delta
+    ##plt.plot(center,dens)
+    ##plt.show()
+    
+    #return [hist_bin_width, hist_bin_centers]
+  
+    
+def determine_look_angles(MCS_file_list, return_edges=None):
     """ 
     This function will determine all the look angles within data.
-    Originally wittten with CAMAL in mind because CAMAL has
+    Writtten with CAMAL in mind because CAMAL has
     programmable, continuously variable scan angles.
     
-    This function will produce a list of the float values of the
+    This method will produce a list of the float values of the
     angles. 
     """
-        
-    # NOTE: Any angle offset should already be incorporated into 
-    #       angle_arr before entering this function
+    # INPUT
+    # MCS_file_list -> A list of strings containing all the MCS input full-path
+    #                  file names
+    #
+    # OUTPUT
+    # preprogrammed_scan_angle_est -> A numpy array of the scan angles determined 
+    #                 by histogram analysis.
+    # edges (optional) -> The edges of the bins of the histogram analysis
     
+    # Use entire dataset to determine scan angles...
+    first_read = True
+    n_files = len(MCS_file_list)
+    r = 0
+    for file in MCS_file_list:
+        file_strip = file.strip()
+        MCS_data_1file = read_in_raw_data(file_strip)
+        if MCS_data_1file is None:
+            # None indications corrupt or no data within file
+            continue
+        if first_read:
+            first_read = False
+            nshots = MCS_data_1file['meta']['nshots'][0]
+            tot_est_recs = int(rep_rate/nshots)*file_len_secs*n_files
+            scan_pos = np.zeros(tot_est_recs)
+        nr_1file = MCS_data_1file.shape[0]
+        scan_pos[r:r+nr_1file] = MCS_data_1file['meta']['scan_pos']
+        r += nr_1file
+
+    # Trim any excess off array      
+    scan_pos = scan_pos[0:r]
+
+    # Correct scan angles for fixed, known offset. Provided in 
+    # initialization file.
+    scan_pos = scan_pos + angle_offset
+    
+    # Histogram analysis
     # The histogram parameters here come from the initialization file
     nhbins = int( (scan_pos_uplim - scan_pos_lowlim)/scan_pos_bw )
-    dens, edges = np.histogram(angle_arr,
+    dens, edges = np.histogram(scan_pos,
                   bins=nhbins,range=(scan_pos_lowlim,scan_pos_uplim))
-    delta = float(scan_pos_uplim - scan_pos_lowlim) / float(nhbins)
-    print("delta is ",delta)
-    center = edges[:len(dens)] + delta
-    mask = dens != 0
-    #print("The bin edges are :",edges)
-    print("This many bins have a freq of at least 1: ",dens[mask].shape)
-    print("These are the bins: ",center[mask])
-    hist_bin_centers = center[mask]
-    hist_bin_width = delta
-    #plt.plot(center,dens)
-    #plt.show()
     
-    return [hist_bin_width, hist_bin_centers]
+    # Identify the 'actual' (preprogrammed) scan angles by using the median and masks
+    preprogrammed_scan_angle_est = np.zeros(edges.shape[0]-1) - 999 # *
+    for e in range(0,edges.shape[0]-1):
+        if dens[e] > min_scan_freq:
+            low_edge_mask = scan_pos >= edges[e]
+            high_edge_mask = scan_pos < edges[e+1]
+            edges_mask = low_edge_mask * high_edge_mask
+            preprogrammed_scan_angle_est[e] = np.median(scan_pos[edges_mask])
+            
+    valid_mask = preprogrammed_scan_angle_est > -999               # *
+    preprogrammed_scan_angle_est = preprogrammed_scan_angle_est[valid_mask]
+    print('The code estimates that the following are the preprogrammed scan angles:')
+    print(preprogrammed_scan_angle_est)
+    
+    if return_edges is not None:
+        return [preprogrammed_scan_angle_est, edges]
+    else:
+        return preprogrammed_scan_angle_est    
       
       
         
