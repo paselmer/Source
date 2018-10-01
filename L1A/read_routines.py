@@ -59,12 +59,15 @@ def create_a_file_list_in_Unix(file_list,search_str):
 
     # [8/22/18]
     # 'touch' command determined unnessessary and removed from script.
+    # [9/28/18]
+    # Noticed funky issue when trying to run on Bubba. Needed to add "
+    # marks to the call to the make_file_list_unix script to fix.
     
     # *** NOTE *** 
     # This code relies on an external C-shell script.
     cmd = 'rm -f ' + file_list #-f added 8/22/18, making touch unnessessary
     cmd_feedback = check_output(cmd, shell=True)
-    cmd = './make_file_list_unix ' + raw_dir + ' ' + search_str + ' > ' + file_list
+    cmd = './make_file_list_unix ' + raw_dir + ' "' + search_str + '" > ' + file_list
     cmd_feedback = check_output(cmd, shell=True)   
     
     
