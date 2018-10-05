@@ -79,6 +79,9 @@
 # [10/1/18] Averaging 'by_records_only' now working
 # Code still needs to be written for the 'by_scan' averaging method, but
 # I tested the 'by_records_only' method and it seems to working well.
+#
+# [10/5/18] Significant amount of code written towards development of
+#           'by_scan' averaging method.
 
 
 # Import libraries <----------------------------------------------------
@@ -363,6 +366,9 @@ for f in range(0,nMCS_files):
     good_rec_bool = np.ones(MCS_data_1file.shape[0],dtype=bool) # is 'True' for good records, 'False' for bad
     satur_flag = False # Will turn True if any bin in current file is potentially saturated.
     
+    # Correct scan angle offset
+    MCS_data_1file['meta']['scan_pos'] = MCS_data_1file['meta']['scan_pos'] + angle_offset    
+    
     # Interpolate MCS times to data rate
     xp = (MCS_data_1file['meta']['Gps_msec'] - MCS_data_1file['meta']['Gps_msec'][0])/1000.0
     fp = MCS_data_1file['meta']['Gps_msec'].astype(np.float64)
@@ -444,7 +450,7 @@ for f in range(0,nMCS_files):
     # Create histogram bin boundaries. If first_read, created farther down in first_read block.
     if ((not first_read) and (secs2avg != 0)):
         if avg_method == 'by_records_only':
-            time_bins = np.arange(trans_bin[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
+            avg_bins = np.arange(trans_bin[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
         elif avg_method == 'by_scan':
             """ Look angles should have already been determined the first go-around """
 
@@ -475,12 +481,16 @@ for f in range(0,nMCS_files):
         nb_ff = ffrme.shape[0] # number of bins in the fixed frame
         # Load the overlap table
         overlap_vector = read_in_overlap_table(olap_dir+overlap_file)
+        # Determine look angles by histogram analysis for 2 reasons...
+        #   1. If user has decided to filter out "spikes" in scan angle
+        #   2. If user has decided to average 'by_scan'
+        [look_angles, look_angle_bins] = determine_look_angles(all_MCS_files,return_edges='yes')        
         # If averaging by_scan, identify all scan angle values
         if ((avg_method == 'by_scan') and (secs2avg != 0)):
-            [look_angles, look_angle_bins] = determine_look_angles(all_MCS_files,return_edges='yes')
+            avg_bins = look_angle_bins # just create an array reference
         # Create histogram bin boundaries.
         else:
-            time_bins = np.arange(MCS_UnixT_float64_orig[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
+            avg_bins = np.arange(MCS_UnixT_float64_orig[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
         # Overlap is one long array, where first nbins are
         # 1064, next nbins are 532, and next (final) nbins are 355.
         overlaps = overlap_vector.reshape((nwl,nb))
@@ -744,6 +754,25 @@ for f in range(0,nMCS_files):
         EMsubmit = EMs[:,wl_map[chan]]     
         NRB[chan,:,:] = correct_raw_counts(counts_ff[chan,:,:],EMsubmit,
             None,i1f,nb_ff,ff_bg_st_bin,ff_bg_ed_bin,'NRB_no_range')
+            
+    # Filter out spurious jumps in the reported scan angle (scan_pos)
+    if ((min_scan_len > 0) and (good_rec_bool.sum() > 2)):
+        bin_nums = np.digitize(MCS_data_1file['meta']['scan_pos'],look_angle_bins)
+        dbn = bin_nums[1:] - bin_nums[:-1]
+        change_bn_mask = dbn != 0
+        indx = np.arange(nr_1file-1)
+        # indexes where bin_nums changes to a different bin
+        change_indx = indx[change_bn_mask] + 1
+        ncounts = np.zeros(change_indx.shape[0]+1,np.uint32)
+        ncounts[0] = change_indx[0]
+        ncounts[1:-1] = change_indx[1:] - change_indx[:-1]
+        ncounts[-1] = nr_1file - change_indx[-1]
+        # Find records (indicies) where ncounts < min_scan_len
+        aw = np.argwhere(ncounts < min_scan_len)
+        for scn_spk_indx in aw:
+            good_rec_bool[change_indx[scn_spk_indx[0]-1]:change_indx[scn_spk_indx[0]-1]+ncounts[scn_spk_indx[0]]] = False
+        print('Orig ncounts: ',ncounts)          
+        pdb.set_trace()    
         
     # Delete bad records from output arrays
     tot_good_recs = good_rec_bool.sum()
@@ -794,43 +823,56 @@ for f in range(0,nMCS_files):
     if secs2avg > 0.0: # if < 0, don't average
 
         if avg_method == 'by_records_only':
-            bin_numbers = np.digitize(MCS_UnixT_float64_new,time_bins)
+            bin_numbers = np.digitize(MCS_UnixT_float64_new,avg_bins)
             u, ui, ncounts = np.unique(bin_numbers,return_index=True,return_counts=True)
+            # Test whether first bin of this file is == to last bin of previous file
+            trans_bin_condition = avg_bins[bin_numbers[ui[0]]-1] == trans_bin[0]
+            # following line defines the "trasfer" bin; trans_bin
+            trans_bin = avg_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
+            trans_ncounts = ncounts[-1]
         elif avg_method == 'by_scan':
-            bin_numbers = np.digitize(MCS_data_1file['meta']['scan_pos']+angle_offset,look_angle_bins)
+            bin_numbers = np.digitize(MCS_data_1file['meta']['scan_pos'],avg_bins)
             dbn = bin_numbers[1:] - bin_numbers[:-1]
             change_bn_mask = dbn != 0
             indx = np.arange(nr_1file-1)
             # indexes where bin_numbers changes to a different bin
             change_indx = indx[change_bn_mask] + 1
-            ncounts = np.zeros(change_indx.shape[0]+1)
+            ncounts = np.zeros(change_indx.shape[0]+1,np.uint32)
             ncounts[0] = change_indx[0]
             ncounts[1:-1] = change_indx[1:] - change_indx[:-1]
             ncounts[-1] = nr_1file - change_indx[-1]
-            ui = np.zeros(change_indx.shape[0]+1)
-            pdb.set_trace()
+            ui = np.zeros(change_indx.shape[0]+1,dtype=np.uint32)
             ui[1:] = change_indx
-            pdb.set_trace()
-        Nav_save_avg = np.zeros(u.shape[0],dtype=Nav_save.dtype)
-        laserspot_avg = np.zeros((u.shape[0],2),dtype=laserspot.dtype)
-        ONA_save_avg = np.zeros(u.shape[0],dtype=ONA_save.dtype)
-        DEM_nadir_avg = np.zeros(u.shape[0],dtype=DEM_nadir.dtype)
-        DEM_nadir_surftype_avg = np.zeros(u.shape[0],dtype=DEM_nadir_surftype.dtype)
-        DEM_laserspot_avg = np.zeros(u.shape[0],dtype=DEM_laserspot.dtype)
-        DEM_laserspot_surftype_avg = np.zeros(u.shape[0],dtype=DEM_laserspot_surftype.dtype)
-        EMs_avg = np.zeros((u.shape[0],nwl),dtype=EMs.dtype)
-        NRB_avg = np.zeros((nc,u.shape[0],nb_ff),dtype=NRB.dtype)
-        saturate_ht_max = np.zeros((nc,u.shape[0]),dtype=saturate_ht.dtype)
+            # Test whether first bin of this file is == to last bin of previous file
+            trans_bin_condition = (bin_numbers[0]) == trans_bin[0]            
+            # following line defines the "trasfer" bin; trans_bin
+            next_bin_number = bin_numbers[-1] + 1
+            if bin_numbers[-1] > avg_bins.shape[0]: next_bin_number = 1
+            trans_bin = np.asarray( [bin_numbers[-1] , next_bin_number ] )
+            trans_ncounts = ncounts[-1]  
+            print('new ncounts: ',ncounts)
+        meta_avg = np.zeros(ui.shape[0],dtype=meta_dset.dtype)
+        Nav_save_avg = np.zeros(ui.shape[0],dtype=Nav_save.dtype)
+        laserspot_avg = np.zeros((ui.shape[0],2),dtype=laserspot.dtype)
+        ONA_save_avg = np.zeros(ui.shape[0],dtype=ONA_save.dtype)
+        DEM_nadir_avg = np.zeros(ui.shape[0],dtype=DEM_nadir.dtype)
+        DEM_nadir_surftype_avg = np.zeros(ui.shape[0],dtype=DEM_nadir_surftype.dtype)
+        DEM_laserspot_avg = np.zeros(ui.shape[0],dtype=DEM_laserspot.dtype)
+        DEM_laserspot_surftype_avg = np.zeros(ui.shape[0],dtype=DEM_laserspot_surftype.dtype)
+        EMs_avg = np.zeros((ui.shape[0],nwl),dtype=EMs.dtype)
+        NRB_avg = np.zeros((nc,ui.shape[0],nb_ff),dtype=NRB.dtype)
+        saturate_ht_max = np.zeros((nc,ui.shape[0]),dtype=saturate_ht.dtype)
         rr = 0 # raw record number
-    
+
         ei = ui.shape[0]-1
         if last_file: ei = ui.shape[0]
         if first_read: 
             si = 0
         # Gotta do an elif cuz cur file might not have any vals within last bin of prev file
-        elif time_bins[bin_numbers[ui[0]]-1] == trans_bin[0]:
+        elif trans_bin_condition:
             si = 1 # start index
             trans_total = float(trans_ncounts+ncounts[0])
+            meta_avg['scan_pos'][0] = (scan_pos_sum + MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[0]].sum())/trans_total
             for field in Nav_save_avg.dtype.names:
                 if (field == 'UTC'): continue
                 Nav_save_avg[field][0] = ( (Nav_save_sum[field] + 
@@ -849,12 +891,17 @@ for f in range(0,nMCS_files):
         else:
             si = 0
             print(attention_bar)
-            print("I guess the time_bins lined up perfectly with edge of previous file")
+            print("I guess the avg_bins lined up perfectly with edge of previous file")
             print("because there are no values in the previous file's last time bin.")
             print(trans_bin)
             print(attention_bar)
 
         for tb in range(si,ei):
+            meta_avg['scan_pos'][tb] = np.mean(MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[tb]])
+            print("Avg value: ",meta_avg['scan_pos'][tb])
+            plt.plot(MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[tb]],marker='*')
+            plt.show()
+            pdb.set_trace()
             for field in Nav_save_avg.dtype.names:
                 if (field == 'UTC'): continue
                 Nav_save_avg[field][tb] = np.mean(Nav_save[field][rr:rr+ncounts[tb]])
@@ -873,6 +920,7 @@ for f in range(0,nMCS_files):
         # Save the sum and ncounts of last populated time bin to string averaging
         # together between multiple files.
         if not last_file:
+            scan_pos_sum = MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[-1]].sum()
             Nav_save_sum = np.zeros(1,dtype=Nav_save.dtype)
             for field in Nav_save_avg.dtype.names:
                 if (field == 'UTC'): continue
@@ -887,20 +935,18 @@ for f in range(0,nMCS_files):
             EMs_sum = EMs[rr:rr+ncounts[-1],:].sum(axis=0)
             NRB_sum = NRB[:,rr:rr+ncounts[-1],:].sum(axis=1)
             saturate_ht_carryover = saturate_ht[:,rr:rr+ncounts[-1]]
-            # following line defines the "trasfer" bin; trans_bin
-            trans_bin = time_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
-            trans_ncounts = ncounts[-1]
 
         # Expand dataset sizes to accomodate next input MCS file
         cutbegin = 0
         if ((first_read) and (ncounts[0] < min_avg_profs)): cutbegin = 1
-        n_expand = u.shape[0]-1-cutbegin
-        if ( (last_file) and (ncounts[-1] > min_avg_profs) ): n_expand = u.shape[0]
+        n_expand = ui.shape[0]-1-cutbegin
+        if ( (last_file) and (ncounts[-1] > min_avg_profs) ): n_expand = ui.shape[0]
         expanded_length = nav_dset.shape[0]+n_expand
         # Now, if it's the first_read, nav_dset has an initialized length of 1; therefore,
         # if you use the expanded_length in the previous line the first_read, you'll 
         # get a dataset size that is too long by 1. The following line fixes this.
         if first_read: expanded_length = n_expand
+        meta_dset.resize(expanded_length, axis=0)
         nav_dset.resize(expanded_length, axis=0)
         laserspot_dset.resize(expanded_length, axis=0)
         ONA_dset.resize(expanded_length, axis=0)
@@ -913,6 +959,7 @@ for f in range(0,nMCS_files):
         saturate_ht_dset.resize(expanded_length, axis=1)	
                         
         # Write out one file's worth of data to the hdf5 file
+        meta_dset[expanded_length-n_expand:expanded_length] = meta_avg[cutbegin:n_expand+cutbegin]
         nav_dset[expanded_length-n_expand:expanded_length] = Nav_save_avg[cutbegin:n_expand+cutbegin]
         laserspot_dset[expanded_length-n_expand:expanded_length,:] = laserspot_avg[cutbegin:n_expand+cutbegin,:]
         ONA_dset[expanded_length-n_expand:expanded_length] = ONA_save_avg[cutbegin:n_expand+cutbegin]
@@ -928,6 +975,7 @@ for f in range(0,nMCS_files):
     else: # No averaging            
             
         # Expand dataset sizes to accomodate next input MCS file
+        meta_dset.resize(i, axis=0)
         nav_dset.resize(i, axis=0)
         laserspot_dset.resize(i, axis=0)
         ONA_dset.resize(i, axis=0)
