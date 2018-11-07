@@ -755,24 +755,28 @@ for f in range(0,nMCS_files):
         NRB[chan,:,:] = correct_raw_counts(counts_ff[chan,:,:],EMsubmit,
             None,i1f,nb_ff,ff_bg_st_bin,ff_bg_ed_bin,'NRB_no_range')
             
-    # Filter out spurious jumps in the reported scan angle (scan_pos)
-    if ((min_scan_len > 0) and (good_rec_bool.sum() > 2)):
-        bin_nums = np.digitize(MCS_data_1file['meta']['scan_pos'],look_angle_bins)
-        dbn = bin_nums[1:] - bin_nums[:-1]
-        change_bn_mask = dbn != 0
-        indx = np.arange(nr_1file-1)
-        # indexes where bin_nums changes to a different bin
-        change_indx = indx[change_bn_mask] + 1
-        ncounts = np.zeros(change_indx.shape[0]+1,np.uint32)
-        ncounts[0] = change_indx[0]
-        ncounts[1:-1] = change_indx[1:] - change_indx[:-1]
-        ncounts[-1] = nr_1file - change_indx[-1]
-        # Find records (indicies) where ncounts < min_scan_len
-        aw = np.argwhere(ncounts < min_scan_len)
-        for scn_spk_indx in aw:
-            good_rec_bool[change_indx[scn_spk_indx[0]-1]:change_indx[scn_spk_indx[0]-1]+ncounts[scn_spk_indx[0]]] = False
-        print('Orig ncounts: ',ncounts)          
-        pdb.set_trace()    
+    ## Filter out spurious jumps in the reported scan angle (scan_pos)
+    #if ((min_scan_len > 0) and (good_rec_bool.sum() > 2)):
+        #bin_nums = np.digitize(MCS_data_1file['meta']['scan_pos'],look_angle_bins)
+        #dbn = bin_nums[1:] - bin_nums[:-1]
+        #change_bn_mask = dbn != 0
+        #indx = np.arange(nr_1file-1)
+        ## indexes where bin_nums changes to a different bin
+        #change_indx = indx[change_bn_mask] + 1
+        #print("change_indx shape = ",change_indx.shape)
+        #pdb.set_trace()
+        #ncounts = np.zeros(change_indx.shape[0]+1,np.uint32)
+        #ncounts[0] = change_indx[0]
+        #ncounts[1:-1] = change_indx[1:] - change_indx[:-1]
+        #ncounts[-1] = nr_1file - change_indx[-1]
+        ## Find records (indicies) where ncounts < min_scan_len
+        #aw = np.argwhere(ncounts < min_scan_len)
+        #print("There is an issue here. If bin changes at edge of file, legit records will be eliminated!!!")
+        #pdb.set_trace()
+        #for scn_spk_indx in aw:
+            #good_rec_bool[change_indx[scn_spk_indx[0]-1]:change_indx[scn_spk_indx[0]-1]+ncounts[scn_spk_indx[0]]] = False
+        ##print('Orig ncounts: ',ncounts)          
+        #pdb.set_trace()    
         
     # Delete bad records from output arrays
     tot_good_recs = good_rec_bool.sum()
@@ -833,10 +837,21 @@ for f in range(0,nMCS_files):
         elif avg_method == 'by_scan':
             bin_numbers = np.digitize(MCS_data_1file['meta']['scan_pos'],avg_bins)
             dbn = bin_numbers[1:] - bin_numbers[:-1]
+            pdb.set_trace()
             change_bn_mask = dbn != 0
             indx = np.arange(nr_1file-1)
-            # indexes where bin_numbers changes to a different bin
             change_indx = indx[change_bn_mask] + 1
+            print("change_indx shape = ",change_indx.shape)
+            pdb.set_trace()
+            # indexes where bin_numbers changes to a different bin
+            if change_indx.shape[0] > 0: 
+                change_indx = indx[change_bn_mask] + 1
+            else:
+                pdb.set_trace()
+                change_indx = np.asarray([nr_1file-1])
+                pdb.set_trace()
+            print("YOU have to write code to deal with the case where")
+            print("there's only one scan angle in the entire file.")
             ncounts = np.zeros(change_indx.shape[0]+1,np.uint32)
             ncounts[0] = change_indx[0]
             ncounts[1:-1] = change_indx[1:] - change_indx[:-1]
@@ -850,7 +865,7 @@ for f in range(0,nMCS_files):
             if bin_numbers[-1] > avg_bins.shape[0]: next_bin_number = 1
             trans_bin = np.asarray( [bin_numbers[-1] , next_bin_number ] )
             trans_ncounts = ncounts[-1]  
-            print('new ncounts: ',ncounts)
+            #print('new ncounts: ',ncounts)
         meta_avg = np.zeros(ui.shape[0],dtype=meta_dset.dtype)
         Nav_save_avg = np.zeros(ui.shape[0],dtype=Nav_save.dtype)
         laserspot_avg = np.zeros((ui.shape[0],2),dtype=laserspot.dtype)
@@ -870,6 +885,7 @@ for f in range(0,nMCS_files):
             si = 0
         # Gotta do an elif cuz cur file might not have any vals within last bin of prev file
         elif trans_bin_condition:
+            pdb.set_trace()
             si = 1 # start index
             trans_total = float(trans_ncounts+ncounts[0])
             meta_avg['scan_pos'][0] = (scan_pos_sum + MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[0]].sum())/trans_total
@@ -888,6 +904,7 @@ for f in range(0,nMCS_files):
             NRB_avg[:,0,:] = (NRB_sum + NRB[:,rr:rr+ncounts[0],:].sum(axis=1))/trans_total
             saturate_ht_max[:,0] = np.asarray( (saturate_ht_carryover.max(axis=1), saturate_ht[:,rr:rr+ncounts[0]].max(axis=1)) ).max(axis=0)
             print('trans_ncounts = ',trans_ncounts)
+            pdb.set_trace()
         else:
             si = 0
             print(attention_bar)
@@ -898,10 +915,10 @@ for f in range(0,nMCS_files):
 
         for tb in range(si,ei):
             meta_avg['scan_pos'][tb] = np.mean(MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[tb]])
-            print("Avg value: ",meta_avg['scan_pos'][tb])
-            plt.plot(MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[tb]],marker='*')
-            plt.show()
-            pdb.set_trace()
+            #print("Avg value: ",meta_avg['scan_pos'][tb])
+            #plt.plot(MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[tb]],marker='*')
+            #plt.show()
+            #pdb.set_trace()
             for field in Nav_save_avg.dtype.names:
                 if (field == 'UTC'): continue
                 Nav_save_avg[field][tb] = np.mean(Nav_save[field][rr:rr+ncounts[tb]])
