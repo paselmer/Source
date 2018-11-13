@@ -204,6 +204,10 @@
 # I'm guessing this never caused a crash because all CPL flights
 # used to test since saturate_ht was added probably had nice, continuous
 # data.
+#
+# [11/13/18] Nav_save averaging error fixed
+# Nav_save_sum was averaging with itself instead of being averaged with
+# Nav_save from the current file. This is now fixed.
 
 # Import libraries <----------------------------------------------------
 
@@ -1223,7 +1227,7 @@ for f in range(0,nCLS_files):
             for field in Nav_save_avg.dtype.names:
                 if (field == 'UTC'): continue
                 Nav_save_avg[field][0] = ( (Nav_save_sum[field] + 
-                    Nav_save_sum[field][rr:rr+ncounts[0]].sum())/trans_total )
+                    Nav_save[field][rr:rr+ncounts[0]].sum())/trans_total )
             Nav_save_avg['UTC'] = Nav_UTC_carryover
             laserspot_avg[0,:] = (laserspot_sum + laserspot[rr:rr+ncounts[0],:].sum(axis=0))/trans_total
             ONA_save_avg[0] = (ONA_save_sum + ONA_save[rr:rr+ncounts[0]].sum())/trans_total

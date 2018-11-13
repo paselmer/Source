@@ -50,7 +50,7 @@
 # New features list:
 # - averaging (both profile-wise and angle-centric)
 # - overlap correction fixed
-# - invalid records handled better (good_recs_bool)
+# - invalid records handled better (good_rec_bool)
 # - ONA_cutoff added to initializations
 # - saturation values added to initializations
 #
@@ -101,6 +101,13 @@
 # Next, the final thing to do with 'by_scan' code is figuring out if/how
 # to impliment the front_recs_margin, back_recs_margin intializations
 # parameters.
+#
+# [11/9/18] 'by_scan' margin capability added and tested
+# In addition, some improvements were made to the by_scan averaging logic.
+#
+# [11/13/18] Nav_save averaging error fixed
+# Nav_save_sum was averaging with itself instead of being averaged with
+# Nav_save from the current file. This is now fixed.
 
 
 # Import libraries <----------------------------------------------------
@@ -178,6 +185,8 @@ def compute_time_offsets(MCS_file=None,quick='no'):
     
 # Start main execution here <-------------------------------------------
 print('Starting main L1A execution at: ',DT.datetime.now())
+# Helper file
+help_fobj = open('C:\\Users\\pselmer\\Desktop\\helper_file.txt', 'wt')
 
 # Create and load file list for MCS data
 MCS_file_list = 'processing_file_list.txt'
@@ -509,9 +518,12 @@ for f in range(0,nMCS_files):
             avg_bins = look_angle_bins # just create an array reference
             # profs2avg used if multiple secs2avg fit within a single scan stare
             profs2avg = int(secs2avg * MCS_hz)
+            margin_tot = front_recs_margin + back_recs_margin
         # Create histogram bin boundaries.
         else:
             avg_bins = np.arange(MCS_UnixT_float64_orig[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
+        # The number of trans bins remaining after front_recs_margin applied
+        ftrans_rem = 0
         # Overlap is one long array, where first nbins are
         # 1064, next nbins are 532, and next (final) nbins are 355.
         overlaps = overlap_vector.reshape((nwl,nb))
@@ -775,29 +787,6 @@ for f in range(0,nMCS_files):
         EMsubmit = EMs[:,wl_map[chan]]     
         NRB[chan,:,:] = correct_raw_counts(counts_ff[chan,:,:],EMsubmit,
             None,i1f,nb_ff,ff_bg_st_bin,ff_bg_ed_bin,'NRB_no_range')
-            
-    ## Filter out spurious jumps in the reported scan angle (scan_pos)
-    #if ((min_scan_len > 0) and (good_rec_bool.sum() > 2) and (avg_method == 'by_scan')):
-        #bin_nums = np.digitize(MCS_data_1file['meta']['scan_pos'],look_angle_bins)
-        #dbn = bin_nums[1:] - bin_nums[:-1]
-        #change_bn_mask = dbn != 0
-        #indx = np.arange(nr_1file-1)
-        ## indexes where bin_nums changes to a different bin
-        #change_indx = indx[change_bn_mask] + 1
-        #print("change_indx shape = ",change_indx.shape)
-        #pdb.set_trace()
-        #ncounts = np.zeros(change_indx.shape[0]+1,np.uint32)
-        #ncounts[0] = change_indx[0]
-        #ncounts[1:-1] = change_indx[1:] - change_indx[:-1]
-        #ncounts[-1] = nr_1file - change_indx[-1]
-        ## Find records (indicies) where ncounts < min_scan_len
-        #aw = np.argwhere(ncounts < min_scan_len)
-        #print("There is an issue here. If bin changes at edge of file, legit records will be eliminated!!!")
-        #pdb.set_trace()
-        #for scn_spk_indx in aw:
-            #good_rec_bool[change_indx[scn_spk_indx[0]-1]:change_indx[scn_spk_indx[0]-1]+ncounts[scn_spk_indx[0]]] = False
-        ##print('Orig ncounts: ',ncounts)          
-        #pdb.set_trace()    
         
     # Delete bad records from output arrays
     tot_good_recs = good_rec_bool.sum()
@@ -844,7 +833,7 @@ for f in range(0,nMCS_files):
     # u = unique values
     # ui = the starting indicies of the unique values
     # ncounts = the count of each unique value
-    if secs2avg > 0.0: # if < 0, don't average
+    if secs2avg > 0.0: # if <= 0, don't average
 
         if avg_method == 'by_records_only':       
             # Must define this before new ncounts is computed
@@ -864,8 +853,6 @@ for f in range(0,nMCS_files):
             # Assume last bin has enough profs until next go-around when its
             # counts are added to the counts of first element of the next file
             min_avg_profs_mask[-1] = True
-            # Filter out only the ui values where < min_avg_profs
-            ui = ui[min_avg_profs_mask]
             # following line defines the "trasfer" bin; trans_bin
             trans_bin = avg_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
         elif avg_method == 'by_scan':
@@ -880,7 +867,6 @@ for f in range(0,nMCS_files):
             change_bn_mask = dbn != 0
             indx = np.arange(nr_1file-1)
             change_indx = indx[change_bn_mask] + 1
-            print("change_indx shape = ",change_indx.shape)
             # indexes where bin_numbers changes to a different bin
             if change_indx.shape[0] <= 0: pdb.set_trace()
             change_indx = indx[change_bn_mask] + 1
@@ -891,59 +877,131 @@ for f in range(0,nMCS_files):
             ncounts[1:-1] = change_indx[1:] - change_indx[:-1]
             ncounts[-1] = nr_1file - change_indx[-1]
             # Test whether first bin of this file is == to last bin of previous file
-            trans_bin_condition = (bin_numbers[0]) == trans_bin[0]         
-            #### ID contiguous scan values
-            ###min_scan_len_mask = ncounts >= min_scan_len
-            ###if ((trans_ncounts + ncounts[0]) >= min_scan_len): min_scan_len_mask[0] = True
-            #### Assume last bin has enough profs until next go-around when its
-            #### counts are added to the counts of first element of the next file
-            ###min_scan_len_mask[-1] = True            
+            trans_bin_condition = (bin_numbers[0]) == trans_bin[0]
+            # Create ui array to be used in same way as that for 'by_records_only'                   
             ui = np.zeros(change_indx.shape[0]+1,dtype=np.uint32)
             ui[1:] = change_indx
+            # If next if block is NOT entered, all margin_mask values will be True
+            margin_mask = np.ones(ui.shape[0],dtype=bool) # 'False' for margin recs, 'True' otherwise
+            # Create more partitions of ui, ncounts based on edge of scan margin params
+            if f == 20: pdb.set_trace()
+            # NOTE: ncounts cannot have a shape of zero before entering this block [11/13/18]
+            if (margin_tot > 0):
+                if (ncounts.shape[0] > 2):
+                    new_ncounts = []
+                    new_ui = []
+                    margin_mask_list = []
+                    uii = 0
+                    ncc = 0
+                    new_ui.append(uii) # Don't apply margins to file's edges
+                    uii = ui[1]
+                    new_ncounts.append(ncounts[0])
+                    margin_mask_list.append(True)
+                    ncc += 1
+                    ncounts_len = ncounts.shape[0]
+                    # loop 2nd to penultimate, unless last_file
+                    for ncnts in np.nditer(ncounts[1:ncounts_len-2+last_file]): 
+                        last_iter = ncc == ncounts.shape[0]-1 # bool (1/0)
+                        uii = ui[ncc]
+                        if ncnts > margin_tot:
+                            new_ui.append(uii)
+                            if (front_recs_margin > 0): 
+                                new_ncounts.append(front_recs_margin)
+                                margin_mask_list.append(False)
+                                new_ui.append(uii+front_recs_margin)
+                                uii = uii+front_recs_margin
+                            new_ncounts.append(ncnts-margin_tot+last_iter)
+                            margin_mask_list.append(True) # data in middle
+                            if ((back_recs_margin > 0) and (not last_iter)): 
+                                rem = ncnts - margin_tot
+                                new_ncounts.append(back_recs_margin)
+                                margin_mask_list.append(False)
+                                new_ui.append(uii+rem)
+                        else:
+                            new_ncounts.append(ncnts)
+                            margin_mask_list.append(False)
+                            new_ui.append(uii)
+                        ncc += 1
+                    uii = ui[ncc]
+                    new_ui.append(uii) # Don't apply margins to file's edges
+                    new_ncounts.append(ncounts[-1])
+                    margin_mask_list.append(True)                        
+                    ncounts = np.asarray(new_ncounts)
+                    ui = np.asarray(new_ui)
+                    margin_mask = np.asarray(margin_mask_list)
+                else: # ncounts.shape == 1 or 2
+                    new_ncounts = []
+                    new_ui = []
+                    margin_mask_list = []
+                    uii = 0
+                    ncc = 0
+                    new_ui.append(uii) # Don't apply margins to file's edges
+                    uii = ui[1]
+                    new_ncounts.append(ncounts[0])
+                    margin_mask_list.append(True)
+                    ncc += 1
+                    if ncounts.shape[0] == 2:
+                        uii = ui[ncc]
+                        new_ui.append(uii) # Don't apply margins to file's edges
+                        new_ncounts.append(ncounts[-1])
+                        margin_mask_list.append(True)                        
+                    ncounts = np.asarray(new_ncounts)
+                    ui = np.asarray(new_ui)
+                    margin_mask = np.asarray(margin_mask_list)
             # Only perform the following if you can get multiple profs2avg in a single scan stare
             if (((ncounts > profs2avg).sum() > 0) and (min_scan_len > 0)):
                 print("Using min_avg_profs to filter for 'by_scan' avg")
                 new_ncounts = []
                 new_ui = []
+                new_margin_mask = []
                 uii = 0 # ui index counter
                 ncc = 0 # ncounts index counter
                 for ncnts in np.nditer(ncounts):
                     uii = ui[ncc]
-                    if ncnts > profs2avg:
+                    if ((ncnts > profs2avg) and (margin_mask[ncc])):
                         for avg_chnk in range(profs2avg,ncnts,profs2avg):
                             new_ncounts.append(profs2avg)
+                            new_margin_mask.append(True)
                             new_ui.append(uii)
                             uii = ui[ncc] + avg_chnk
                         new_ui.append(uii)
                         rem = ncnts - avg_chnk
                         uii = uii + rem
                         new_ncounts.append(rem)
+                        new_margin_mask.append(True)
                     else:
                         new_ncounts.append(ncnts)
                         new_ui.append(uii)
+                        if (margin_mask[ncc]):
+                            new_margin_mask.append(True)
+                        else:
+                            new_margin_mask.append(False)
                     ncc += 1
                 ncounts = np.asarray(new_ncounts)
                 ui = np.asarray(new_ui)
+                margin_mask = np.asarray(new_margin_mask)
                 # ID contiguous scan values
-                min_avg_profs_mask = ncounts >= min_avg_profs
-                if ((trans_ncounts + ncounts[0]) >= min_scan_len): min_avg_profs_mask[0] = True
+                min_avg_profs_mask = (ncounts >= min_avg_profs) * margin_mask
+                if ((trans_ncounts + ncounts[0]) >= min_avg_profs): min_avg_profs_mask[0] = True
                 # Assume last bin has enough profs until next go-around when its
                 # counts are added to the counts of first element of the next file
-                min_avg_profs_mask[-1] = True   
+                min_avg_profs_mask[-1] = True  
+                help_fobj.write("PROF, "+str(f)+", "+str(min_avg_profs_mask.sum())+"\n") 
             else:
                 print("Using min_scan_len to filter for 'by_scan' avg")
                 # ID contiguous scan values
-                min_scan_len_mask = ncounts >= min_scan_len
+                min_scan_len_mask = (ncounts >= min_scan_len) * margin_mask
                 if ((trans_ncounts + ncounts[0]) >= min_scan_len): min_scan_len_mask[0] = True
                 # Assume last bin has enough profs until next go-around when its
                 # counts are added to the counts of first element of the next file
                 min_scan_len_mask[-1] = True    
                 min_avg_profs_mask = min_scan_len_mask
-            ui = ui[min_avg_profs_mask]
+                help_fobj.write("SCAN, "+str(f)+", "+str(min_avg_profs_mask.sum())+"\n")
             # following line defines the "trasfer" bin; trans_bin
             next_bin_number = bin_numbers[-1] + 1
             if bin_numbers[-1] > avg_bins.shape[0]: next_bin_number = 1
             trans_bin = np.asarray( [bin_numbers[-1] , next_bin_number ] )             
+            if f == 20: pdb.set_trace()
             
         meta_avg = np.zeros(ui.shape[0],dtype=meta_dset.dtype)
         Nav_save_avg = np.zeros(ui.shape[0],dtype=Nav_save.dtype)
@@ -960,27 +1018,42 @@ for f in range(0,nMCS_files):
 
         ei = ui.shape[0]-1
         if last_file: ei = ui.shape[0]
-        if first_read: si = 0
+        if first_read: 
+            si = 0
         # Gotta do an elif cuz cur file might not have any vals within last bin of prev file
         elif ((trans_bin_condition) and (min_avg_profs_mask[0])):
             si = 1 # start index
-            trans_total = float(trans_ncounts+ncounts[0])
-            meta_avg['scan_pos'][0] = (scan_pos_sum + MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[0]].sum())/trans_total
-            for field in Nav_save_avg.dtype.names:
-                if (field == 'UTC'): continue
-                Nav_save_avg[field][0] = ( (Nav_save_sum[field] + 
-                    Nav_save_sum[field][rr:rr+ncounts[0]].sum())/trans_total )
-            Nav_save_avg['UTC'] = Nav_UTC_carryover
-            laserspot_avg[0,:] = (laserspot_sum + laserspot[rr:rr+ncounts[0],:].sum(axis=0))/trans_total
-            ONA_save_avg[0] = (ONA_save_sum + ONA_save[rr:rr+ncounts[0]].sum())/trans_total
-            DEM_nadir_avg[0] = (DEM_nadir_sum + DEM_nadir[rr:rr+ncounts[0]].sum())/trans_total
-            DEM_nadir_surftype_avg[0] = stats.mode( np.concatenate((DEM_nadir_surftype_carryover, DEM_nadir_surftype[rr:rr+ncounts[0]])) )[0][0]
-            DEM_laserspot_avg[0] = (DEM_laserspot_sum + DEM_laserspot[rr:rr+ncounts[0]].sum())/trans_total
-            DEM_laserspot_surftype_avg[0] = stats.mode( np.concatenate((DEM_laserspot_surftype_carryover, DEM_laserspot_surftype[rr:rr+ncounts[0]])) )[0][0]
-            EMs_avg[0,:] = (EMs_sum + EMs[rr:rr+ncounts[0],:].sum(axis=0))/trans_total
-            NRB_avg[:,0,:] = (NRB_sum + NRB[:,rr:rr+ncounts[0],:].sum(axis=1))/trans_total
-            saturate_ht_max[:,0] = np.asarray( (saturate_ht_carryover.max(axis=1), saturate_ht[:,rr:rr+ncounts[0]].max(axis=1)) ).max(axis=0)
+            pdb.set_trace()
+            tot_bridge_recs = (trans_ncounts-front_recs_margin) + (ncounts[0]-back_recs_margin)
+            if ((tot_bridge_recs >= min_avg_profs) and (tot_bridge_recs >= min_scan_len)):
+                # Form temporary arrays of data from the "bridge" between files
+                scan_pos_bridge = np.concatenate( (scan_pos_trans, MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[0]]) )
+                Nav_save_bridge = np.concatenate( (Nav_save_trans, Nav_save[rr:rr+ncounts[0]]) )
+                laserspot_bridge = np.concatenate( (laserspot_trans, laserspot[rr:rr+ncounts[0],:]) )
+                if (tot_bridge_recs <= profs2avg):
+                    trans_total = float(tot_bridge_recs)
+                    meta_avg['scan_pos'][0] = (scan_pos_sum + MCS_data_1file['meta']['scan_pos'][rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].sum())/trans_total
+                    for field in Nav_save_avg.dtype.names:
+                        if (field == 'UTC'): continue
+                        Nav_save_avg[field][0] = ( (Nav_save_sum[field] + 
+                            Nav_save[field][rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].sum())/trans_total )
+                    Nav_save_avg['UTC'] = Nav_UTC_carryover
+                    laserspot_avg[0,:] = (laserspot_sum + laserspot[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin,:].sum(axis=0))/trans_total
+                    ONA_save_avg[0] = (ONA_save_sum + ONA_save[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].sum())/trans_total
+                    DEM_nadir_avg[0] = (DEM_nadir_sum + DEM_nadir[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].sum())/trans_total
+                    DEM_nadir_surftype_avg[0] = stats.mode( np.concatenate((DEM_nadir_surftype_carryover, DEM_nadir_surftype[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin])) )[0][0]
+                    DEM_laserspot_avg[0] = (DEM_laserspot_sum + DEM_laserspot[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].sum())/trans_total
+                    DEM_laserspot_surftype_avg[0] = stats.mode( np.concatenate((DEM_laserspot_surftype_carryover, DEM_laserspot_surftype[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin])) )[0][0]
+                    EMs_avg[0,:] = (EMs_sum + EMs[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin,:].sum(axis=0))/trans_total
+                    NRB_avg[:,0,:] = (NRB_sum + NRB[:,rr+ftrans_rem:rr+ncounts[0]-back_recs_margin,:].sum(axis=1))/trans_total
+                    saturate_ht_max[:,0] = np.asarray( (saturate_ht_carryover.max(axis=1), saturate_ht[:,rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].max(axis=1)) ).max(axis=0)
+                else:
+                    pass
+            else:
+                min_avg_profs_mask[0] = False
             print('trans_ncounts = ',trans_ncounts,' ncounts[0] = ',ncounts[0])
+        elif trans_bin_condition:
+            si = 1
         else:
             si = 0
             print(attention_bar)
@@ -1009,34 +1082,48 @@ for f in range(0,nMCS_files):
                 EMs_avg[tb,:] = np.mean(EMs[rr:rr+ncounts[tb],:],axis=0)
                 NRB_avg[:,tb,:] = np.mean(NRB[:,rr:rr+ncounts[tb],:],axis=1)
                 saturate_ht_max[:,tb] = np.max(saturate_ht[:,rr:rr+ncounts[tb]],axis=1)
-            else:
-                print('ncounts[tb] < min_avg_profs. ncounts[tb], scan_pos[rr] = ',ncounts[tb],MCS_data_1file['meta']['scan_pos'][rr])
-            rr += ncounts[tb]
+            rr += ncounts[tb] # even if skipped, still need to advance rr
 
         # Save the sum and ncounts of last populated time bin to string averaging
         # together between multiple files.
         if not last_file:
-            scan_pos_sum = MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[-1]].sum()
-            Nav_save_sum = np.zeros(1,dtype=Nav_save.dtype)
-            for field in Nav_save_avg.dtype.names:
+            scan_pos_trans = MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[-1]]
+            Nav_save_trans = np.zeros(ncounts[-1],dtype=Nav_save.dtype)
+            for field in Nav_save_trans.dtype.names:
                 if (field == 'UTC'): continue
-                Nav_save_sum[field][0] = Nav_save[field][rr:rr+ncounts[-1]].sum()
-            Nav_UTC_carryover = Nav_save['UTC'][rr+ncounts[-1]-1]
-            laserspot_sum = laserspot[rr:rr+ncounts[-1],:].sum(axis=0)
-            ONA_save_sum = ONA_save[rr:rr+ncounts[-1]].sum()
-            DEM_nadir_sum = DEM_nadir[rr:rr+ncounts[-1]].sum()
-            DEM_nadir_surftype_carryover = DEM_nadir_surftype[rr:rr+ncounts[-1]]
-            DEM_laserspot_sum = DEM_laserspot[rr:rr+ncounts[-1]].sum()
-            DEM_laserspot_surftype_carryover = DEM_laserspot_surftype[rr:rr+ncounts[-1]]
-            EMs_sum = EMs[rr:rr+ncounts[-1],:].sum(axis=0)
-            NRB_sum = NRB[:,rr:rr+ncounts[-1],:].sum(axis=1)
-            saturate_ht_carryover = saturate_ht[:,rr:rr+ncounts[-1]]
+                Nav_save_trans[field][:] = Nav_save[field][rr:rr+ncounts[-1]]
+            laserspot_trans = laserspot[rr:rr+ncounts[-1],:]
+            ONA_save_trans = ONA_save[rr:rr+ncounts[-1]]
+            DEM_nadir_trans = DEM_nadir[rr:rr+ncounts[-1]]
+            DEM_nadir_surftype_trans = DEM_nadir_surftype[rr:rr+ncounts[-1]]
+            DEM_laserspot_trans = DEM_laserspot[rr:rr+ncounts[-1]]
+            DEM_laserspot_surftype_trans = DEM_laserspot_surftype[rr:rr+ncounts[-1]]
+            EMs_trans = EMs[rr:rr+ncounts[-1],:]
+            NRB_trans = NRB[:,rr:rr+ncounts[-1],:]
+            saturate_ht_trans = saturate_ht[:,rr:rr+ncounts[-1]]
+            
+        # Apply min_avg_profs_mask here to all averaged variables.
+        # Then recompute the number of averaged records for this file.
+        meta_avg = meta_avg[min_avg_profs_mask]
+        Nav_save_avg = Nav_save_avg[min_avg_profs_mask]
+        laserspot_avg = laserspot_avg[min_avg_profs_mask,:]
+        ONA_save_avg = ONA_save_avg[min_avg_profs_mask]
+        DEM_nadir_avg = DEM_nadir_avg[min_avg_profs_mask]
+        DEM_nadir_surftype_avg = DEM_nadir_surftype_avg[min_avg_profs_mask]
+        DEM_laserspot_avg = DEM_laserspot_avg[min_avg_profs_mask]
+        DEM_laserspot_surftype_avg = DEM_laserspot_surftype_avg[min_avg_profs_mask]
+        EMs_avg = EMs_avg[min_avg_profs_mask,:]
+        NRB_avg = NRB_avg[:,min_avg_profs_mask,:]
+        saturate_ht_max = saturate_ht_max[:,min_avg_profs_mask]
+        ui = ui[min_avg_profs_mask]
+        ncounts = ncounts[min_avg_profs_mask]
+        n_avg_recs_this_file = min_avg_profs_mask.sum()           
 
         # Expand dataset sizes to accomodate next input MCS file
         cutbegin = 0
         if ((first_read) and (ncounts[0] < min_avg_profs)): cutbegin = 1
-        n_expand = ui.shape[0]-1-cutbegin
-        if ( (last_file) and (ncounts[-1] > min_avg_profs) ): n_expand = ui.shape[0]
+        n_expand = n_avg_recs_this_file-1-cutbegin
+        if ( (last_file) and (ncounts[-1] > min_avg_profs) ): n_expand = n_avg_recs_this_file
         expanded_length = nav_dset.shape[0]+n_expand
         # Now, if it's the first_read, nav_dset has an initialized length of 1; therefore,
         # if you use the expanded_length in the previous line the first_read, you'll 
@@ -1103,6 +1190,9 @@ for f in range(0,nMCS_files):
 
       
 print('Main L1A execution finished at: ',DT.datetime.now())
+help_fobj.close()
+for att in range(0,60): print(attention_bar)
+print('delete helper function, please')
 
 # Write out any final parameters to the HDF5 file that needed to wait
 
