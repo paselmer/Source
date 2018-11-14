@@ -208,6 +208,9 @@
 # [11/13/18] Nav_save averaging error fixed
 # Nav_save_sum was averaging with itself instead of being averaged with
 # Nav_save from the current file. This is now fixed.
+#
+# [11/14/18] Another averaging error discovered and fixed
+# rr was not being incremented in the trans_bin block 
 
 # Import libraries <----------------------------------------------------
 
@@ -1239,8 +1242,10 @@ for f in range(0,nCLS_files):
             NRB_avg[:,0,:] = (NRB_sum + NRB[:,rr:rr+ncounts[0],:].sum(axis=1))/trans_total
             saturate_ht_max[:,0] = np.asarray( (saturate_ht_carryover.max(axis=1), saturate_ht[:,rr:rr+ncounts[0]].max(axis=1)) ).max(axis=0)
             print('trans_ncounts = ',trans_ncounts)
+            rr += ncounts[0]
         else:
             si = 0
+            ei = ui.shape[0]
             print(attention_bar)
             print("I guess the time_bins lined up perfectly with edge of previous file")
             print("because there are no values in the previous file's last time bin.")

@@ -108,6 +108,11 @@
 # [11/13/18] Nav_save averaging error fixed
 # Nav_save_sum was averaging with itself instead of being averaged with
 # Nav_save from the current file. This is now fixed.
+#
+# [11/14/18] Significant issues in bridge records averaging logic
+# - rr counter was not advancing after bridge section
+# - If file bound and avg bound lined up perfectly, then trans data was discarded
+# In processes of fixing these issues
 
 
 # Import libraries <----------------------------------------------------
@@ -855,6 +860,7 @@ for f in range(0,nMCS_files):
             min_avg_profs_mask[-1] = True
             # following line defines the "trasfer" bin; trans_bin
             trans_bin = avg_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
+            pdb.set_trace()
         elif avg_method == 'by_scan':
             # Must define this before new ncounts is computed
             try:
@@ -1015,6 +1021,107 @@ for f in range(0,nMCS_files):
         NRB_avg = np.zeros((nc,ui.shape[0],nb_ff),dtype=NRB.dtype)
         saturate_ht_max = np.zeros((nc,ui.shape[0]),dtype=saturate_ht.dtype)
         rr = 0 # raw record number
+        pdb.set_trace()
+        
+        # Deal with bridge records...
+        if trans_bin_condition: 
+            tot_bridge_recs = (trans_ncounts-front_recs_margin) + (ncounts[0]-back_recs_margin)
+        else:
+            tot_bridge_recs = trans_ncounts-margin_tot
+        if ((tot_bridge_recs >= min_avg_profs) and (tot_bridge_recs >= min_scan_len)):
+            # Form temporary arrays of data from the "bridge" between files
+            #pdb.set_trace()
+            if trans_bin_condition:
+                # avg segment lies across file bound...
+                scan_pos_bridge = np.concatenate( (scan_pos_trans, MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[0]]) )
+                Nav_save_bridge = np.concatenate( (Nav_save_trans, Nav_save[rr:rr+ncounts[0]]) )
+                laserspot_bridge = np.concatenate( (laserspot_trans, laserspot[rr:rr+ncounts[0],:]) )
+                ONA_save_bridge = np.concatenate( (ONA_save_trans, ONA_save[rr:rr+ncounts[0]]) )
+                DEM_nadir_bridge = np.concatenate( (DEM_nadir_trans, DEM_nadir[rr:rr+ncounts[0]]) )
+                DEM_nadir_surftype_bridge = np.concatenate( (DEM_nadir_surftype_trans, DEM_nadir_surftype[rr:rr+ncounts[0]]) )
+                DEM_laserspot_bridge = np.concatenate( (DEM_laserspot_trans, DEM_laserspot[rr:rr+ncounts[0]]) )
+                DEM_laserspot_surftype_bridge = np.concatenate( (DEM_laserspot_surftype_trans, DEM_laserspot_surftype[rr:rr+ncounts[0]]) )
+                EMs_bridge = np.concatenate( (EMs_trans, EMs[rr:rr+ncounts[0],:]) )
+                NRB_bridge = np.concatenate( (NRB_trans, NRB[:,rr:rr+ncounts[0],:]), axis=1 )
+                saturate_ht_bridge = np.concatenate( (saturate_ht_trans, saturate_ht[:,rr:rr+ncounts[0]]), axis=1 )
+            else:
+                # avg bound fell exactly on file bound...
+                scan_pos_bridge = scan_pos_trans
+                Nav_save_bridge = Nav_save_trans
+                laserspot_bridge = laserspot_trans
+                ONA_save_bridge = ONA_save_trans
+                DEM_nadir_bridge = DEM_nadir_trans
+                DEM_nadir_surftype_bridge = DEM_nadir_surftype_trans
+                DEM_laserspot_bridge = DEM_laserspot_trans
+                DEM_laserspot_surftype_bridge = DEM_laserspot_surftype_trans
+                EMs_bridge = EMs_trans
+                NRB_bridge = NRB_trans
+                saturate_ht_bridge = saturate_ht_trans
+            # Shorten arrays according to margins
+            pre_trunc_len = scan_pos_bridge.shape[0]
+            scan_pos_bridge = scan_pos_bridge[front_recs_margin:pre_trunc_len-back_recs_margin]
+            Nav_save_bridge = Nav_save_bridge[front_recs_margin:pre_trunc_len-back_recs_margin]
+            laserspot_bridge = laserspot_bridge[front_recs_margin:pre_trunc_len-back_recs_margin,:]
+            ONA_save_bridge = ONA_save_bridge[front_recs_margin:pre_trunc_len-back_recs_margin]
+            DEM_nadir_bridge = DEM_nadir_bridge[front_recs_margin:pre_trunc_len-back_recs_margin]
+            DEM_nadir_surftype_bridge = DEM_nadir_surftype_bridge[front_recs_margin:pre_trunc_len-back_recs_margin]
+            DEM_laserspot_bridge = DEM_laserspot_bridge[front_recs_margin:pre_trunc_len-back_recs_margin]
+            DEM_laserspot_surftype_bridge = DEM_laserspot_surftype_bridge[front_recs_margin:pre_trunc_len-back_recs_margin]
+            EMs_bridge = EMs_bridge[front_recs_margin:pre_trunc_len-back_recs_margin,:]
+            NRB_bridge = NRB_bridge[:,front_recs_margin:pre_trunc_len-back_recs_margin,:]
+            saturate_ht_bridge = saturate_ht_bridge[:,front_recs_margin:pre_trunc_len-back_recs_margin]
+            # Create temporary array in which to store average chunks of the bridge records
+            scan_pos_bridge_avg = np.zeros(1,dtype=scan_pos_bridge.dtype)
+            Nav_save_bridge_avg = np.zeros(1,dtype=Nav_save.dtype)
+            laserspot_bridge_avg = np.zeros((1,2),dtype=laserspot.dtype)
+            ONA_save_bridge_avg = np.zeros(1,dtype=ONA_save.dtype)
+            DEM_nadir_bridge_avg = np.zeros(1,dtype=DEM_nadir.dtype)
+            DEM_nadir_surftype_bridge_avg = np.zeros(1,dtype=DEM_nadir_surftype.dtype)
+            DEM_laserspot_bridge_avg = np.zeros(1,dtype=DEM_laserspot.dtype)
+            DEM_laserspot_surftype_bridge_avg = np.zeros(1,dtype=DEM_laserspot_surftype.dtype)
+            EMs_bridge_avg = np.zeros((1,nwl),dtype=EMs.dtype)
+            NRB_bridge_avg = np.zeros((nc,1,nb_ff),dtype=NRB.dtype)
+            saturate_ht_bridge_max = np.zeros((nc,1),saturate_ht.dtype)
+            #pdb.set_trace()
+            # Step through averaging in steps of size profs2avg
+            # If tot_bridge_recs <= profs2avg, loop will only execute once
+            av = 0
+            for k in range(0,tot_bridge_recs,profs2avg):
+                limit = k+profs2avg
+                if (limit > tot_bridge_recs): limit = tot_bridge_recs
+                if av == 0:
+                    scan_pos_bridge_avg[av] = np.mean(scan_pos_bridge[k:k+limit])
+                    for field in Nav_save_bridge_avg.dtype.names:
+                        if (field == 'UTC'): continue
+                        Nav_save_bridge_avg[field][av] = np.mean(Nav_save_bridge[field][k:k+limit])
+                    Nav_save_bridge_avg['UTC'][av] = Nav_save_bridge['UTC'][int((limit-k)/2)] # midpoint
+                    laserspot_bridge_avg[av,:] = np.mean(laserspot_bridge[k:k+limit,:],axis=0)
+                    ONA_save_bridge_avg[av] = np.mean(ONA_save_bridge[k:k+limit])
+                    DEM_nadir_bridge_avg[av] = np.mean(DEM_nadir_bridge[k:k+limit])
+                    DEM_nadir_surftype_bridge_avg[av] = stats.mode(DEM_nadir_surftype_bridge[k:k+limit])[0][0]
+                    DEM_laserspot_bridge_avg[av] = np.mean(DEM_laserspot_bridge[k:k+limit])
+                    DEM_laserspot_surftype_bridge_avg[av] = stats.mode(DEM_laserspot_surftype_bridge[k:k+limit])[0][0]
+                    EMs_bridge_avg[av,:] = np.mean(EMs_bridge[k:k+limit,:],axis=0)
+                    NRB_bridge_avg[:,av,:] = np.mean(NRB_bridge[:,k:k+limit,:],axis=1)
+                    saturate_ht_bridge_max[:,av] = np.max(saturate_ht_bridge[:,k:k+limit],axis=1)
+                else:
+                    scan_pos_bridge_avg = np.concatenate( (scan_pos_bridge_avg, [np.mean(scan_pos_bridge[k:k+limit])]) )
+                    Nav_temp = np.zeros(1,dtype=Nav_save_bridge_avg.dtype)
+                    for field in Nav_save_avg.dtype.names:
+                        if (field == 'UTC'): continue
+                        Nav_temp[field][0] = np.mean(Nav_save_bridge[field][k:k+limit])
+                    Nav_temp['UTC'][0] = Nav_save_bridge['UTC'][int((limit-k)/2)] # midpoint
+                    Nav_save_bridge_avg = np.concatenate( (Nav_save_bridge_avg,Nav_temp) )
+                    laserspot_bridge_avg = np.concatenate( (laserspot_bridge_avg,np.array([np.mean(laserspot_bridge[k:k+limit,:],axis=0)])) )
+                    ONA_save_bridge_avg = np.concatenate( (ONA_save_bridge_avg, [np.mean(ONA_save_bridge[k:k+limit])]) )
+                    DEM_nadir_bridge_avg = np.concatenate( (DEM_nadir_bridge_avg, [np.mean(DEM_nadir_bridge[k:k+limit])]) )
+                    DEM_nadir_surftype_bridge_avg = np.concatenate( (DEM_nadir_surftype_bridge_avg, [stats.mode(DEM_nadir_surftype_bridge[k:k+limit])[0][0]]) )
+                    DEM_laserspot_bridge_avg = np.concatenate( (DEM_laserspot_bridge_avg,[np.mean(DEM_laserspot_bridge[k:k+limit])]) )
+                    DEM_laserspot_surftype_bridge_avg = np.concatenate( (DEM_laserspot_surftype_bridge_avg,[stats.mode(DEM_laserspot_surftype_bridge[k:k+limit])[0][0]]) )
+                    EMs_bridge_avg = np.concatenate( (EMs_bridge_avg, np.array([np.mean(EMs_bridge[k:k+limit,:],axis=0)])) )
+                    NRB_bridge_avg = np.concatenate( (NRB_bridge_avg, np.swapaxes(np.array([np.mean(NRB_bridge[:,k:k+limit,:],axis=1)]),0,1)), axis=1 )
+                    saturate_ht_bridge_max = np.concatenate( (saturate_ht_bridge_max, np.swapaxes(np.array([np.max(saturate_ht_bridge[:,k:k+limit],axis=1)]),0,1)), axis=1 )
+                av += 1        
 
         ei = ui.shape[0]-1
         if last_file: ei = ui.shape[0]
@@ -1023,37 +1130,11 @@ for f in range(0,nMCS_files):
         # Gotta do an elif cuz cur file might not have any vals within last bin of prev file
         elif ((trans_bin_condition) and (min_avg_profs_mask[0])):
             si = 1 # start index
-            pdb.set_trace()
-            tot_bridge_recs = (trans_ncounts-front_recs_margin) + (ncounts[0]-back_recs_margin)
-            if ((tot_bridge_recs >= min_avg_profs) and (tot_bridge_recs >= min_scan_len)):
-                # Form temporary arrays of data from the "bridge" between files
-                scan_pos_bridge = np.concatenate( (scan_pos_trans, MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[0]]) )
-                Nav_save_bridge = np.concatenate( (Nav_save_trans, Nav_save[rr:rr+ncounts[0]]) )
-                laserspot_bridge = np.concatenate( (laserspot_trans, laserspot[rr:rr+ncounts[0],:]) )
-                if (tot_bridge_recs <= profs2avg):
-                    trans_total = float(tot_bridge_recs)
-                    meta_avg['scan_pos'][0] = (scan_pos_sum + MCS_data_1file['meta']['scan_pos'][rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].sum())/trans_total
-                    for field in Nav_save_avg.dtype.names:
-                        if (field == 'UTC'): continue
-                        Nav_save_avg[field][0] = ( (Nav_save_sum[field] + 
-                            Nav_save[field][rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].sum())/trans_total )
-                    Nav_save_avg['UTC'] = Nav_UTC_carryover
-                    laserspot_avg[0,:] = (laserspot_sum + laserspot[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin,:].sum(axis=0))/trans_total
-                    ONA_save_avg[0] = (ONA_save_sum + ONA_save[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].sum())/trans_total
-                    DEM_nadir_avg[0] = (DEM_nadir_sum + DEM_nadir[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].sum())/trans_total
-                    DEM_nadir_surftype_avg[0] = stats.mode( np.concatenate((DEM_nadir_surftype_carryover, DEM_nadir_surftype[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin])) )[0][0]
-                    DEM_laserspot_avg[0] = (DEM_laserspot_sum + DEM_laserspot[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].sum())/trans_total
-                    DEM_laserspot_surftype_avg[0] = stats.mode( np.concatenate((DEM_laserspot_surftype_carryover, DEM_laserspot_surftype[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin])) )[0][0]
-                    EMs_avg[0,:] = (EMs_sum + EMs[rr+ftrans_rem:rr+ncounts[0]-back_recs_margin,:].sum(axis=0))/trans_total
-                    NRB_avg[:,0,:] = (NRB_sum + NRB[:,rr+ftrans_rem:rr+ncounts[0]-back_recs_margin,:].sum(axis=1))/trans_total
-                    saturate_ht_max[:,0] = np.asarray( (saturate_ht_carryover.max(axis=1), saturate_ht[:,rr+ftrans_rem:rr+ncounts[0]-back_recs_margin].max(axis=1)) ).max(axis=0)
-                else:
-                    pass
-            else:
-                min_avg_profs_mask[0] = False
             print('trans_ncounts = ',trans_ncounts,' ncounts[0] = ',ncounts[0])
+            rr += ncounts[0]
         elif trans_bin_condition:
             si = 1
+            rr += ncounts[0]
         else:
             si = 0
             print(attention_bar)
@@ -1117,7 +1198,10 @@ for f in range(0,nMCS_files):
         saturate_ht_max = saturate_ht_max[:,min_avg_profs_mask]
         ui = ui[min_avg_profs_mask]
         ncounts = ncounts[min_avg_profs_mask]
-        n_avg_recs_this_file = min_avg_profs_mask.sum()           
+        n_avg_recs_this_file = min_avg_profs_mask.sum()
+        
+        # Now prepend any averaged data from the bridge records
+        pdb.set_trace()
 
         # Expand dataset sizes to accomodate next input MCS file
         cutbegin = 0
