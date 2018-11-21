@@ -127,6 +127,13 @@
 # will still be carried-over as 'bridge records' and the first records of
 # the next file will be processed with all the middle ones by setting si=1
 # in this case.
+#
+# [11/21/18] fixed first_read logical error
+# Since the first one or several files may be skipped if they have invalid
+# data, first_read is switched False before it's used in the averaging block.
+# Therefore, a new bool variable was added to fill the needs in the averaging
+# block, first_time_in_avg_block. Before this was fixed, this caused missing
+# records.
 
 
 # Import libraries <----------------------------------------------------
@@ -396,6 +403,7 @@ for DTT_file in DTT_files:
 
 print('Starting core processing...') # <--------------------------------
 first_read = True
+first_time_in_avg_block = True
 trans_bin = [0,0]
 last_file = False
 for f in range(0,nMCS_files):
@@ -868,7 +876,6 @@ for f in range(0,nMCS_files):
             min_avg_profs_mask[-1] = True
             # following line defines the "trasfer" bin; trans_bin
             trans_bin = avg_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
-            pdb.set_trace()
         elif avg_method == 'by_scan':
             bin_numbers = np.digitize(MCS_data_1file['meta']['scan_pos'],avg_bins)
             dbn = bin_numbers[1:] - bin_numbers[:-1]
@@ -892,7 +899,6 @@ for f in range(0,nMCS_files):
             # If next if block is NOT entered, all margin_mask values will be True
             margin_mask = np.ones(ui.shape[0],dtype=bool) # 'False' for margin recs, 'True' otherwise
             # Create more partitions of ui, ncounts based on edge of scan margin params
-            if f == 20: pdb.set_trace()
             # NOTE: ncounts cannot have a shape of zero before entering this block [11/13/18]
             if (margin_tot > 0):
                 if (ncounts.shape[0] > 2):
@@ -1008,8 +1014,7 @@ for f in range(0,nMCS_files):
             # following line defines the "trasfer" bin; trans_bin
             next_bin_number = bin_numbers[-1] + 1
             if bin_numbers[-1] > avg_bins.shape[0]: next_bin_number = 1
-            trans_bin = np.asarray( [bin_numbers[-1] , next_bin_number ] )             
-            if f == 20: pdb.set_trace()
+            trans_bin = np.asarray( [bin_numbers[-1] , next_bin_number ] )
             
         meta_avg = np.zeros(ui.shape[0],dtype=meta_dset.dtype)
         Nav_save_avg = np.zeros(ui.shape[0],dtype=Nav_save.dtype)
@@ -1260,10 +1265,12 @@ for f in range(0,nMCS_files):
         # Expand dataset sizes to accomodate next input MCS file
         n_expand = n_avg_recs_this_file
         expanded_length = nav_dset.shape[0]+n_expand
+        print(expanded_length - (expanded_length-n_expand), n_expand)
+        pdb.set_trace()
         # Now, if it's the first_read, nav_dset has an initialized length of 1; therefore,
         # if you use the expanded_length in the previous line the first_read, you'll 
         # get a dataset size that is too long by 1. The following line fixes this.
-        if first_read: expanded_length = n_expand
+        if (first_read or first_time_in_avg_block): expanded_length = n_expand
         meta_dset.resize(expanded_length, axis=0)
         nav_dset.resize(expanded_length, axis=0)
         laserspot_dset.resize(expanded_length, axis=0)
@@ -1289,6 +1296,8 @@ for f in range(0,nMCS_files):
         NRB_dset[:,expanded_length-n_expand:expanded_length,:] = NRB_avg[:,:n_expand,:]
         saturate_ht_dset[:,expanded_length-n_expand:expanded_length] = saturate_ht_max[:,:n_expand]
         nrecs = expanded_length
+        
+        first_time_in_avg_block = False
         
     else: # No averaging            
             
