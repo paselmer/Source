@@ -134,6 +134,12 @@
 # Therefore, a new bool variable was added to fill the needs in the averaging
 # block, first_time_in_avg_block. Before this was fixed, this caused missing
 # records.
+#
+# [12/4/18] first 1-2 records with UTC = 0 bug fixed
+# There was a bug in the averaging section within the 'if not last_file:'
+# block that caused the first couple UTC values (within a file loop iteration)
+# to frequently be = to zero. It appeared to be a copy/paste typo. This 
+# bug has been fixed.
 
 
 # Import libraries <----------------------------------------------------
@@ -211,8 +217,6 @@ def compute_time_offsets(MCS_file=None,quick='no'):
     
 # Start main execution here <-------------------------------------------
 print('Starting main L1A execution at: ',DT.datetime.now())
-# Helper file
-help_fobj = open('C:\\Users\\pselmer\\Desktop\\helper_file.txt', 'wt')
 
 # Create and load file list for MCS data
 MCS_file_list = 'processing_file_list.txt'
@@ -505,6 +509,7 @@ for f in range(0,nMCS_files):
     # Create histogram bin boundaries. If first_read, created farther down in first_read block.
     if ((not first_read) and (secs2avg != 0)):
         if avg_method == 'by_records_only':
+            pdb.set_trace()
             avg_bins = np.arange(trans_bin[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
         elif avg_method == 'by_scan':
             """ Look angles should have already been determined the first go-around """
@@ -516,6 +521,7 @@ for f in range(0,nMCS_files):
         nc = MCS_data_1file['meta']['nchans'][0]              # # of channels
         nshots = MCS_data_1file['meta']['nshots'][0]      
         vrT = MCS_data_1file['meta']['binwid'][0]
+        margin_tot = front_recs_margin + back_recs_margin
         # Range vector, broadcast to nc x nb for vectorized operations later
         bins_range=np.broadcast_to(np.arange(0,nb*vrZ,vrZ),(nc,nb))
         phi0_azi = 0.0
@@ -541,11 +547,10 @@ for f in range(0,nMCS_files):
         #   2. If user has decided to average 'by_scan'
         [look_angles, look_angle_bins] = determine_look_angles(all_MCS_files,return_edges='yes')        
         # If averaging by_scan, identify all scan angle values
-        if ((avg_method == 'by_scan') and (secs2avg != 0)):
+        if (avg_method == 'by_scan'):
             avg_bins = look_angle_bins # just create an array reference
             # profs2avg used if multiple secs2avg fit within a single scan stare
             profs2avg = int(secs2avg * MCS_hz)
-            margin_tot = front_recs_margin + back_recs_margin
         # Create histogram bin boundaries.
         else:
             avg_bins = np.arange(MCS_UnixT_float64_orig[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
@@ -842,6 +847,7 @@ for f in range(0,nMCS_files):
         print("No records in MCS_file: " + MCS_file)
         print("meet the cutoff criteria.")
         print(attention_bar)
+        pdb.set_trace()
         continue        
         
     # Average the data
@@ -860,7 +866,7 @@ for f in range(0,nMCS_files):
     # u = unique values
     # ui = the starting indicies of the unique values
     # ncounts = the count of each unique value
-    if secs2avg > 0.0: # if <= 0, don't average
+    if ((secs2avg > 0.0) or (avg_method == 'by_scan')): 
 
         if avg_method == 'by_records_only':       
             bin_numbers = np.digitize(MCS_UnixT_float64_new,avg_bins)
@@ -1000,7 +1006,6 @@ for f in range(0,nMCS_files):
                 # Assume last bin has enough profs until next go-around when its
                 # counts are added to the counts of first element of the next file
                 min_avg_profs_mask[-1] = True  
-                help_fobj.write("PROF, "+str(f)+", "+str(min_avg_profs_mask.sum())+"\n") 
             else:
                 print("Using min_scan_len to filter for 'by_scan' avg")
                 # ID contiguous scan values
@@ -1010,7 +1015,6 @@ for f in range(0,nMCS_files):
                 # counts are added to the counts of first element of the next file
                 min_scan_len_mask[-1] = True    
                 min_avg_profs_mask = min_scan_len_mask
-                help_fobj.write("SCAN, "+str(f)+", "+str(min_avg_profs_mask.sum())+"\n")
             # following line defines the "trasfer" bin; trans_bin
             next_bin_number = bin_numbers[-1] + 1
             if bin_numbers[-1] > avg_bins.shape[0]: next_bin_number = 1
@@ -1035,6 +1039,7 @@ for f in range(0,nMCS_files):
             tot_bridge_recs = (trans_ncounts-front_recs_margin) + (ncounts[0]-back_recs_margin)
         else:
             tot_bridge_recs = trans_ncounts-margin_tot
+        if avg_method == 'by_records_only': profs2avg = tot_bridge_recs + 1 # so can use for loop in this block
         if ((tot_bridge_recs >= min_avg_profs) and (tot_bridge_recs >= min_scan_len)):
             # Form temporary arrays of data from the "bridge" between files
             if trans_bin_condition:
@@ -1181,10 +1186,7 @@ for f in range(0,nMCS_files):
         # together between multiple files.
         if not last_file:
             scan_pos_trans = MCS_data_1file['meta']['scan_pos'][rr:rr+ncounts[-1]]
-            Nav_save_trans = np.zeros(ncounts[-1],dtype=Nav_save.dtype)
-            for field in Nav_save_trans.dtype.names:
-                if (field == 'UTC'): continue
-                Nav_save_trans[field][:] = Nav_save[field][rr:rr+ncounts[-1]]
+            Nav_save_trans = Nav_save[rr:rr+ncounts[-1]]
             laserspot_trans = laserspot[rr:rr+ncounts[-1],:]
             ONA_save_trans = ONA_save[rr:rr+ncounts[-1]]
             DEM_nadir_trans = DEM_nadir[rr:rr+ncounts[-1]]
@@ -1266,7 +1268,10 @@ for f in range(0,nMCS_files):
         n_expand = n_avg_recs_this_file
         expanded_length = nav_dset.shape[0]+n_expand
         print(expanded_length - (expanded_length-n_expand), n_expand)
-        pdb.set_trace()
+        if ((n_expand > 0) and ((Nav_save_avg['UTC'].min() == 0))): 
+            print(Nav_save_avg['UTC'].min())
+            print(MCS_file)
+            pdb.set_trace()
         # Now, if it's the first_read, nav_dset has an initialized length of 1; therefore,
         # if you use the expanded_length in the previous line the first_read, you'll 
         # get a dataset size that is too long by 1. The following line fixes this.
@@ -1334,9 +1339,6 @@ for f in range(0,nMCS_files):
 
       
 print('Main L1A execution finished at: ',DT.datetime.now())
-help_fobj.close()
-for att in range(0,60): print(attention_bar)
-print('delete helper function, please')
 
 # Write out any final parameters to the HDF5 file that needed to wait
 
