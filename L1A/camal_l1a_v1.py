@@ -509,8 +509,10 @@ for f in range(0,nMCS_files):
     # Create histogram bin boundaries. If first_read, created farther down in first_read block.
     if ((not first_read) and (secs2avg != 0)):
         if avg_method == 'by_records_only':
-            pdb.set_trace()
-            avg_bins = np.arange(trans_bin[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
+            if first_time_in_avg_block:
+                avg_bins = np.arange(MCS_UnixT_float64_orig[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
+            else:
+                avg_bins = np.arange(trans_bin[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
         elif avg_method == 'by_scan':
             """ Look angles should have already been determined the first go-around """
 
@@ -847,7 +849,6 @@ for f in range(0,nMCS_files):
         print("No records in MCS_file: " + MCS_file)
         print("meet the cutoff criteria.")
         print(attention_bar)
-        pdb.set_trace()
         continue        
         
     # Average the data
