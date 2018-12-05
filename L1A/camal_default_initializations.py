@@ -11,6 +11,10 @@ import datetime as DT
 proj_name = 'CAMAL_17'
 flt_date = '20171207'
 
+# ******** SET THE TIME RANGE BOUNDARIES FOR DATA PROCESSING ********
+process_start = DT.datetime(2010,12,7,21,20,0) #yr,mon,dy,hr,min,sec
+process_end   = DT.datetime(2020,12,7,21,50,0)
+
 # ******** DEFINE CONSTANTS & DATA PARAMS ********
 # Speed of light in meters per second
 c = const.c
@@ -38,7 +42,9 @@ wl_map = [2, 2, 1, 1, 0]
 # Create a list where index # of WL corresponds to string name of WL
 wl_str = ['355','532','1064']
 # The bin width for the histogram used to determine scan angles
-scan_pos_bw = 1.75
+scan_pos_bw = 3.0
+# Scan angle needs at least this # of records to be considered
+min_scan_freq = 500
 # The max scan angle, for use with histogram code
 scan_pos_uplim = 17.0
 # The min scan angle, for use with histogram code
@@ -71,6 +77,8 @@ max_counts = 16000
 DTT_files = ['dttable_camal_chan1_27238-022318.xdr',
     'dttable_camal_chan2_27243-022318.xdr', 'dttable_camal_chan3_27239-022318.xdr',
     'dttable_camal_chan4_27242-022318.xdr', 'dttable_355_9999-022410.xdr']
+# Saturation values, per bin per 500 shots. List in detector order.
+saturation_values = [5000.0, 5000.0, 5000.0, 5000.0, 5000.0]    
 # The overlap file to use
 overlap_file = 'OLOnes_CAMAL.xdr' #'olaptable_cpl-ccviceax_comb_iceland12.xdr'      
 # The number of seconds needed to convert from the instrument's Unix time
@@ -89,8 +97,24 @@ gps_pitch_offset = 0.088
 
 
 # ******** CONFIGURATION PARAMETERS ********
-# horizontal averaging (# of raw profiles)
-nhori = 1
+# Averaging method - 'by_scan' or 'by_records_only'
+avg_method = 'by_records_only'
+# Specify the number of seconds to average
+# If <= 0 & 'by_records_only,' no averaging. Set to impossibly high value
+# and set avg_method = 'by_scan' to average entire scan.
+secs2avg = 5.0
+# Minimum number of raw profiles than can be used in an average profile
+min_avg_profs = 10
+# NOTE: margin variables will apply to 'by_records_only'
+# If averaging 'by_scan,' specify # of records to ignore on front of angle transition
+front_recs_margin = 0
+# If averaging 'by_scan,' specify # of records to ignore on back of angle transition
+back_recs_margin = 0
+# horizontal averaging (# of raw profiles, GUI only)
+nhori = 5
+# Min # of consecutive records the scan angle needs to hold (within tolerance)
+# Set to zero to ignore, i.e. not filter out on basis of scan angle
+min_scan_len = 3
 # default scale of color bar
 CBar_max = 50.0
 CBar_max_NRB = 5e13
@@ -134,6 +158,8 @@ Nav_source = 'nav' #'nav' 'gps' or 'iwg1'
 IWG1_file = "IWG1.08Dec2017-0031.txt"
 # Don't process any data when below this alt (m). Doesn't apply to GUI.
 alt_cutoff = 10000
+# Don't process any profiles where off-nadir angle exceeds this many radians.
+ONA_cutoff = 40.0 * (pi/180.0)
 # The attention bar
 attention_bar = '\n******************************\n'
 
@@ -173,19 +199,19 @@ else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
 	    # ******** DEFINE ALL DIRECTORIES ********
     # Set the directory of the raw data
     #raw_dir = 'F:\\CAMAL\\from_datakey\\'+flt_date+'\\'
-    raw_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\data\\'+proj_name+'\\'+flt_date+'\\raw\\'
+    raw_dir = 'C:\\Users\\pselmer\\Documents\\'+proj_name+'\\'+flt_date+'\\raw\\'
     # Set the directory of the L0 data
-    L0_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\data\\'+proj_name+'\\'+flt_date+'\\L0\\'
+    L0_dir = 'C:\\Users\\pselmer\\Documents\\'+proj_name+'\\'+flt_date+'\\L0\\'
     # Set the directory of the L1 data
-    L1_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\data\\'+proj_name+'\\'+flt_date+'\\L1\\'
+    L1_dir = 'C:\\Users\\pselmer\\Documents\\'+proj_name+'\\'+flt_date+'\\L1\\'
     # Set the directory of the L2 data
-    L2_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\data\\'+proj_name+'\\'+flt_date+'\\L2\\'
+    L2_dir = 'C:\\Users\\pselmer\\Documents\\'+proj_name+'\\'+flt_date+'\\L2\\'
     # Set the directory that contains configuration files
-    config_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\config_source\\'
+    config_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Config\\'
     # The source directory
-    source_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\source\\L1A\\'
+    source_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Source\\L1A\\'
     # Directory to put output
-    out_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\analysis\\'+proj_name+'\\'+flt_date+'\\'
+    out_dir = 'C:\\Users\\pselmer\\Documents\\'+proj_name+'\\'
     # Directory and name of library containing C codes
     clib_path = source_dir+'C_lib_Win64\\CAMAL_C_lib_Win64\\x64\\Release\\'
     clib = 'CAMAL_C_lib_Win64.dll'

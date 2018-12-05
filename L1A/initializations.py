@@ -98,17 +98,19 @@ gps_pitch_offset = 0.088
 
 # ******** CONFIGURATION PARAMETERS ********
 # Averaging method - 'by_scan' or 'by_records_only'
-avg_method = 'by_scan'
+avg_method = 'by_records_only'
 # Specify the number of seconds to average
-# If <= 0 & 'by_records_only,' no averaging. If < 0 & 'by_scan,' average entire scan.
+# If <= 0 & 'by_records_only,' no averaging. Set to impossibly high value
+# and set avg_method = 'by_scan' to average entire scan.
 secs2avg = 5.0
 # Minimum number of raw profiles than can be used in an average profile
-min_avg_profs = 4
+min_avg_profs = 10
+# NOTE: margin variables will apply to 'by_records_only'
 # If averaging 'by_scan,' specify # of records to ignore on front of angle transition
-front_recs_margin = 1
+front_recs_margin = 0
 # If averaging 'by_scan,' specify # of records to ignore on back of angle transition
-back_recs_margin = 1
-# horizontal averaging (# of raw profiles)
+back_recs_margin = 0
+# horizontal averaging (# of raw profiles, GUI only)
 nhori = 5
 # Min # of consecutive records the scan angle needs to hold (within tolerance)
 # Set to zero to ignore, i.e. not filter out on basis of scan angle
@@ -197,19 +199,19 @@ else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
 	    # ******** DEFINE ALL DIRECTORIES ********
     # Set the directory of the raw data
     #raw_dir = 'F:\\CAMAL\\from_datakey\\'+flt_date+'\\'
-    raw_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\data\\'+proj_name+'\\'+flt_date+'\\raw\\'
+    raw_dir = 'C:\\Users\\pselmer\\Documents\\'+proj_name+'\\'+flt_date+'\\raw\\'
     # Set the directory of the L0 data
-    L0_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\data\\'+proj_name+'\\'+flt_date+'\\L0\\'
+    L0_dir = 'C:\\Users\\pselmer\\Documents\\'+proj_name+'\\'+flt_date+'\\L0\\'
     # Set the directory of the L1 data
-    L1_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\data\\'+proj_name+'\\'+flt_date+'\\L1\\'
+    L1_dir = 'C:\\Users\\pselmer\\Documents\\'+proj_name+'\\'+flt_date+'\\L1\\'
     # Set the directory of the L2 data
-    L2_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\data\\'+proj_name+'\\'+flt_date+'\\L2\\'
+    L2_dir = 'C:\\Users\\pselmer\\Documents\\'+proj_name+'\\'+flt_date+'\\L2\\'
     # Set the directory that contains configuration files
-    config_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\config_source\\'
+    config_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Config\\'
     # The source directory
-    source_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\source\\L1A\\'
+    source_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Source\\L1A\\'
     # Directory to put output
-    out_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\analysis\\'+proj_name+'\\'+flt_date+'\\'
+    out_dir = 'C:\\Users\\pselmer\\Documents\\'+proj_name+'\\'
     # Directory and name of library containing C codes
     clib_path = source_dir+'C_lib_Win64\\CAMAL_C_lib_Win64\\x64\\Release\\'
     clib = 'CAMAL_C_lib_Win64.dll'
