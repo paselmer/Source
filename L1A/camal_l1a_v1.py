@@ -140,6 +140,18 @@
 # block that caused the first couple UTC values (within a file loop iteration)
 # to frequently be = to zero. It appeared to be a copy/paste typo. This 
 # bug has been fixed.
+#
+# [12/17/18] background-subtraction subset code made more robust
+# The part of this code that converts the input parameters bg_st_alt and 
+# bg_ed_alt into bin altitude array indicies was made more robust. In fact,
+# it was discovered that it didn't work properly for up-looking lidar
+# data (pointing_dir = "Up"). Code should now properly determine the indicies
+# regardless of whether bg_st_alt is > bg_ed_alt, or vice versa, as long as 
+# they're not equal.
+# Another small bug was fixed. It relates to the [11/21/18] post. There was
+# small hole in logic that didn't mask out the first element of the averaged
+# data in a single file in a particular case where min_avg_prof and 
+# min_scan_len were not equal.
 
 
 # Import libraries <----------------------------------------------------
@@ -478,12 +490,12 @@ for f in range(0,nMCS_files):
         MCS_UnixT_float64_orig.ctypes.strides, MCS_UnixT_float64_orig.ctypes.shape,
         interp_UnixT.ctypes.strides, interp_UnixT.ctypes.shape,
         Nav_interp_T_float64.ctypes.strides, Nav_interp_T_float64.ctypes.shape,  
-        interp2orig_indicies.ctypes.strides, interp2orig_indicies.ctypes.shape) 
+        interp2orig_indicies.ctypes.strides, interp2orig_indicies.ctypes.shape)
     # ---> END process of calling a C function <---
     
     # Deem as "bad," records outside user-specified processing time range
     # Use nav data time for this filtering
-    if Nav_source == 'gps': pdb.set_trace()
+    if Nav_source == 'gps': nav_UTC = gps_UTC_interp[interp2orig_indicies]
     if Nav_source == 'nav': nav_UTC = nav_data_all[interp2orig_indicies]['UTC']
     if Nav_source == 'iwg1': nav_UTC = nav_data_all[interp2orig_indicies]['UTC']
     if ( (nav_UTC.min() < process_start) or (nav_UTC.max() >  process_end) ):
@@ -763,7 +775,7 @@ for f in range(0,nMCS_files):
     
         # Compute the altitudes of the raw data bins
         bin_alts = compute_raw_bin_altitudes(nb, pointing_dir,Nav_save[i1f]['GPS_alt'],
-                   vrZ, ONA)
+                   vrZ, ONA)                
 
         # Populate saturate_ht with bin alts if any bins in current profile are saturated
         # NOTE: The order of cond's matters in if blocks in this code paragraph
@@ -783,8 +795,13 @@ for f in range(0,nMCS_files):
         # It's difficult to apply range correction once counts are in fixed frame.
         counts_float32 = MCS_data_1file['counts'][i1f].astype(np.float32)
         try:
-            bg_loc1 = np.argwhere(bin_alts <= bg_st_alt)[0][0]
-            bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[-1][0]
+            lower_bound = min(bg_st_alt, bg_ed_alt)
+            upper_bound = max(bg_st_alt, bg_ed_alt)
+            bgaltm1 = bin_alts >= lower_bound
+            bgaltm2 = bin_alts <= upper_bound
+            bgaltm = bgaltm1 * bgaltm2
+            bg_loc1 = np.arange(0,nb)[bgaltm][0]
+            bg_loc2 = np.arange(0,nb)[bgaltm][-1]
             bg = np.broadcast_to(np.mean(counts_float32[:,bg_loc1:bg_loc2],axis=1),(nb,nc)).transpose()
         except:
             print(attention_bar)
@@ -892,7 +909,7 @@ for f in range(0,nMCS_files):
             # indexes where bin_numbers changes to a different bin
             if change_indx.shape[0] <= 0: pdb.set_trace()
             change_indx = indx[change_bn_mask] + 1
-            print("YOU have to write code to deal with the case where")
+            print("No code written to deal with the case where")
             print("there's only one scan angle in the entire file.")
             ncounts = np.zeros(change_indx.shape[0]+1,np.uint32)
             ncounts[0] = change_indx[0]
@@ -1132,14 +1149,16 @@ for f in range(0,nMCS_files):
                     EMs_bridge_avg = np.concatenate( (EMs_bridge_avg, np.array([np.mean(EMs_bridge[k:k+limit,:],axis=0)])) )
                     NRB_bridge_avg = np.concatenate( (NRB_bridge_avg, np.swapaxes(np.array([np.mean(NRB_bridge[:,k:k+limit,:],axis=1)]),0,1)), axis=1 )
                     saturate_ht_bridge_max = np.concatenate( (saturate_ht_bridge_max, np.swapaxes(np.array([np.max(saturate_ht_bridge[:,k:k+limit],axis=1)]),0,1)), axis=1 )
-                av += 1        
+                av += 1  
+        else:
+            min_avg_profs_mask[0] = False
 
         # Build indexing for 'tb' 'for loop' around bridge records
         ei = ui.shape[0]-1
         if last_file: 
             ei = ui.shape[0]
             if ((ncounts[-1] < min_avg_profs) and (ncounts[-1] < min_scan_len)): min_avg_profs_mask[-1] = False
-        if first_read: 
+        if first_time_in_avg_block: 
             si = 0
         # Gotta do an elif cuz cur file might not have any vals within last bin of prev file
         elif (trans_bin_condition):
@@ -1351,4 +1370,4 @@ print("NRB has been written to the HDF5 file:"+hdf5_fname)
 
 print('Total raw profiles processed: '+str(i))
 print("camal_l1a.py has finished normally.")
-
+pdb.set_trace()
