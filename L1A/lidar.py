@@ -2,7 +2,8 @@
 from subprocess import check_output
 import numpy as np
 import pdb
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
+from matplotlib.colorbar import ColorbarBase
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import math as math
@@ -739,7 +740,8 @@ def get_a_color_map():
     
 def curtain_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_dir,
                       figW, figL, CPpad, xlab, ylab, tit, yax, yax_lims, xax, 
-                      xax_lims, scale_alt_OofM, mpl_flg, out_dir):
+                      xax_lims, scale_alt_OofM, mpl_flg, out_dir, 
+                      outfile_name='new_curtain.png'):
     """ Function that will create a curtain plot
         This function was basically copied from a function called
         make_curtain_plot in the GUI_function library. The name was changed
@@ -754,7 +756,7 @@ def curtain_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_d
     
     # INPUTS:
     #
-    # counts_imgarr -> The 2D array to image. [profs x bins]
+    # counts_imgarr -> The 2D array to image. [bins x profs]
     # nb            -> The number of bins. (scalar int/float)
     # vrZ           -> Vertical resolution in meters
     # z             -> The y-axis values, corresponding to "bins" dimension of
@@ -865,7 +867,172 @@ def curtain_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_d
     cax = divider.append_axes("right",size="2%",pad=0.05)
     plt.colorbar(im, cax=cax)
     ax.autoscale
-    plt.savefig(out_dir+'new_curtain.png',bbox_inches='tight',pad_inches=CPpad)
+    plt.savefig(out_dir+outfile_name,bbox_inches='tight',pad_inches=CPpad)
+    if mpl_flg == 1: plt.show()
+    plt.close(fig1)
+    
+    return None
+    
+def discrete_curtain_plot(imgarr, cmname, nb, vrZ, z, cb_min, cb_max, ndiv, hori_cap, pointing_dir,
+                      figW, figL, CPpad, xlab, ylab, cblab, tit, yax, yax_lims, xax, 
+                      xax_lims, scale_alt_OofM, mpl_flg, outfile_name, out_dir, center_ticks = True):
+    """ Function that will create a curtain plot of an image using discrete levels.
+    """
+    
+    # USE THIS FUNCTION FOR IMAGE
+    # The variable imgarr is local to this function, and will not
+    # mess up anything outside this scope. Therefore it can be sliced and
+    # diced here, without crashing anything outside this scope.
+    
+    # INPUTS:
+    #
+    # imgarr -> The 2D array to image. [bins x profs]
+    # cmname        -> Name of one of the predefined Matplotlib color bars (string)
+    # nb            -> The number of bins. (scalar int/float)
+    # vrZ           -> Vertical resolution in meters
+    # z             -> The y-axis values, corresponding to "bins" dimension of
+    #                  imgarr.
+    # cb_min        -> The min value for the color bar. Must be an int because discrete!
+    # cb_max        -> The max value for the color bar. Must be an int ^!
+    # ndiv          -> Length, in data units, of color bar shall be divided into 'ndiv'
+    #                  equal portions from 'cb_min' to 'cb_max' with ticks being
+    #                  every N * n_div. If cb_min = 0 and cb_max = 4, set ndiv = 5 to
+    #                  have 0,1,2,3 as discrete color bar values. 
+    # hori_cap      -> # of profs can't exceed this. Done to prevent code from 
+    #                  burdening computer by rendering image of a super massive
+    #                  gigantic array.
+    # pointing_dir  -> Is the lidar looking "Up" or "Down?"
+    # figW          -> The figure width
+    # figL          -> The figure length
+    # CPpad         -> Parameter that controls padding around the plot (inches).
+    # xlab          -> xaxis title (string)
+    # ylab          -> yaxis title (string)
+    # cblab         -> label for the color bar
+    # tit           -> Main title (string)
+    # yax           -> String identifying type of yaxis, "alt" or "bins"
+    # yax_lims      -> [Bin number of lowest alt, Bin number of greatest alt]
+    # xax           -> String identifying type of xaxis, "recs" or "time"
+    # xax_lims      -> [record # A, record # B]
+    # scale_alt_OofM-> The order of magnitude of z's scale (10 m, 1000 m, etc)
+    # mpl_flg       -> If this flag == 1, interactive MPL window appears
+    # outfile_name  -> Name of the output image file. Must be a png.
+    # out_dir       -> Directory where image will be saved; "new_curtain.png"
+    # center_ticks  -> Optional, if True, places ticks in center. If you're plotting
+    #                  categorical data, you'll probably want to do this. Default is
+    #                  True.
+    
+    # OUTPUTS:
+    #
+    # Returns None, but code will save a png image to outdir. 
+    
+    # NOTES:
+    #
+    # [1/7/19] As of this date only discrete levels that step by integers
+    # (i.e. that correspond to categories) have been tested.
+    # The code should work for any discrete numerical data type. 
+
+    # expand vertical dimension of image by using np.repeat [retired Oct 2017]
+    # subsetting array by user-input bins installed [12/6/17]
+    imgarr = imgarr[int(min(yax_lims)):int(max(yax_lims)),:]
+    if xax != 'time': imgarr = imgarr[:,int(min(xax_lims)):int(max(xax_lims))]
+    img_arr_shape = imgarr.shape
+    print('The shape of imgarr is: ',img_arr_shape)
+    
+    # horizontal dimension capped at certain # of profiles (in init file)
+    # doing this to save memory & CPU work when rendering image
+    if img_arr_shape[1] > hori_cap:
+        nthin = int(img_arr_shape[1] / hori_cap)
+        imgarr = imgarr[:,::nthin]
+        img_arr_shape = imgarr.shape
+        print('The shape of imgarr is: ',img_arr_shape)     
+
+    # you need to manipulate altitude array in order to properly
+    # label image plot
+    if pointing_dir == "Up":
+        alt_imgarr = np.flipud(z)
+    else:
+        alt_imgarr = z
+    newsize=alt_imgarr.size
+    alt_ind = np.linspace(0,newsize-1,newsize,dtype='uint32')
+    print('The shape of alt_ind is: ',alt_ind.shape)
+    #yax_lims = [ alt_ind[newsize-1],alt_ind[0] ]
+    #yax_lims = [ y1,y2 ] # y1, y2 determine zoom along vertical axis
+
+    # Actually plot the photon counts
+    # setup the plot
+    fig1, ax = plt.subplots(1,1, figsize=(14,8))
+
+    # define the colormap
+    cmap = plt.get_cmap(cmname)
+    # extract all colors from the 'cmname' map
+    cmaplist = [cmap(i) for i in range(cmap.N)]
+    # force the first color entry to be grey
+    cmaplist[0] = (.5,.5,.5,1.0)
+    # create the new map
+    cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
+
+    # define the bins and normalize
+    bounds = np.linspace(cb_min,cb_max,ndiv)
+    norm = BoundaryNorm(bounds, cmap.N)
+    tickpos_shift = 0.0
+    if center_ticks: tickpos_shift = (bounds[1] - bounds[0])/2.0
+
+    # make the image plot
+    ax.imshow(imgarr, cmap=cmap, aspect='auto',extent=xax_lims+yax_lims)
+
+    # create a second axes for the colorbar
+    ax2 = fig1.add_axes([0.95, 0.1, 0.02, 0.75])
+    cb = ColorbarBase(ax2, cmap=cmap, norm=norm, spacing='proportional', ticks=bounds+tickpos_shift, boundaries=bounds, format='%1i')
+
+    ax.set_title(tit)
+    ax.set_xlabel(xlab, size=12)
+    ax.set_ylabel(ylab, size=12)
+    ax2.set_ylabel(cblab, size=12)
+                   
+    # Format the x-axis   
+    if (xax == 'time'):
+        ax.xaxis_date()
+        time_format = mdates.DateFormatter('%H:%M:%S')
+        ax.xaxis.set_major_formatter(time_format)
+        fig1.autofmt_xdate()
+                   
+    # Format the y-axis
+    locs = ax.get_yticks()
+    labels = ax.get_yticklabels()
+    if (yax == 'alt'): 
+        delta_check = vrZ
+        y2_ind = int(max(yax_lims))
+        if y2_ind >= nb: 
+            y2 = z[nb-1]
+        else:
+            y2 = z[y2_ind]
+        y1 = z[int(min(yax_lims))]            
+        ys = [y1,y2]
+        min_y = math.ceil(min(ys)/scale_alt_OofM)*scale_alt_OofM
+        max_y = math.floor(max(ys)/scale_alt_OofM)*scale_alt_OofM
+        ndivi = int( (max_y - min_y) / scale_alt_OofM )
+        ytick_lab = np.linspace(min_y,max_y, ndivi+1)
+    else:
+        delta_check = 2
+        ndivi = 20
+        ytick_lab = np.linspace(yax_lims[0],yax_lims[1],ndivi+1)        
+    ytick_ind = np.zeros(ytick_lab.size) + 999
+    k=0
+    for e in ytick_lab:
+        m = abs(e - alt_imgarr) < delta_check # where diff is smaller than 60 meters
+        if (np.sum(m) == 0):  #all false
+            k=k+1
+            continue
+        else:
+            ytick_ind[k] = alt_ind[m][0]
+            k=k+1
+    actual_ticks_mask = ytick_ind != 999
+    ytick_lab = ytick_lab[actual_ticks_mask]
+    ytick_ind = ytick_ind[actual_ticks_mask]          	    
+    ax.set_yticks(ytick_ind)
+    ax.set_yticklabels(ytick_lab)
+    
+    plt.savefig(out_dir+outfile_name,bbox_inches='tight',pad_inches=CPpad)
     if mpl_flg == 1: plt.show()
     plt.close(fig1)
     
