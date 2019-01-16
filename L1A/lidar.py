@@ -741,7 +741,7 @@ def get_a_color_map():
 def curtain_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_dir,
                       figW, figL, CPpad, xlab, ylab, tit, yax, yax_lims, xax, 
                       xax_lims, scale_alt_OofM, mpl_flg, out_dir, 
-                      outfile_name='new_curtain.png'):
+                      outfile_name='new_curtain.png', cm_choose=False):
     """ Function that will create a curtain plot
         This function was basically copied from a function called
         make_curtain_plot in the GUI_function library. The name was changed
@@ -780,6 +780,9 @@ def curtain_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_d
     # scale_alt_OofM-> The order of magnitude of z's scale (10 m, 1000 m, etc)
     # mpl_flg       -> If this flag == 1, interactive MPL window appears
     # out_dir       -> Directory where image will be saved; "new_curtain.png"
+    # cm_choose     -> The name of the prebuilt matplotlib color map you'd
+    #                  like to use. Defaults to False, which results in
+    #                  get_a_color_map() module being used to define color map.
     
     # OUTPUTS:
     # 
@@ -818,6 +821,7 @@ def curtain_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_d
     plt.ylabel(ylab)
     plt.title(tit)
     cm = get_a_color_map()
+    if cm_choose: cm = plt.get_cmap(cm_choose)
     im = ax.imshow(counts_imgarr, cmap=cm, clim=(cb_min,cb_max),
                    interpolation='nearest',aspect='auto', 
                    extent=xax_lims+yax_lims)                 
