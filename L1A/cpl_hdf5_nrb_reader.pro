@@ -95,4 +95,10 @@ saturate_ht = H5D_READ(dataset_id)
 H5D_CLOSE, dataset_id
 help,saturate_ht
 
+; Read in the background (#chans x #records)
+dataset_id = H5D_OPEN(file_id,'bg')
+bg = H5D_READ(dataset_id)
+H5D_CLOSE, dataset_id
+help,bg
+
 end

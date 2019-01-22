@@ -211,6 +211,10 @@
 #
 # [11/14/18] Another averaging error discovered and fixed
 # rr was not being incremented in the trans_bin block 
+#
+# [1/22/19] background added as output variable
+# The background signal per channel was added as an output variable. This was done
+# because it is needed later to compute attenuated total backscatter uncertainty. 
 
 # Import libraries <----------------------------------------------------
 
@@ -888,6 +892,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,), dtype=np.int8)
             EM_dset = hdf5_file.create_dataset("EM", (1,nwl) , maxshape=(None,nwl), dtype=np.float32)
             NRB_dset = hdf5_file.create_dataset("nrb", (nc,1,nb_ff), maxshape=(nc,None,nb_ff), dtype=np.float32)
+            bg_dset = hdf5_file.create_dataset("bg", (nc,1), maxshape=(nc,None), dtype=np.float32)
             saturate_ht_dset = hdf5_file.create_dataset("saturate_ht", (nc,1), maxshape=(nc,None), dtype=np.float32)
         except RuntimeError:
             print("HDF5 file for this dataset already exists, overwriting old file...")
@@ -907,6 +912,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,), dtype=np.int8)       
             EM_dset = hdf5_file.create_dataset("EM", (1,nwl) , maxshape=(None,nwl), dtype=np.float32)
             NRB_dset = hdf5_file.create_dataset("nrb", (nc,1,nb_ff), maxshape=(nc,None,nb_ff), dtype=np.float32)
+            bg_dset = hdf5_file.create_dataset("bg", (nc,1), maxshape=(nc,None), dtype=np.float32)
             saturate_ht_dset = hdf5_file.create_dataset("saturate_ht", (nc,1), maxshape=(nc,None), dtype=np.float32)
         except:
             print("An unanticipated error occurred while trying to create the HDF5 datasets. Stopping execution.")
@@ -918,6 +924,7 @@ for f in range(0,nCLS_files):
         
     counts_ff = np.zeros((nc,nr_1file,nb_ff),dtype=np.float32)
     NRB = np.empty_like(counts_ff)
+    bg_save = np.zeros((nc,nr_1file),dtype=np.float32) 
         
     Nav_save = np.zeros(nr_1file,dtype=nav_save_struct) #NOTE THE STRUCTURE TYPE!
     ONA_save = np.zeros(nr_1file,dtype=np.float32)
@@ -1124,8 +1131,10 @@ for f in range(0,nCLS_files):
         # It's difficult to apply range correction once counts are in fixed frame.
         try:
             bg_loc1 = np.argwhere(bin_alts <= bg_st_alt)[0][0]
-            bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[-1][0]	    
-            bg = np.broadcast_to(np.mean(counts_float32[:,bg_loc1:bg_loc2],axis=1),(nb,nc)).transpose()
+            bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[-1][0]	   
+            bg_1D = np.mean(counts_float32[:,bg_loc1:bg_loc2],axis=1) 
+            bg_save[:,i1f] = bg_1D
+            bg = np.broadcast_to(bg_1D, (nb,nc)).transpose()
         except:
             print(attention_bar)
             print("!!!!!!! WARNING !!!!!!!")
@@ -1134,9 +1143,10 @@ for f in range(0,nCLS_files):
             print("!!!!!!! WARNING !!!!!!!")
             print(attention_bar)
             bg = np.zeros((nc,nb))
+        
         range_cor_af_counts_float32 = ( ( counts_float32 - bg )
                                           * bins_range**2  ) 
-
+        
         # Apply overlap correction here. I would have applied it at the same time as the
         # deadtime, except CPL's overlaps can be funky in far ranges, which interferes with
         # background sub.
@@ -1181,6 +1191,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype = DEM_laserspot_surftype[good_rec_bool]
         EMs = EMs[good_rec_bool,:]
         NRB = NRB[:,good_rec_bool,:]
+        bg_save = bg_save[:,good_rec_bool]
         saturate_ht = saturate_ht[:,good_rec_bool]
         print('\nXXXXXXXXXXXXXXXXXXXXXXX')
         deleted_recs = nr_1file - tot_good_recs
@@ -1216,6 +1227,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype_avg = np.zeros(u.shape[0],dtype=DEM_laserspot_surftype.dtype)
         EMs_avg = np.zeros((u.shape[0],nwl),dtype=EMs.dtype)
         NRB_avg = np.zeros((nc,u.shape[0],nb_ff),dtype=NRB.dtype)
+        bg_save_avg = np.zeros((nc,u.shape[0]),dtype=bg_save.dtype)
         saturate_ht_max = np.zeros((nc,u.shape[0]),dtype=saturate_ht.dtype)
         rr = 0 # raw record number
     
@@ -1240,6 +1252,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_surftype_avg[0] = stats.mode( np.concatenate((DEM_laserspot_surftype_carryover, DEM_laserspot_surftype[rr:rr+ncounts[0]])) )[0][0]
             EMs_avg[0,:] = (EMs_sum + EMs[rr:rr+ncounts[0],:].sum(axis=0))/trans_total
             NRB_avg[:,0,:] = (NRB_sum + NRB[:,rr:rr+ncounts[0],:].sum(axis=1))/trans_total
+            bg_save_avg[:,0] = (bg_save_sum + bg_save[:,rr:rr+ncounts[0]].sum(axis=1))/trans_total
             saturate_ht_max[:,0] = np.asarray( (saturate_ht_carryover.max(axis=1), saturate_ht[:,rr:rr+ncounts[0]].max(axis=1)) ).max(axis=0)
             print('trans_ncounts = ',trans_ncounts)
             rr += ncounts[0]
@@ -1265,6 +1278,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_surftype_avg[tb] = stats.mode(DEM_laserspot_surftype[rr:rr+ncounts[tb]])[0][0]
             EMs_avg[tb,:] = np.mean(EMs[rr:rr+ncounts[tb],:],axis=0)
             NRB_avg[:,tb,:] = np.mean(NRB[:,rr:rr+ncounts[tb],:],axis=1)	    
+            bg_save_avg[:,tb] = np.mean(bg_save[:,rr:rr+ncounts[tb]],axis=1)
             saturate_ht_max[:,tb] = np.max(saturate_ht[:,rr:rr+ncounts[tb]],axis=1)
             #print('iter: ',u[tb],CLS_UnixT_float64_new[rr])
             rr += ncounts[tb]
@@ -1285,6 +1299,7 @@ for f in range(0,nCLS_files):
             DEM_laserspot_surftype_carryover = DEM_laserspot_surftype[rr:rr+ncounts[-1]]
             EMs_sum = EMs[rr:rr+ncounts[-1],:].sum(axis=0)
             NRB_sum = NRB[:,rr:rr+ncounts[-1],:].sum(axis=1)
+            bg_save_sum = bg_save[:,rr:rr+ncounts[-1]].sum(axis=1)
             saturate_ht_carryover = saturate_ht[:,rr:rr+ncounts[-1]]
             # following line defines the "trasfer" bin; trans_bin
             trans_bin = time_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
@@ -1309,6 +1324,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype_dset.resize(expanded_length, axis=0)
         EM_dset.resize(expanded_length, axis=0)
         NRB_dset.resize(expanded_length, axis=1)
+        bg_dset.resize(expanded_length, axis=1)
         saturate_ht_dset.resize(expanded_length, axis=1)	
                         
         # Write out one file's worth of data to the hdf5 file
@@ -1321,6 +1337,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype_dset[expanded_length-n_expand:expanded_length] = DEM_laserspot_surftype_avg[cutbegin:n_expand+cutbegin]    
         EM_dset[expanded_length-n_expand:expanded_length,:] = EMs_avg[cutbegin:n_expand+cutbegin,:]
         NRB_dset[:,expanded_length-n_expand:expanded_length,:] = NRB_avg[:,cutbegin:n_expand+cutbegin,:]
+        bg_dset[:,expanded_length-n_expand:expanded_length] = bg_save_avg[:,cutbegin:n_expand+cutbegin]
         saturate_ht_dset[:,expanded_length-n_expand:expanded_length] = saturate_ht_max[:,cutbegin:n_expand+cutbegin]
         nrecs = expanded_length
 
@@ -1336,6 +1353,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype_dset.resize(i, axis=0)
         EM_dset.resize(i, axis=0)
         NRB_dset.resize(i, axis=1)
+        bg_dset.resize(i, axis=1)
         saturate_ht_dset.resize(i, axis=1)
                         
         # Write out one file's worth of data to the hdf5 file
@@ -1348,6 +1366,7 @@ for f in range(0,nCLS_files):
         DEM_laserspot_surftype_dset[i-nr_1file:i] = DEM_laserspot_surftype    
         EM_dset[i-nr_1file:i,:] = EMs
         NRB_dset[:,i-nr_1file:i,:] = NRB
+        bg_dset[:,i-nr_1file:i] = bg_save
         saturate_ht_dset[:,i-nr_1file:i] = saturate_ht
         nrecs = i
 
