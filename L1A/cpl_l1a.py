@@ -216,7 +216,7 @@
 # The background signal per channel was added as an output variable. This was done
 # because it is needed later to compute attenuated total backscatter uncertainty. 
 #
-# [1/31/18] fixed a bug that affects datasets with very large time gaps
+# [1/31/19] fixed a bug that affects datasets with very large time gaps
 # I fixed a bug with essentially a band-aid. In cases where datasets have very large
 # timegaps between contiguous data, such as the Guam 2014 ATTREX deployment, an issue
 # arose in the averaging section when the data gap occured between 2 consecutive CLS files.
