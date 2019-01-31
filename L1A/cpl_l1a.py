@@ -215,6 +215,18 @@
 # [1/22/19] background added as output variable
 # The background signal per channel was added as an output variable. This was done
 # because it is needed later to compute attenuated total backscatter uncertainty. 
+#
+# [1/31/18] fixed a bug that affects datasets with very large time gaps
+# I fixed a bug with essentially a band-aid. In cases where datasets have very large
+# timegaps between contiguous data, such as the Guam 2014 ATTREX deployment, an issue
+# arose in the averaging section when the data gap occured between 2 consecutive CLS files.
+# The codes essentially though the time bins lines up perfectly because no times in the 
+# current CLS file belonged in the last time bin of the previous file. Therefore it set
+# 'ei' (end index) to the full shape (as opposed to -1) which resulted in rr going
+# out of bounds by going thru its loop and then into the "not last_file" block right afterwords.
+# The bandaid is this: if ((not last_file) and (ei != ui.shape[0]))
+# Both can't be true, the way I have things coded, so this should prevent the code from crashing
+# in this situation.
 
 # Import libraries <----------------------------------------------------
 
@@ -1285,7 +1297,7 @@ for f in range(0,nCLS_files):
 
         # Save the sum and ncounts of last populated time bin to string averaging
         # together between multiple files.
-        if not last_file:
+        if ((not last_file) and (ei != ui.shape[0])):
             Nav_save_sum = np.zeros(1,dtype=Nav_save.dtype)
             for field in Nav_save_avg.dtype.names:
                 if (field == 'UTC'): continue
@@ -1390,4 +1402,3 @@ print("NRB has been written to the HDF5 file:"+hdf5_fname)
 
 print('Total raw profiles processed: '+str(i))
 print("camal_l1a.py has finished normally.")
-
