@@ -17,12 +17,12 @@ z0 = -500.0  # meters
 z1 = 20000.0
 t0 = DT.datetime(2010,9,18,22,40,0) # times
 t1 = DT.datetime(2019,9,19,4,0,0)
-wl_choice = 1 # 0=355, 1=532, 2=1064
-NRB_scale = 1e9
+wl_choice = 2 # 0=355, 1=532, 2=1064
+NRB_scale = 1e8
 
 # Load background-substracted counts file (NRB-style format)
 
-h5_file = L1_dir+'NRB_Wallops_12_20sep12_cls.hdf5'
+h5_file = L1_dir+'NRB_PODEX_28jan13_iwg1.hdf5'
 h5f = h5py.File(h5_file, 'r')
 # Keys to data...
 #['DEM_laserspot', 'DEM_laserspot_surftype', 'DEM_nadir', 'DEM_nadir_surftype', 
