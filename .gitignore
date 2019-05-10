@@ -3,6 +3,7 @@ L1A/__pycache__/
 
 # Ignore the L1B directory, if it exists
 L1B/
+L2/
 
 # Ignore specific, saved initializations
 ACTA*_initializations.py
