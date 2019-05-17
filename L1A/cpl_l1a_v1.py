@@ -220,7 +220,7 @@
 # I fixed a bug with essentially a band-aid. In cases where datasets have very large
 # timegaps between contiguous data, such as the Guam 2014 ATTREX deployment, an issue
 # arose in the averaging section when the data gap occured between 2 consecutive CLS files.
-# The codes essentially though the time bins lines up perfectly because no times in the 
+# The codes essentially thought the time bins lines up perfectly because no times in the 
 # current CLS file belonged in the last time bin of the previous file. Therefore it set
 # 'ei' (end index) to the full shape (as opposed to -1) which resulted in rr going
 # out of bounds by going thru its loop and then into the "not last_file" block right afterwords.
@@ -232,6 +232,8 @@
 # Created a new function (inside this file), "patch_outliers," that is used
 # to patch over wonky energy monitor (EM) values with reasonable values.
 # The impetus for creating this was the 28Jan13 PODEX flight.
+#
+# [5/16/19] min_avg_prof enforcement block added in averaging section.
 
 # Import libraries <----------------------------------------------------
 
@@ -359,7 +361,7 @@ def create_cls_interp_unixt_array(single_cls_file,cls_meta_data_all,
     #
 
 
-    # Load the data - either a single file or entire dataset...
+    # Load the data...
 
     cls_data_1file = read_in_cls_data(single_cls_file)
     nr0 = cls_data_1file.shape[0]
@@ -1349,6 +1351,29 @@ for f in range(0,nCLS_files):
             # following line defines the "trasfer" bin; trans_bin
             trans_bin = time_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
             trans_ncounts = ncounts[-1]
+            
+        # Eliminate those avg'd profiles that contain less than min_avg_profs raw
+        # profiles right here, exclusively in this single paragraph.
+        big_enough_mask = ncounts >= min_avg_profs
+        big_enough_mask[0] = True
+        big_enough_mask[-1] = True
+        if ((not first_read) and (trans_total < min_avg_profs)): big_enough_mask[0] = False
+        if big_enough_mask.sum() < ncounts.shape[0]:
+            Nav_save_avg = Nav_save_avg[big_enough_mask]
+            laserspot_avg = laserspot_avg[big_enough_mask,:]
+            ONA_save_avg = ONA_save_avg[big_enough_mask]
+            DEM_nadir_avg = DEM_nadir_avg[big_enough_mask]
+            DEM_nadir_surftype_avg = DEM_nadir_surftype_avg[big_enough_mask]
+            DEM_laserspot_avg = DEM_laserspot_avg[big_enough_mask]
+            DEM_laserspot_surftype_avg = DEM_laserspot_surftype_avg[big_enough_mask]
+            EMs_avg = EMs_avg[big_enough_mask,:]
+            NRB_avg = NRB_avg[:,big_enough_mask,:]
+            bg_save_avg = bg_save_avg[:,big_enough_mask]
+            saturate_ht_mask = saturate_ht_max[:,big_enough_mask]
+            ncounts = ncounts[big_enough_mask]
+            ui = ui[big_enough_mask]
+            u = u[big_enough_mask]
+            pdb.set_trace()
 
         # Expand dataset sizes to accomodate next input CLS file
         cutbegin = 0
