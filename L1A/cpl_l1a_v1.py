@@ -1057,7 +1057,7 @@ for f in range(0,nCLS_files):
             # The following line is necessary to get a clean, interpretable,
             # time to write out to the HDF5 file. It will essetially be a
             # byte array for IDL.
-            time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")
+            time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")    
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt']
             Y = 0.0 #Nav_match['drift'] * (pi/180.0) 
@@ -1373,7 +1373,8 @@ for f in range(0,nCLS_files):
             ncounts = ncounts[big_enough_mask]
             ui = ui[big_enough_mask]
             u = u[big_enough_mask]
-            pdb.set_trace()
+            print("\nAvg'd profiles eliminated due to min_avg_profs constraint.")
+            print(big_enough_mask.shape," reduced to ", u.shape, "\n")
 
         # Expand dataset sizes to accomodate next input CLS file
         cutbegin = 0

@@ -1,17 +1,17 @@
 
 ; >>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOAD NEW >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-proj_dir = '/cpl3/Podex_13/'
+proj_dir = '/cpl3/Seac4rs/'
 wlstr = '532'
-datestr = '22jan13'
-sortie='13920'
+datestr = '16aug13'
+sortie='13954'
 tit_tag = 'CPL '+datestr+' '+wlstr
-filename = proj_dir+'L1/NRB_REThinC_17_'+datestr+'_cls.hdf5'
-outdir = '/cpl3/REThinC_17/analysis/'
+filename = proj_dir+'L1/NRB_Seac4rs_'+datestr+'_iwg1.hdf5'
+outdir = '/cpl3/Seac4rs/analysis/'
 alt1 = -0.5e3
 alt2 = 20e3
 r1 = 0
 r2 = -99 ;-99 for all
-maxscale = 5e8
+maxscale =1e9
 !PATH = '/cpl/dhlavka/Cpl/Source/:' + !PATH
 
 @/cpl3/CAMAL/Source/L1A/camal_hdf5_nrb_common
