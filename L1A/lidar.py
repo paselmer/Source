@@ -1040,41 +1040,7 @@ def discrete_curtain_plot(imgarr, cmname, nb, vrZ, z, cb_min, cb_max, ndiv, hori
     if mpl_flg == 1: plt.show()
     plt.close(fig1)
     
-    return None  
-    
-# Commented out 9/26/18
-# IF you're seeing this commented out more than one year from now, delete
-# this commented-out version of the determine_look_angles function
-#def determine_look_angles(angle_arr, scan_pos_uplim, scan_pos_lowlim, scan_pos_bw ):
-    #""" 
-    #This function will determine all the look angles within data.
-    #Originally wittten with CAMAL in mind because CAMAL has
-    #programmable, continuously variable scan angles.
-    
-    #This function will produce a list of the float values of the
-    #angles. 
-    #"""
-        
-    ## NOTE: Any angle offset should already be incorporated into 
-    ##       angle_arr before entering this function
-    
-    ## The histogram parameters here come from the initialization file
-    #nhbins = int( (scan_pos_uplim - scan_pos_lowlim)/scan_pos_bw )
-    #dens, edges = np.histogram(angle_arr,
-                  #bins=nhbins,range=(scan_pos_lowlim,scan_pos_uplim))
-    #delta = float(scan_pos_uplim - scan_pos_lowlim) / float(nhbins)
-    #print("delta is ",delta)
-    #center = edges[:len(dens)] + delta
-    #mask = dens != 0
-    ##print("The bin edges are :",edges)
-    #print("This many bins have a freq of at least 1: ",dens[mask].shape)
-    #print("These are the bins: ",center[mask])
-    #hist_bin_centers = center[mask]
-    #hist_bin_width = delta
-    ##plt.plot(center,dens)
-    ##plt.show()
-    
-    #return [hist_bin_width, hist_bin_centers]
+    return None
   
     
 def determine_look_angles(MCS_file_list, return_edges=None):
@@ -1194,7 +1160,148 @@ def apply_look_angle_mask(cnt_arr,angle_arr,cs,hist_bin_width,nprofs,nhori,opt):
     nprofs = cnt_arr_shape[0]
     print('Length of cnt_arr: ',cnt_arr_shape[0])       
     
-    return cnt_arr 
+    return cnt_arr
+    
+    
+def vmol_interp(inputs):
+    """ Port of Steve Palm's famous 'vmol_interp.pro' which interpolates atmospheric
+        profile parameters between reported pressure levels (typically taken from
+        a radiosonde profile) using the hypsometric equation. The original descriptive 
+        header from 'vmol_interp.pro' is pasted below.
+        
+        pro vmol_interp, ht,pres,tmp,rel_humidity,num_levels,tempfile,stop_raob_ht
+        ; ****
+        ; This subroutine uses as input height, pressure, temperature and relative humidity.
+        ; The vertical resolution of the input profiles is not important. However,
+        ; these quantities should be defined to at least the height 'sbin', which is the
+        ; height above msl of the top most bin. If they are not defined to that height,
+        ; results are unpredictable. The program uses the hypsometric formula to interpolate
+        ; the input met profiles to the resolution 'vres'. It then computes the molecular backscatter
+        ; at 'nwl' wavelengths. The computed profiles are returned via the common block 'acls'.
+        ; The equation to compute the molecular profiles takes into account the effect of water vapor
+        ; on atm density and was lifted from Measures, page 42, eqn 2.134
+        ;
+        ; Inputs:
+        ; ht - height in km
+        ; pres - pressure in mb
+        ; tmp = temperature in Kelvin
+        ; rel_humidity = relative humidity
+        ; num_levels - the number of levels for which the input profiles are defined
+        ;
+        ; Coded 5/9/00, S. Palm
+        ; ****
+    """
+    
+    # inputs = [ht, pres, tmp, rel_humidity, num_levels, tempfile, stop_raob_ht]
+    
+    # Not sure if Python has common blocks. Let's just say it doesn't.
+    # common acls, nwl,nbins,sbin,vres,acls_ht,acls_press,acls_temp, $
+    #    acls_rel_humidity,acls_mol_back
+    
+    ht, pres, tmp, rel_humidity, num_levels, tempfile, stop_raob_ht, nwl, nbins, sbin, vres = inputs
+    
+    lambd = np.asarray([355.0, 532.0, 1064.0])  # "lambda" is a python operator
+    mbs = np.zeros(nwl)
+    
+    f_obj = open(tempfile,'w')
+    
+    dz = vres # height incrememnt for acls is 30 meters
+    mr = 3.479108e-3 # this is really m/r which is the molecular weight of dry air
+                     # divided by the universal gas constant
+    g = 9.806        # gravitational constant
+
+    i = 1
+    hlast= 0.0
+    h1 = 0.0
+    
+    for j in range(0,num_levels):
+        t1 = tmp[j]
+        htop = ht[j+1]
+        if htop <= stop_raob_ht: p1 = pres[j]
+        rh1 = rel_humidity[j]
+        esat = (0.6112)*np.exp((17.67*(t1-273.16))/(t1-29.66))
+        qsat = 0.622*esat/(p1/10.0)
+        q1 = rh1*qsat/100.0
+        virtual_tbar = t1 / (1.0 - (3.0*q1/5.0))
+        #n = p1*1.0e3 / (1.3806e-16*virtual_tbar)    # version 1 using virtual temperature
+        n = p1*1.0e3 / (1.3806e-16*t1)               # version 2 using actual temperature 05-08-2002
+        mbs[:] = n * 5.450 * (550.0 / lambd[:])**4 * 1.0e-28 * 1.0e2 # the 1.0d2 converts from 1/cm to 1/m
+        
+        if j == 0:
+            if rh1 > 99.9: rh1 = 99.9
+            formatted_line = '{0:3d}  {1:6.2f}  {2:6.1f}  {3:5.1f}  {4:4.1f}  {5:14.7e}  {6:14.7e}  {7:14.7e}\n'
+            line_str = formatted_line.format(i,ht[j],p1,t1,rh1,mbs[0],mbs[1],mbs[2])
+            f_obj.write(line_str)
+            i += 1
+            
+        hbot = ht[j]
+        if (j > 0): bhot = hlast
+        dtdz = (tmp[j+1] - tmp[j]) / (ht[j+1] - ht[j])
+        drhdz = (rel_humidity[j+1] - rel_humidity[j]) / (ht[j+1] - ht[j])
+        print(' ')
+        print('At standard level {:3d}  {:8.3f}  {:8.3f}  {:8.3f}  {:8.3f}'.format(j+1,ht[j+1],tmp[j+1],pres[j+1],rel_humidity[j+1]))
+        for h1 in np.arange(hbot+dz, htop, dz):
+            t2 = t1 + (dtdz*dz)    # temp at height h1
+            rh2 = rh1 + (drhdz*dz) # RH at height h1
+            tbar = (t2 + t1) / 2.0 # average temp
+            esat = (0.6112)*np.exp((17.67*(tbar-273.16))/(tbar-29.66))
+            qsat = 0.622*esat/(p1/10.0)
+            q2 = rh2*qsat/100.0
+            virtual_tbar = tbar / (1.0 - (3.0*q2/5.0))
+            p2p1 = np.exp(-mr*g/virtual_tbar*dz*1000.0)
+            p2 = p2p1 * p1 # pressure at height h1
+            # Ideal gas law: N=pv/(kT), where N is number of molecules
+            # n = p2*1.0d3 / (1.3806d-16*virtual_tbar) ;pressure from mb to dynes per cm2 using virtual temp
+            n = p2*1.0e3 / (1.3806e-16*tbar) #pressure from mb to dynes per cm2 using actual temp 05-08-2002            
+            
+            mbs[:] = n * 5.450 * (550.0 / lambd[:])**4 * 1.0e-28 * 1.0e2 # the 1.0d2 converts from 1/cm to 1/m
+            
+            t1 = t2
+            p1 = p2
+            rh1 = rh2
+            hlast = h1
+            if (rh2 > 99.9): rh2 = 99.9
+            formatted_line = '{0:3d}  {1:6.2f}  {2:6.1f}  {3:5.1f}  {4:4.1f}  {5:14.7e}  {6:14.7e}  {7:14.7e}\n'
+            line_str = formatted_line.format(i,ht[j],p1,t1,rh1,mbs[0],mbs[1],mbs[2])
+            f_obj.write(line_str)
+            if (h1 > sbin): break
+            i += 1
+        if (h1 > sbin): break # This is in outter loop. Wanted to get rid of
+                              # Steve's 'goto' statement.
+                              
+    f_obj.close()
+    
+    print('\nnumber of interpolated points: ',i)
+    
+    hgt = np.zeros(i)
+    press = np.zeros(i)
+    temp = np.zeros(i)
+    rel_hum =  np.zeros(i)
+    mol_back =  np.zeros((i,3))
+
+    #ht_out = fltarr(nbins)
+    #press_out = fltarr(nbins)
+    #temp_out = fltarr(nbins)
+    #rel_hum_out = fltarr(nbins)
+    #mol_back_out =  fltarr(nbins,3)    
+    
+    with open(tempfile,'r') as f_obj:
+        lines = f_obj.readlines()
+        i = 0
+        for line in lines:
+            linesplit = line.split()
+            hgt[i] = float(linesplit[1])
+            press[i] = float(linesplit[2])
+            temp[i] = float(linesplit[3])
+            rel_hum[i] = float(linesplit[4])
+            mol_back[i,:] = np.asarray( [ float(e) for e in linesplit[5:8] ] )
+            i += 1
+    
+    f_obj.close()
+    pdb.set_trace()
+    
+    return [None,1]
+        
     
     
 def make_custom_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_dir,

@@ -6,6 +6,7 @@ import csv
 import datetime as DT
 import xdrlib
 from functools import partial
+import os
 
 # Libraries I have created...
 from initializations import * #all directories and constants defined here
@@ -799,15 +800,24 @@ def read_in_cls_data(fname,return_nav_dict=False):
     # Assume an ER2 style CLS file as default
     ER2_nav_nbytes = 256
     UAV_nav_nbytes = 326
+    ER2_tot_nbytes = ER2_nav_nbytes + 6912
+    UAV_tot_nbytes = UAV_nav_nbytes + 6912
     cls_type = 'ER2'
     CLS_meta_struct = define_CLS_meta_struct(ER2_nav_nbytes)
     
     # First, determine what type of CLS file you're reading (ER2, UAV, other??)
     # then get nchans and nbins from the file...
     samp = np.fromfile(fname,CLS_meta_struct,count=1)
+    # See which record size the file is a multiple of: ER2 or UAV
+    fsize = os.path.getsize(fname)
+    size_check = fsize % ER2_tot_nbytes
+    if size_check != 0:
+        size_type = 'UAV'
+    else:
+        size_type = 'ER2'
     # First, try as ER2-style ....
     num_nav_fields = len( str( samp['Nav'].view('S'+str(ER2_nav_nbytes).strip()) ).split() )
-    if num_nav_fields < 6:
+    if (num_nav_fields < 6) & (size_type == 'UAV'):
         print('\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
         print("UAV-style CLS file detected!")
         print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
@@ -815,7 +825,7 @@ def read_in_cls_data(fname,return_nav_dict=False):
         navSview =  'S'+str(UAV_nav_nbytes).strip()
         Nav_delim = ','
         cls_type = 'UAV'
-    elif num_nav_fields < 17:
+    elif (num_nav_fields >= 6) & (num_nav_fields < 17):
         print('\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
         print("WB57-to-ER2-style CLS file detected!")
         print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')        
@@ -830,7 +840,7 @@ def read_in_cls_data(fname,return_nav_dict=False):
         CLS_meta_struct = define_CLS_meta_struct(ER2_nav_nbytes)       
         navSview =  'S'+str(ER2_nav_nbytes).strip()
         Nav_delim = None
-        cls_type = 'ER2'  
+        cls_type = 'ER2'
 
     # Next, use that info to form your CLS data structure...
     try:
@@ -1169,3 +1179,43 @@ def read_in_overlap_table(fname):
     
     # Convert list to array then return array
     return np.asarray(data_list,dtype=np.float32)
+
+def read_in_esrl_raob(infile):
+    """ Code to read in raobs, in the format of those archived on the 
+        ESRL site (https://ruc.noaa.gov/raobs/)
+    """
+    
+    # INPUTS:
+    #
+    # infile -> ESRL raob file (ASCII)
+    #
+    # OUTPUTS:
+    #
+    # raob -> Numpy array structured according to dtype "raob_struct" defined
+    #         in immutable_data_structs.py
+    
+    data_list = []
+    
+    with open(infile) as f_obj:
+        line = f_obj.readline()
+        while line:
+            line_split = line.split() # split on whitespace, no arg needed
+            try:
+                data_list.append([int(s) for s in line_split])
+            except:
+                data_list = [] # reset
+            line = f_obj.readline()                
+    
+    raob = np.zeros(len(data_list),dtype=raob_struct)
+    i = 0
+    for item in data_list:
+        raob['ltp'][i] = item[0]
+        raob['pres'][i] = item[1]
+        raob['alt'][i] = item[2]
+        raob['temp'][i] = item[3]
+        raob['dewp'][i] = item[4]
+        raob['wdir'][i] = item[5]
+        raob['wspd'][i] = item[6]
+        i += 1
+        
+    return raob
