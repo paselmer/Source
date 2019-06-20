@@ -883,6 +883,7 @@ def discrete_curtain_plot(imgarr, cmname, nb, vrZ, z, cb_min, cb_max, ndiv, hori
     """ Function that will create a curtain plot of an image using discrete levels.
     """
     
+ 
     # USE THIS FUNCTION FOR IMAGE
     # The variable imgarr is local to this function, and will not
     # mess up anything outside this scope. Therefore it can be sliced and
@@ -921,9 +922,16 @@ def discrete_curtain_plot(imgarr, cmname, nb, vrZ, z, cb_min, cb_max, ndiv, hori
     # mpl_flg       -> If this flag == 1, interactive MPL window appears
     # outfile_name  -> Name of the output image file. Must be a png.
     # out_dir       -> Directory where image will be saved; "new_curtain.png"
+    # custom_def    -> Set to None by default. Set to list of color triplets to impliment
+    #                  a custom color map, if desired. Set cmname input variable == anything
+    #                  if choosing to use this option.
     # center_ticks  -> Optional, if True, places ticks in center. If you're plotting
     #                  categorical data, you'll probably want to do this. Default is
     #                  True.
+    # nudge         -> Floating point numbers can be like 4.000000062, when all you really 
+    #                  want is 4. Set this to a small #, like 0.1, to ensure weird floating
+    #                  point boundary issues don't mess up your color mapping, particularly
+    #                  when using custom_def.
     
     # OUTPUTS:
     #
@@ -933,7 +941,12 @@ def discrete_curtain_plot(imgarr, cmname, nb, vrZ, z, cb_min, cb_max, ndiv, hori
     #
     # [1/7/19] As of this date only discrete levels that step by integers
     # (i.e. that correspond to categories) have been tested.
-    # The code should work for any discrete numerical data type. 
+    # The code should work for any discrete numerical data type.
+    #
+    # [6/19/19]
+    # Custom color map option added via optional "custom_def" input variable.
+    # Also, fixed error in call to ax.imshow where the color bar limits were
+    # explicitly specified via clim. "nudge" added.
 
     # expand vertical dimension of image by using np.repeat [retired Oct 2017]
     # subsetting array by user-input bins installed [12/6/17]
@@ -967,22 +980,27 @@ def discrete_curtain_plot(imgarr, cmname, nb, vrZ, z, cb_min, cb_max, ndiv, hori
     fig1, ax = plt.subplots(1,1, figsize=(14,8))
 
     # define the colormap
-    cmap = plt.get_cmap(cmname)
-    # extract all colors from the 'cmname' map
-    cmaplist = [cmap(i) for i in range(cmap.N)]
-    # force the first color entry to be grey
-    cmaplist[0] = (.5,.5,.5,1.0)
-    # create the new map
-    cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
+    if custom_def is not None:
+        cmap = LinearSegmentedColormap.from_list('Custom cmap', custom_def, len(custom_def))
+        bounds = np.linspace(cb_min,cb_max,ndiv)
+        norm = BoundaryNorm(bounds, cmap.N)
+    else:
+        cmap = plt.get_cmap(cmname)
+        # extract all colors from the 'cmname' map
+        cmaplist = [cmap(i) for i in range(cmap.N)]
+        # force the first color entry to be grey
+        cmaplist[0] = (.5,.5,.5,1.0)
+        # create the new map
+        cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
+        # define the bins and normalize
+        bounds = np.linspace(cb_min,cb_max,ndiv)
+        norm = BoundaryNorm(bounds, cmap.N)	
 
-    # define the bins and normalize
-    bounds = np.linspace(cb_min,cb_max,ndiv)
-    norm = BoundaryNorm(bounds, cmap.N)
     tickpos_shift = 0.0
     if center_ticks: tickpos_shift = (bounds[1] - bounds[0])/2.0
 
     # make the image plot
-    ax.imshow(imgarr, cmap=cmap, aspect='auto',extent=xax_lims+yax_lims)
+    ax.imshow(imgarr+nudge, cmap=cmap, aspect='auto',extent=xax_lims+yax_lims,clim=(cb_min,cb_max))
 
     # create a second axes for the colorbar
     ax2 = fig1.add_axes([0.95, 0.1, 0.02, 0.75])
@@ -1198,7 +1216,7 @@ def vmol_interp(inputs):
     # common acls, nwl,nbins,sbin,vres,acls_ht,acls_press,acls_temp, $
     #    acls_rel_humidity,acls_mol_back
     
-    ht, pres, tmp, rel_humidity, num_levels, tempfile, stop_raob_ht, nwl, nbins, sbin, vres = inputs
+    ht, pres, tmp, rel_humidity, num_levels, tempfile, stop_raob_ht, nwl, sbin, vres = inputs
     
     lambd = np.asarray([355.0, 532.0, 1064.0])  # "lambda" is a python operator
     mbs = np.zeros(nwl)
@@ -1229,18 +1247,19 @@ def vmol_interp(inputs):
         
         if j == 0:
             if rh1 > 99.9: rh1 = 99.9
-            formatted_line = '{0:3d}  {1:6.2f}  {2:6.1f}  {3:5.1f}  {4:4.1f}  {5:14.7e}  {6:14.7e}  {7:14.7e}\n'
+            formatted_line = '{0:3d}  {1:6.5f}  {2:6.1f}  {3:5.1f}  {4:4.1f}  {5:14.7e}  {6:14.7e}  {7:14.7e}\n'
             line_str = formatted_line.format(i,ht[j],p1,t1,rh1,mbs[0],mbs[1],mbs[2])
             f_obj.write(line_str)
             i += 1
             
         hbot = ht[j]
-        if (j > 0): bhot = hlast
+        if (j > 0): hbot = hlast
         dtdz = (tmp[j+1] - tmp[j]) / (ht[j+1] - ht[j])
         drhdz = (rel_humidity[j+1] - rel_humidity[j]) / (ht[j+1] - ht[j])
-        print(' ')
-        print('At standard level {:3d}  {:8.3f}  {:8.3f}  {:8.3f}  {:8.3f}'.format(j+1,ht[j+1],tmp[j+1],pres[j+1],rel_humidity[j+1]))
-        for h1 in np.arange(hbot+dz, htop, dz):
+        #print(' ')
+        #print('At standard level {:3d}  {:8.3f}  {:8.3f}  {:8.3f}  {:8.3f}'.format(j+1,ht[j+1],tmp[j+1],pres[j+1],rel_humidity[j+1]))
+        #print('******************')
+        for h1 in np.arange(hbot+dz, htop+dz, dz):
             t2 = t1 + (dtdz*dz)    # temp at height h1
             rh2 = rh1 + (drhdz*dz) # RH at height h1
             tbar = (t2 + t1) / 2.0 # average temp
@@ -1261,8 +1280,8 @@ def vmol_interp(inputs):
             rh1 = rh2
             hlast = h1
             if (rh2 > 99.9): rh2 = 99.9
-            formatted_line = '{0:3d}  {1:6.2f}  {2:6.1f}  {3:5.1f}  {4:4.1f}  {5:14.7e}  {6:14.7e}  {7:14.7e}\n'
-            line_str = formatted_line.format(i,ht[j],p1,t1,rh1,mbs[0],mbs[1],mbs[2])
+            formatted_line = '{0:3d}  {1:6.5f}  {2:6.1f}  {3:5.1f}  {4:4.1f}  {5:14.7e}  {6:14.7e}  {7:14.7e}\n'
+            line_str = formatted_line.format(i,h1,p2,t2,rh2,mbs[0],mbs[1],mbs[2])
             f_obj.write(line_str)
             if (h1 > sbin): break
             i += 1
@@ -1270,20 +1289,14 @@ def vmol_interp(inputs):
                               # Steve's 'goto' statement.
                               
     f_obj.close()
-    
-    print('\nnumber of interpolated points: ',i)
+    #print('\nnumber of interpolated points: ',i)
+    n_interp_points = i
     
     hgt = np.zeros(i)
     press = np.zeros(i)
     temp = np.zeros(i)
     rel_hum =  np.zeros(i)
-    mol_back =  np.zeros((i,3))
-
-    #ht_out = fltarr(nbins)
-    #press_out = fltarr(nbins)
-    #temp_out = fltarr(nbins)
-    #rel_hum_out = fltarr(nbins)
-    #mol_back_out =  fltarr(nbins,3)    
+    mol_back =  np.zeros((i,3))   
     
     with open(tempfile,'r') as f_obj:
         lines = f_obj.readlines()
@@ -1298,9 +1311,9 @@ def vmol_interp(inputs):
             i += 1
     
     f_obj.close()
-    pdb.set_trace()
     
-    return [None,1]
+    return [np.flip(mol_back,axis=0),n_interp_points,np.flip(hgt,axis=0),
+            np.flip(press,axis=0),np.flip(temp,axis=0),np.flip(rel_hum,axis=0)]
         
     
     
