@@ -188,7 +188,8 @@ CLS_decoded_meta_struct = np.dtype([ ('Header',CLS_decoded_header_struct), ('Eng
 raob_struct = np.dtype([ ('UTC',DT.datetime), ('lat',np.float32), ('lon',np.float32),
                   ('ltp',np.int8), ('pres',np.int32), ('alt',np.int32),
                   ('temp',np.int32), ('dewp',np.int32), ('wdir',np.int32),
-                  ('wspd',np.int32)                           
+                  ('wspd',np.int32)     
+                                                                       ])
 
                         
                           
