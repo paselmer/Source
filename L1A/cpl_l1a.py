@@ -220,13 +220,23 @@
 # I fixed a bug with essentially a band-aid. In cases where datasets have very large
 # timegaps between contiguous data, such as the Guam 2014 ATTREX deployment, an issue
 # arose in the averaging section when the data gap occured between 2 consecutive CLS files.
-# The codes essentially though the time bins lines up perfectly because no times in the 
+# The codes essentially thought the time bins lines up perfectly because no times in the 
 # current CLS file belonged in the last time bin of the previous file. Therefore it set
 # 'ei' (end index) to the full shape (as opposed to -1) which resulted in rr going
 # out of bounds by going thru its loop and then into the "not last_file" block right afterwords.
 # The bandaid is this: if ((not last_file) and (ei != ui.shape[0]))
 # Both can't be true, the way I have things coded, so this should prevent the code from crashing
 # in this situation.
+#
+# [5/3/19] v1 first started
+# Created a new function (inside this file), "patch_outliers," that is used
+# to patch over wonky energy monitor (EM) values with reasonable values.
+# The impetus for creating this was the 28Jan13 PODEX flight.
+#
+# [5/16/19] min_avg_prof enforcement block added in averaging section.
+#
+# [7/1/19] trans_total initialized to zero. Error corrected WRT last update which added
+# the min_avg_prof enforcement block.
 
 # Import libraries <----------------------------------------------------
 
@@ -254,11 +264,28 @@ from time_conversions import *
 
 # Define functions <----------------------------------------------------
 
+def patch_outliers(data_array, m):
+    """ Function to overwrite outliers, in a numpy array, with reasonable
+        values.
+        Originally written to path over bad CPL energy monitor values.
+    """
+    
+    # INPUTS: data_array -> self explanatory
+    #         m          -> The number of standard deviations
+    
+    # RETURNS: A patched version of data_array with the same shape and 
+    #          number of elements.
+    
+    keep_indxs = abs(data_array - np.mean(data_array)) < m * np.std(data_array)
+    single_reasonable_value = np.mean( data_array[keep_indxs] )
+    data_array[np.invert(keep_indxs)] = single_reasonable_value
+    return data_array
+
 def compute_time_offset_IWG1_CLS(cls_files):
     """ This function computes the time offset between the IWG1 Nav time
         and the CLS Instrument time ("ExactTime").
 
-        Takes the string, full-path names of a list ofCLS files as its 
+        Takes the string, full-path names of a list of CLS files as its 
         only argument. Returns the time offset in seconds.
 
         Add this offset to the Instrument time.
@@ -337,7 +364,7 @@ def create_cls_interp_unixt_array(single_cls_file,cls_meta_data_all,
     #
 
 
-    # Load the data - either a single file or entire dataset...
+    # Load the data...
 
     cls_data_1file = read_in_cls_data(single_cls_file)
     nr0 = cls_data_1file.shape[0]
@@ -756,6 +783,7 @@ print('Starting core processing...') # <--------------------------------
 first_read = True
 usable_file_indicies = range(usable_file_range[0],usable_file_range[1])
 trans_bin = [0,0]
+trans_total = 0
 last_file = False 
 for f in range(0,nCLS_files):
 
@@ -1033,7 +1061,7 @@ for f in range(0,nCLS_files):
             # The following line is necessary to get a clean, interpretable,
             # time to write out to the HDF5 file. It will essetially be a
             # byte array for IDL.
-            time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")
+            time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")    
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt']
             Y = 0.0 #Nav_match['drift'] * (pi/180.0) 
@@ -1181,14 +1209,25 @@ for f in range(0,nCLS_files):
     print(attention_bar)
     counts_ff[3,:,:] = counts_ff[3,:,:] * PGain[1]
     
+    # Patch over bad energy monitor values.
+    # Different from classic "AM.pro" code ~line 954.
+    BadEs = np.argwhere(CLS_data_1file['meta']['Engineering']['LaserEnergyMonitors'] <= 0)
+    if BadEs.size > 0:
+        medianEs = np.median(CLS_data_1file['meta']['Engineering']['LaserEnergyMonitors'],axis=0)
+        for BadE in BadEs:
+            # Just replace for all wavelengths, even if only one is bad.
+            CLS_data_1file['meta']['Engineering']['LaserEnergyMonitors'][BadE[0],:] = medianEs
+    
     # Compute NRB & populate saturate_ht array
     EMs = convert_raw_energy_monitor_values(CLS_data_1file['meta']['Engineering']['LaserEnergyMonitors'],nwl,'CPL',e_flg)
     ff_bg_st_bin = np.argwhere(ffrme <= bg_st_alt)[0][0]
     ff_bg_ed_bin = np.argwhere(ffrme >= bg_ed_alt)[-1][0]
-    for chan in range(0,nc):    
-        EMsubmit = EMs[:,wl_map[chan]]     
+    for chan in range(0,nc): 
+        EMsubmit = EMs[:,wl_map[chan]]
+        # Patch over bad EM readings
+        EMsubmit = patch_outliers(EMsubmit,Estds)
         NRB[chan,:,:] = correct_raw_counts(counts_ff[chan,:,:],EMsubmit,None,
-            i1f,nb_ff,ff_bg_st_bin,ff_bg_ed_bin,'NRB_no_range')    
+            i1f,nb_ff,ff_bg_st_bin,ff_bg_ed_bin,'NRB_no_range')
 
     # Delete bad records from output arrays
     tot_good_recs = good_rec_bool.sum()
@@ -1242,6 +1281,7 @@ for f in range(0,nCLS_files):
         bg_save_avg = np.zeros((nc,u.shape[0]),dtype=bg_save.dtype)
         saturate_ht_max = np.zeros((nc,u.shape[0]),dtype=saturate_ht.dtype)
         rr = 0 # raw record number
+        perfectly_aligned = False # True if trans_total == 0
     
         ei = ui.shape[0]-1
         if last_file: ei = ui.shape[0]
@@ -1271,6 +1311,7 @@ for f in range(0,nCLS_files):
         else:
             si = 0
             ei = ui.shape[0]
+            perfectly_aligned = True
             print(attention_bar)
             print("I guess the time_bins lined up perfectly with edge of previous file")
             print("because there are no values in the previous file's last time bin.")
@@ -1316,6 +1357,31 @@ for f in range(0,nCLS_files):
             # following line defines the "trasfer" bin; trans_bin
             trans_bin = time_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
             trans_ncounts = ncounts[-1]
+            
+        # Eliminate those avg'd profiles that contain less than min_avg_profs raw
+        # profiles right here, exclusively in this single paragraph.
+        big_enough_mask = ncounts >= min_avg_profs
+        big_enough_mask[0] = True
+        big_enough_mask[-1] = True
+        if ((not first_read) and (not perfectly_aligned) and (trans_total < min_avg_profs)): big_enough_mask[0] = False
+        if big_enough_mask.sum() < ncounts.shape[0]:
+            Nav_save_avg = Nav_save_avg[big_enough_mask]
+            laserspot_avg = laserspot_avg[big_enough_mask,:]
+            ONA_save_avg = ONA_save_avg[big_enough_mask]
+            DEM_nadir_avg = DEM_nadir_avg[big_enough_mask]
+            DEM_nadir_surftype_avg = DEM_nadir_surftype_avg[big_enough_mask]
+            DEM_laserspot_avg = DEM_laserspot_avg[big_enough_mask]
+            DEM_laserspot_surftype_avg = DEM_laserspot_surftype_avg[big_enough_mask]
+            EMs_avg = EMs_avg[big_enough_mask,:]
+            NRB_avg = NRB_avg[:,big_enough_mask,:]
+            bg_save_avg = bg_save_avg[:,big_enough_mask]
+            saturate_ht_mask = saturate_ht_max[:,big_enough_mask]
+            ncounts = ncounts[big_enough_mask]
+            ui = ui[big_enough_mask]
+            u = u[big_enough_mask]
+            print("\nAvg'd profiles eliminated due to min_avg_profs constraint.")
+            print(np.argwhere(big_enough_mask == False))
+            print(big_enough_mask.shape," reduced to ", u.shape, "\n")
 
         # Expand dataset sizes to accomodate next input CLS file
         cutbegin = 0

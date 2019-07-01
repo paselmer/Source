@@ -234,6 +234,10 @@
 # The impetus for creating this was the 28Jan13 PODEX flight.
 #
 # [5/16/19] min_avg_prof enforcement block added in averaging section.
+#
+# [7/1/19] trans_total initialized to zero. Error corrected WRT last update which added
+# the min_avg_prof enforcement block.
+
 
 # Import libraries <----------------------------------------------------
 
@@ -780,6 +784,7 @@ print('Starting core processing...') # <--------------------------------
 first_read = True
 usable_file_indicies = range(usable_file_range[0],usable_file_range[1])
 trans_bin = [0,0]
+trans_total = 0
 last_file = False 
 for f in range(0,nCLS_files):
 
@@ -1277,6 +1282,7 @@ for f in range(0,nCLS_files):
         bg_save_avg = np.zeros((nc,u.shape[0]),dtype=bg_save.dtype)
         saturate_ht_max = np.zeros((nc,u.shape[0]),dtype=saturate_ht.dtype)
         rr = 0 # raw record number
+        perfectly_aligned = False # True if trans_total == 0
     
         ei = ui.shape[0]-1
         if last_file: ei = ui.shape[0]
@@ -1306,6 +1312,7 @@ for f in range(0,nCLS_files):
         else:
             si = 0
             ei = ui.shape[0]
+            perfectly_aligned = True
             print(attention_bar)
             print("I guess the time_bins lined up perfectly with edge of previous file")
             print("because there are no values in the previous file's last time bin.")
@@ -1357,7 +1364,7 @@ for f in range(0,nCLS_files):
         big_enough_mask = ncounts >= min_avg_profs
         big_enough_mask[0] = True
         big_enough_mask[-1] = True
-        if ((not first_read) and (trans_total < min_avg_profs)): big_enough_mask[0] = False
+        if ((not first_read) and (not perfectly_aligned) and (trans_total < min_avg_profs)): big_enough_mask[0] = False
         if big_enough_mask.sum() < ncounts.shape[0]:
             Nav_save_avg = Nav_save_avg[big_enough_mask]
             laserspot_avg = laserspot_avg[big_enough_mask,:]
@@ -1374,6 +1381,7 @@ for f in range(0,nCLS_files):
             ui = ui[big_enough_mask]
             u = u[big_enough_mask]
             print("\nAvg'd profiles eliminated due to min_avg_profs constraint.")
+            print(np.argwhere(big_enough_mask == False))
             print(big_enough_mask.shape," reduced to ", u.shape, "\n")
 
         # Expand dataset sizes to accomodate next input CLS file
@@ -1461,6 +1469,7 @@ print("NRB has been written to the HDF5 file:"+hdf5_fname)
 
 print('Total raw profiles processed: '+str(i))
 print("camal_l1a.py has finished normally.")
+
 
 ######################################################################### BELOW THIS LINE SHALL NOT BE PART OF L1A PROCESS
 
