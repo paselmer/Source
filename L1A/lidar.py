@@ -879,7 +879,8 @@ def curtain_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_d
     
 def discrete_curtain_plot(imgarr, cmname, nb, vrZ, z, cb_min, cb_max, ndiv, hori_cap, pointing_dir,
                       figW, figL, CPpad, xlab, ylab, cblab, tit, yax, yax_lims, xax, 
-                      xax_lims, scale_alt_OofM, mpl_flg, outfile_name, out_dir, center_ticks = True):
+                      xax_lims, scale_alt_OofM, mpl_flg, outfile_name, out_dir, custom_def = None,
+                      center_ticks = True, nudge = 0.0):
     """ Function that will create a curtain plot of an image using discrete levels.
     """
     
