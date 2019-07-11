@@ -404,7 +404,7 @@ def make_curtain_plot(counts_imgarr, nb, vrZ, z, canvas_ctrl, cb_min, cb_max,
     ytick_ind = ytick_ind[actual_ticks_mask]     	    
     plt.yticks(ytick_ind)
     # The above plt.yticks command doesn't seem to work in the GUI, so...
-    ax.set_yticklabels([str(item) for item in ytick_lab])
+    ax.set_yticklabels(['{:.1f}'.format(item) for item in ytick_lab])
     
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right",size="5%",pad=0.05)

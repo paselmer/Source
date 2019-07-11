@@ -361,6 +361,10 @@ def load_and_plot(*args):
     yax_lims = [yax_min,yax_max]   
     color_bar_min = float(cbar_min.get().strip())
     color_bar_max = float(cbar_max.get().strip())
+    if (palt.get() != 'N') & (pointing_dir == 'Down'):
+        CPL_data_obj.z = float(palt.get()) - np.arange(0,
+                                   CPL_data_obj.std_params[1]*CPL_data_obj.std_params[4],
+                                   CPL_data_obj.std_params[4])
     if opt == 'NRB' and color_bar_max < 1e3: 
         print('Setting color bar max to default NRB value.')
         cbar_max.set(str(CBar_max_NRB).strip())
@@ -619,6 +623,10 @@ ylim_min_l = ttk.Label(ylim_group, text='min')
 ylim_min = StringVar()
 ylim_min_entry = ttk.Entry(ylim_group, width=7, textvariable=ylim_min)
 ylim_min_entry.insert(0,str(minbin).strip())
+palt_group = LabelFrame(LHSframe,text="Force plane alt (m)")       # Plane alt group
+palt = StringVar()
+palt_entry = ttk.Entry(palt_group, width=7, textvariable=palt)
+palt_entry.insert(0,'N')
 ax_dbox_group = LabelFrame(LHSframe)                     # Axes dropbox group
 yax_drop_l = Label(ax_dbox_group,text="Yaxis type")
 yax_drop = ttk.Combobox(ax_dbox_group,values=("bins","alt"),width=7)
@@ -661,19 +669,23 @@ timeslice_group.grid(column=0, row=0, sticky=W)
 angle_group.grid(column=0, row=1, sticky=W)
 ylim_group.grid(column=0, row=2, sticky=W)
 ax_dbox_group.grid(column=0, row=3, sticky=W)
-yax_drop_l.grid(column=0, row=4, stick=SW)
-yax_drop.grid(column=0, row=5, sticky=NW)
-dtype_radios.grid(column=0, row=6, sticky=W)
-CBar_scale_group.grid(column=0, row=7, sticky=W)
-chan_sel_l.grid(column=0, row=8, sticky=SW)
-chan_entry.grid(column=0, row=9, sticky=NW)
-load_b.grid(column=0, row=10, sticky=W)
-savcurt_b.grid(column=0, row=11, sticky=W)
-Emon_b.grid(column=0, row=12, sticky=W)
+palt_group.grid(column=0, row=4, sticky=W)
+yax_drop_l.grid(column=0, row=5, stick=SW)
+yax_drop.grid(column=0, row=6, sticky=NW)
+dtype_radios.grid(column=0, row=7, sticky=W)
+CBar_scale_group.grid(column=0, row=8, sticky=W)
+chan_sel_l.grid(column=0, row=9, sticky=SW)
+chan_entry.grid(column=0, row=10, sticky=NW)
+load_b.grid(column=0, row=11, sticky=W)
+savcurt_b.grid(column=0, row=12, sticky=W)
+Emon_b.grid(column=0, row=13, sticky=W)
 savwin_b.grid(column=0, row=14, sticky=W)
 mpl_chk.grid(column=0, row=15, sticky=W)
 gps_b.grid(column=0, row=16, sticky=W)
 close_b.grid(column=0, row=17, sticky=W)
+
+# Plane alt group
+palt_entry.grid(column=0, row=0, sticky=S)
 
 # Radio buttons grouped in dtype_radios
 raw_radio.grid(column=0, row=0, sticky=SW)
