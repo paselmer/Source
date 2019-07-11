@@ -445,7 +445,9 @@ def canvas_Lclick(event):
             prof_transl = CPL_data_obj.samp_chan_map[prof_num]*nhori
             prof_plot_title = 'UTC: ' + DT.datetime.strftime(CPL_data_obj.time_ax_arr[prof_transl],datetimeformat) + \
                               '\nlat: ' + str(CPL_data_obj.data['meta']['Nav']['GPS_Latitude'][prof_transl])[0:6] + \
-                              ', lon: ' + str(CPL_data_obj.data['meta']['Nav']['GPS_Longitude'][prof_transl])[0:6]
+                              ', lon: ' + str(CPL_data_obj.data['meta']['Nav']['GPS_Longitude'][prof_transl])[0:6] + \
+                              '\nroll: ' + str(CPL_data_obj.data['meta']['Nav']['RollAngle'][prof_transl])[0:6] + \
+                              ', pitch: ' + str(CPL_data_obj.data['meta']['Nav']['PitchAngle'][prof_transl])[0:6]                              
             plt.title(prof_plot_title)
             canvas_ctrl.update_any_canvas_ctrl_plot(CPL_data_obj.samp_chan[prof_num,:],
                                          CPL_data_obj.z, fig2)
