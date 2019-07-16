@@ -19,6 +19,7 @@ import datetime as DT
 import h5py
 import matplotlib.dates as mdates
 import ctypes
+from scipy.ndimage.filters import gaussian_filter
 # Libraries I did create
 from initializations import *
 from read_routines import *
@@ -26,7 +27,7 @@ from lidar import *
 from time_conversions import *
 
 # -----------------> SET RAOB FILE HERE <-------------------------------
-raob_file = raw_dir + 'esrl_raob_72393_033011_12.txt'
+raob_file = raw_dir + 'raob_72393_040411_12'
 #raob_file = raw_dir + 'esrlraobfile_06feb13.txt'
 stop_raob_ht = 30.0 # km?
 tempfile = 'C:\\Users\\pselmer\\Desktop\\bray.temp'
@@ -614,10 +615,10 @@ for f in range(0,nCLS_files):
     if not first_read: time_bins = np.arange(trans_bin[0],CLS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
 
     # Deem as "bad," records outside user-specified processing time range
-    if ( (CLS_data_1file['meta']['Header']['ExactTime'].min() < process_start) 
-      or (CLS_data_1file['meta']['Header']['ExactTime'].max() > process_end) ):
-        time_range_mask_low = CLS_data_1file['meta']['Header']['ExactTime'] > process_start
-        time_range_mask_high = CLS_data_1file['meta']['Header']['ExactTime'] < process_end
+    if ( (CLS_data_1file['meta']['Nav']['UTC_Time'].min() < process_start) 
+      or (CLS_data_1file['meta']['Nav']['UTC_Time'].max() > process_end) ):
+        time_range_mask_low = CLS_data_1file['meta']['Nav']['UTC_Time'] > process_start
+        time_range_mask_high = CLS_data_1file['meta']['Nav']['UTC_Time'] < process_end
         time_range_mask = time_range_mask_low * time_range_mask_high
         CLS_data_1file = np.extract(time_range_mask,CLS_data_1file)
         CLS_UnixT_float64_orig = np.extract(time_range_mask,CLS_UnixT_float64_orig)
@@ -707,56 +708,10 @@ for f in range(0,nCLS_files):
         overlaps_chan_seq = np.ones((nc,nb),dtype=overlaps.dtype)
         for chan in range(0,nc):
             overlaps_chan_seq[chan,:] = overlaps[wl_map[chan],:]
-        # Open the hdf5 file and create the datasets
-        hdf5_fname = L1_dir+'NRB_'+proj_name+'_'+flt_date+'_'+Nav_source+'.hdf5'
-        hdf5_file = h5py.File(hdf5_fname, 'a')
         # Open the lat/lon GEOS met data sampling CSV file
         GEOS_samp_fname = L1_dir+'lon_lat_UTC_'+proj_name+'_'+flt_date+'_'+Nav_source+'.txt'
         GEOS_fobj = open(GEOS_samp_fname, 'wt')
         GEOS_fobj.write('lon,lat,time\n') # file header     
-        try:
-            PGain_dset = hdf5_file.create_dataset("PGain", (len(PGain),), np.float32)
-            nav_dset = hdf5_file.create_dataset("nav", (1,), maxshape=(None,), dtype=nav_save_struct)
-            laserspot_dset = hdf5_file.create_dataset("laserspot", (1,2) , maxshape=(None,2), dtype=np.float32)
-            ONA_dset = hdf5_file.create_dataset("ONA", (1,), maxshape=(None,), dtype=np.float32)
-            bin_alt_dset = hdf5_file.create_dataset("bin_alt_array", ffrme.shape, ffrme.dtype)
-            nb_ff_dset = hdf5_file.create_dataset("num_ff_bins", (1,), np.uint32)
-            num_recs_dset = hdf5_file.create_dataset("num_recs", (1,), np.uint32)
-            DEM_nadir_dset = hdf5_file.create_dataset("DEM_nadir", (1,), maxshape=(None,), dtype=np.float32)
-            DEM_nadir_surftype_dset = hdf5_file.create_dataset("DEM_nadir_surftype", (1,), maxshape=(None,), dtype=np.int8)            
-            DEM_laserspot_dset = hdf5_file.create_dataset("DEM_laserspot", (1,), maxshape=(None,), dtype=np.float32)
-            DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,), dtype=np.int8)
-            EM_dset = hdf5_file.create_dataset("EM", (1,nwl) , maxshape=(None,nwl), dtype=np.float32)
-            NRB_dset = hdf5_file.create_dataset("nrb", (nc,1,nb_ff), maxshape=(nc,None,nb_ff), dtype=np.float32)
-            bg_dset = hdf5_file.create_dataset("bg", (nc,1), maxshape=(nc,None), dtype=np.float32)
-            saturate_ht_dset = hdf5_file.create_dataset("saturate_ht", (nc,1), maxshape=(nc,None), dtype=np.float32)
-        except RuntimeError:
-            print("HDF5 file for this dataset already exists, overwriting old file...")
-            hdf5_file.close() #close, delete, reopen...
-            delete_file(hdf5_fname)
-            hdf5_file = h5py.File(hdf5_fname, 'a')
-            PGain_dset = hdf5_file.create_dataset("PGain", (len(PGain),), np.float32)
-            nav_dset = hdf5_file.create_dataset("nav", (1,), maxshape=(None,), dtype=nav_save_struct)
-            laserspot_dset = hdf5_file.create_dataset("laserspot", (1,2) , maxshape=(None,2), dtype=np.float32)
-            ONA_dset = hdf5_file.create_dataset("ONA", (1,), maxshape=(None,), dtype=np.float32)
-            bin_alt_dset = hdf5_file.create_dataset("bin_alt_array", ffrme.shape, ffrme.dtype)
-            nb_ff_dset = hdf5_file.create_dataset("num_ff_bins", (1,), np.uint32)
-            num_recs_dset = hdf5_file.create_dataset("num_recs", (1,), np.uint32)
-            DEM_nadir_dset = hdf5_file.create_dataset("DEM_nadir", (1,), maxshape=(None,), dtype=np.float32)
-            DEM_nadir_surftype_dset = hdf5_file.create_dataset("DEM_nadir_surftype", (1,), maxshape=(None,), dtype=np.int8)            
-            DEM_laserspot_dset = hdf5_file.create_dataset("DEM_laserspot", (1,), maxshape=(None,), dtype=np.float32)
-            DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,), dtype=np.int8)       
-            EM_dset = hdf5_file.create_dataset("EM", (1,nwl) , maxshape=(None,nwl), dtype=np.float32)
-            NRB_dset = hdf5_file.create_dataset("nrb", (nc,1,nb_ff), maxshape=(nc,None,nb_ff), dtype=np.float32)
-            bg_dset = hdf5_file.create_dataset("bg", (nc,1), maxshape=(nc,None), dtype=np.float32)
-            saturate_ht_dset = hdf5_file.create_dataset("saturate_ht", (nc,1), maxshape=(nc,None), dtype=np.float32)
-        except:
-            print("An unanticipated error occurred while trying to create the HDF5 datasets. Stopping execution.")
-            pdb.set_trace()
-        # Some datasets only need to be written once, right here...
-        PGain_dset[:] = np.asarray(PGain) # convert list to array
-        bin_alt_dset[:] = ffrme
-        nb_ff_dset[:] = nb_ff
         
     counts_ff = np.zeros((nc,nr_1file,nb),dtype=np.float32) # nb instead of nb_ff for overlap code
     NRB = np.empty_like(counts_ff)
@@ -966,6 +921,13 @@ for f in range(0,nCLS_files):
         pres_u = np.copy(pres_r)
         tmp_u = np.copy(tmp_r)
         rh_u = np.copy(rel_humidity)
+        w = np.argwhere( ht_u <= ht_x[-2]) # ensure heights in ht_u will be monot. incr.
+        if (w.shape[0] > 0):
+            if (w[-1][-1] > 0):
+                ht_u = ht_u[w[-1][-1]:] # delete enough so that only 1st elem is < ht_x[-2]
+                pres_u = pres_u[w[-1][-1]:]
+                tmp_u = tmp_u[w[-1][-1]:]
+                rh_u = rh_u[w[-1][-1]:]
         ht_u[0] = ht_x[-2]    # This step aligns interpolated atm frame with raw bins frame
         pres_u[0] = pres_x[-2]#-2 cuz output arrays are reversed (flipped)
         tmp_u[0] = tmp_x[-2]
@@ -984,7 +946,7 @@ for f in range(0,nCLS_files):
         mtsq_slant = np.zeros((nb,nwl),dtype=np.float64)
         for m in range(0,min_bin_num_abv_first_raob_ht+1): #+1 -> have to include the actual bin
             odm = odm + Bray[m,:] * sratm * (vrZ_computed/1e3)
-            mtsq_slant[m,:] = (np.exp(-2.0*odm))**(1.0/np.cos(ONA))
+            mtsq_slant[m,:] = (np.exp(-2.0*odm))**(1.0/np.cos(ONA))          
         AMB_save[i1f,:min_bin_num_abv_first_raob_ht+1,:] = Bray * mtsq_slant[:min_bin_num_abv_first_raob_ht+1,:]
 
         # Populate saturate_ht with bin alts if any bins in current profile are saturated
@@ -1081,6 +1043,8 @@ for f in range(0,nCLS_files):
         NRB = NRB[:,good_rec_bool,:]
         bg_save = bg_save[:,good_rec_bool]
         saturate_ht = saturate_ht[:,good_rec_bool]
+        OL = OL[good_rec_bool,:,:]
+        AMB_save = AMB_save[good_rec_bool,:,:]
         print('\nXXXXXXXXXXXXXXXXXXXXXXX')
         deleted_recs = nr_1file - tot_good_recs
         print(str(deleted_recs).strip()+' records deleted!')
@@ -1089,198 +1053,7 @@ for f in range(0,nCLS_files):
         i = i - (nr_1file - tot_good_recs)
         nr_1file = tot_good_recs
 
-    # Average the data
-    # Remainder data at end of each file is carried-over to next file
-    #
-    # Here's the logic behind this averging section:
-    # The data are averaged one file at a time, with any leftover records
-    # carried-over until the next file is processed. The carried-over records
-    # are then averaged with the first 'x' records of the next file, where 'x'
-    # represents the number of records required to meet the time-average criterion.
-    # The logic is a bit tricky when processing the first and last files, and these
-    # details are dealt with using the "first_read" and "cutbegin" variables. Also,
-    # n_expand (how much to expand datasets) and expanded_length variables are
-    # computed differently for the edge versus middle files. The reason averaging
-    # is done one file at a time is to limit usage of RAM on the computer.
-    if secs2avg > 0.0: # if < 0, don't average
-
-        bin_numbers = np.digitize(CLS_UnixT_float64_new,time_bins)
-        u, ui, ncounts = np.unique(bin_numbers,return_index=True,return_counts=True)
-        Nav_save_avg = np.zeros(u.shape[0],dtype=Nav_save.dtype)
-        laserspot_avg = np.zeros((u.shape[0],2),dtype=laserspot.dtype)
-        ONA_save_avg = np.zeros(u.shape[0],dtype=ONA_save.dtype)
-        DEM_nadir_avg = np.zeros(u.shape[0],dtype=DEM_nadir.dtype)
-        DEM_nadir_surftype_avg = np.zeros(u.shape[0],dtype=DEM_nadir_surftype.dtype)
-        DEM_laserspot_avg = np.zeros(u.shape[0],dtype=DEM_laserspot.dtype)
-        DEM_laserspot_surftype_avg = np.zeros(u.shape[0],dtype=DEM_laserspot_surftype.dtype)
-        EMs_avg = np.zeros((u.shape[0],nwl),dtype=EMs.dtype)
-        NRB_avg = np.zeros((nc,u.shape[0],nb_ff),dtype=NRB.dtype)
-        bg_save_avg = np.zeros((nc,u.shape[0]),dtype=bg_save.dtype)
-        saturate_ht_max = np.zeros((nc,u.shape[0]),dtype=saturate_ht.dtype)
-        rr = 0 # raw record number
-    
-        ei = ui.shape[0]-1
-        if last_file: ei = ui.shape[0]
-        if first_read: 
-            si = 0
-        # Gotta do an elif cuz cur file might not have any vals within last bin of prev file
-        elif time_bins[bin_numbers[ui[0]]-1] == trans_bin[0]:
-            si = 1 # start index
-            trans_total = float(trans_ncounts+ncounts[0])
-            for field in Nav_save_avg.dtype.names:
-                if (field == 'UTC'): continue
-                Nav_save_avg[field][0] = ( (Nav_save_sum[field] + 
-                    Nav_save[field][rr:rr+ncounts[0]].sum())/trans_total )
-            Nav_save_avg['UTC'] = Nav_UTC_carryover
-            laserspot_avg[0,:] = (laserspot_sum + laserspot[rr:rr+ncounts[0],:].sum(axis=0))/trans_total
-            ONA_save_avg[0] = (ONA_save_sum + ONA_save[rr:rr+ncounts[0]].sum())/trans_total
-            DEM_nadir_avg[0] = (DEM_nadir_sum + DEM_nadir[rr:rr+ncounts[0]].sum())/trans_total
-            DEM_nadir_surftype_avg[0] = stats.mode( np.concatenate((DEM_nadir_surftype_carryover, DEM_nadir_surftype[rr:rr+ncounts[0]])) )[0][0]
-            DEM_laserspot_avg[0] = (DEM_laserspot_sum + DEM_laserspot[rr:rr+ncounts[0]].sum())/trans_total
-            DEM_laserspot_surftype_avg[0] = stats.mode( np.concatenate((DEM_laserspot_surftype_carryover, DEM_laserspot_surftype[rr:rr+ncounts[0]])) )[0][0]
-            EMs_avg[0,:] = (EMs_sum + EMs[rr:rr+ncounts[0],:].sum(axis=0))/trans_total
-            NRB_avg[:,0,:] = (NRB_sum + NRB[:,rr:rr+ncounts[0],:].sum(axis=1))/trans_total
-            bg_save_avg[:,0] = (bg_save_sum + bg_save[:,rr:rr+ncounts[0]].sum(axis=1))/trans_total
-            saturate_ht_max[:,0] = np.asarray( (saturate_ht_carryover.max(axis=1), saturate_ht[:,rr:rr+ncounts[0]].max(axis=1)) ).max(axis=0)
-            print('trans_ncounts = ',trans_ncounts)
-            rr += ncounts[0]
-        else:
-            si = 0
-            ei = ui.shape[0]
-            print(attention_bar)
-            print("I guess the time_bins lined up perfectly with edge of previous file")
-            print("because there are no values in the previous file's last time bin.")
-            print(trans_bin)
-            print(attention_bar)
-
-        for tb in range(si,ei):
-            for field in Nav_save_avg.dtype.names:
-                if (field == 'UTC'): continue
-                Nav_save_avg[field][tb] = np.mean(Nav_save[field][rr:rr+ncounts[tb]])
-            Nav_save_avg['UTC'][tb] = Nav_save['UTC'][rr+int(ncounts[tb]/2)] # midpoint
-            laserspot_avg[tb,:] = np.mean(laserspot[rr:rr+ncounts[tb],:],axis=0)
-            ONA_save_avg[tb] = np.mean(ONA_save[rr:rr+ncounts[tb]])
-            DEM_nadir_avg[tb] = np.mean(DEM_nadir[rr:rr+ncounts[tb]])
-            DEM_nadir_surftype_avg[tb] = stats.mode(DEM_nadir_surftype[rr:rr+ncounts[tb]])[0][0]
-            DEM_laserspot_avg[tb] = np.mean(DEM_laserspot[rr:rr+ncounts[tb]])
-            DEM_laserspot_surftype_avg[tb] = stats.mode(DEM_laserspot_surftype[rr:rr+ncounts[tb]])[0][0]
-            EMs_avg[tb,:] = np.mean(EMs[rr:rr+ncounts[tb],:],axis=0)
-            NRB_avg[:,tb,:] = np.mean(NRB[:,rr:rr+ncounts[tb],:],axis=1)	    
-            bg_save_avg[:,tb] = np.mean(bg_save[:,rr:rr+ncounts[tb]],axis=1)
-            saturate_ht_max[:,tb] = np.max(saturate_ht[:,rr:rr+ncounts[tb]],axis=1)
-            #print('iter: ',u[tb],CLS_UnixT_float64_new[rr])
-            rr += ncounts[tb]
-
-        # Save the sum and ncounts of last populated time bin to string averaging
-        # together between multiple files.
-        if ((not last_file) and (ei != ui.shape[0])):
-            Nav_save_sum = np.zeros(1,dtype=Nav_save.dtype)
-            for field in Nav_save_avg.dtype.names:
-                if (field == 'UTC'): continue
-                Nav_save_sum[field][0] = Nav_save[field][rr:rr+ncounts[-1]].sum()
-            Nav_UTC_carryover = Nav_save['UTC'][rr+ncounts[-1]-1]
-            laserspot_sum = laserspot[rr:rr+ncounts[-1],:].sum(axis=0)
-            ONA_save_sum = ONA_save[rr:rr+ncounts[-1]].sum()
-            DEM_nadir_sum = DEM_nadir[rr:rr+ncounts[-1]].sum()
-            DEM_nadir_surftype_carryover = DEM_nadir_surftype[rr:rr+ncounts[-1]]
-            DEM_laserspot_sum = DEM_laserspot[rr:rr+ncounts[-1]].sum()
-            DEM_laserspot_surftype_carryover = DEM_laserspot_surftype[rr:rr+ncounts[-1]]
-            EMs_sum = EMs[rr:rr+ncounts[-1],:].sum(axis=0)
-            NRB_sum = NRB[:,rr:rr+ncounts[-1],:].sum(axis=1)
-            bg_save_sum = bg_save[:,rr:rr+ncounts[-1]].sum(axis=1)
-            saturate_ht_carryover = saturate_ht[:,rr:rr+ncounts[-1]]
-            # following line defines the "trasfer" bin; trans_bin
-            trans_bin = time_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
-            trans_ncounts = ncounts[-1]
-            
-        # Eliminate those avg'd profiles that contain less than min_avg_profs raw
-        # profiles right here, exclusively in this single paragraph.
-        big_enough_mask = ncounts >= min_avg_profs
-        big_enough_mask[0] = True
-        big_enough_mask[-1] = True
-        if ((not first_read) and (trans_total < min_avg_profs)): big_enough_mask[0] = False
-        if big_enough_mask.sum() < ncounts.shape[0]:
-            Nav_save_avg = Nav_save_avg[big_enough_mask]
-            laserspot_avg = laserspot_avg[big_enough_mask,:]
-            ONA_save_avg = ONA_save_avg[big_enough_mask]
-            DEM_nadir_avg = DEM_nadir_avg[big_enough_mask]
-            DEM_nadir_surftype_avg = DEM_nadir_surftype_avg[big_enough_mask]
-            DEM_laserspot_avg = DEM_laserspot_avg[big_enough_mask]
-            DEM_laserspot_surftype_avg = DEM_laserspot_surftype_avg[big_enough_mask]
-            EMs_avg = EMs_avg[big_enough_mask,:]
-            NRB_avg = NRB_avg[:,big_enough_mask,:]
-            bg_save_avg = bg_save_avg[:,big_enough_mask]
-            saturate_ht_mask = saturate_ht_max[:,big_enough_mask]
-            ncounts = ncounts[big_enough_mask]
-            ui = ui[big_enough_mask]
-            u = u[big_enough_mask]
-            print("\nAvg'd profiles eliminated due to min_avg_profs constraint.")
-            print(big_enough_mask.shape," reduced to ", u.shape, "\n")
-
-        # Expand dataset sizes to accomodate next input CLS file
-        cutbegin = 0
-        if ((first_read) and (ncounts[0] < min_avg_profs)): cutbegin = 1
-        n_expand = u.shape[0]-1-cutbegin
-        if ( (last_file) and (ncounts[-1] > min_avg_profs) ): n_expand = u.shape[0]
-        expanded_length = nav_dset.shape[0]+n_expand
-        # Now, if it's the first_read, nav_dset has an initialized length of 1; therefore,
-        # if you use the expanded_length in the previous line the first_read, you'll 
-        # get a dataset size that is too long by 1. The following line fixes this.
-        if first_read: expanded_length = n_expand
-        nav_dset.resize(expanded_length, axis=0)
-        laserspot_dset.resize(expanded_length, axis=0)
-        ONA_dset.resize(expanded_length, axis=0)
-        DEM_nadir_dset.resize(expanded_length, axis=0)
-        DEM_nadir_surftype_dset.resize(expanded_length, axis=0)
-        DEM_laserspot_dset.resize(expanded_length, axis=0)
-        DEM_laserspot_surftype_dset.resize(expanded_length, axis=0)
-        EM_dset.resize(expanded_length, axis=0)
-        NRB_dset.resize(expanded_length, axis=1)
-        bg_dset.resize(expanded_length, axis=1)
-        saturate_ht_dset.resize(expanded_length, axis=1)	
-                        
-        # Write out one file's worth of data to the hdf5 file
-        nav_dset[expanded_length-n_expand:expanded_length] = Nav_save_avg[cutbegin:n_expand+cutbegin]
-        laserspot_dset[expanded_length-n_expand:expanded_length,:] = laserspot_avg[cutbegin:n_expand+cutbegin,:]
-        ONA_dset[expanded_length-n_expand:expanded_length] = ONA_save_avg[cutbegin:n_expand+cutbegin]
-        DEM_nadir_dset[expanded_length-n_expand:expanded_length] = DEM_nadir_avg[cutbegin:n_expand+cutbegin]
-        DEM_nadir_surftype_dset[expanded_length-n_expand:expanded_length] = DEM_nadir_surftype_avg[cutbegin:n_expand+cutbegin]
-        DEM_laserspot_dset[expanded_length-n_expand:expanded_length] = DEM_laserspot_avg[cutbegin:n_expand+cutbegin]
-        DEM_laserspot_surftype_dset[expanded_length-n_expand:expanded_length] = DEM_laserspot_surftype_avg[cutbegin:n_expand+cutbegin]    
-        EM_dset[expanded_length-n_expand:expanded_length,:] = EMs_avg[cutbegin:n_expand+cutbegin,:]
-        NRB_dset[:,expanded_length-n_expand:expanded_length,:] = NRB_avg[:,cutbegin:n_expand+cutbegin,:]
-        bg_dset[:,expanded_length-n_expand:expanded_length] = bg_save_avg[:,cutbegin:n_expand+cutbegin]
-        saturate_ht_dset[:,expanded_length-n_expand:expanded_length] = saturate_ht_max[:,cutbegin:n_expand+cutbegin]
-        nrecs = expanded_length
-
-    else: # No averaging
-
-        # Expand dataset sizes to accomodate next input CLS file
-        nav_dset.resize(i, axis=0)
-        laserspot_dset.resize(i, axis=0)
-        ONA_dset.resize(i, axis=0)
-        DEM_nadir_dset.resize(i, axis=0)
-        DEM_nadir_surftype_dset.resize(i, axis=0)
-        DEM_laserspot_dset.resize(i, axis=0)
-        DEM_laserspot_surftype_dset.resize(i, axis=0)
-        EM_dset.resize(i, axis=0)
-        NRB_dset.resize(i, axis=1)
-        bg_dset.resize(i, axis=1)
-        saturate_ht_dset.resize(i, axis=1)
-                        
-        # Write out one file's worth of data to the hdf5 file
-        nav_dset[i-nr_1file:i] = Nav_save
-        laserspot_dset[i-nr_1file:i,:] = laserspot
-        ONA_dset[i-nr_1file:i] = ONA_save
-        DEM_nadir_dset[i-nr_1file:i] = DEM_nadir
-        DEM_nadir_surftype_dset[i-nr_1file:i] = DEM_nadir_surftype
-        DEM_laserspot_dset[i-nr_1file:i] = DEM_laserspot
-        DEM_laserspot_surftype_dset[i-nr_1file:i] = DEM_laserspot_surftype    
-        EM_dset[i-nr_1file:i,:] = EMs
-        NRB_dset[:,i-nr_1file:i,:] = NRB
-        bg_dset[:,i-nr_1file:i] = bg_save
-        saturate_ht_dset[:,i-nr_1file:i] = saturate_ht
-        nrecs = i
+    # This is the overlap code, no averaging or NRB output
 
     first_read = False
         
@@ -1290,11 +1063,10 @@ for f in range(0,nCLS_files):
 
       
 print('Main L1A execution finished at: ',DT.datetime.now())
+pdb.set_trace()
 
-# Write out any final parameters to the HDF5 file that needed to wait
+# Close output files
 
-num_recs_dset[:] = nrecs
-hdf5_file.close()
 GEOS_fobj.close()
 print("NRB has been written to the HDF5 file:"+hdf5_fname)
 
