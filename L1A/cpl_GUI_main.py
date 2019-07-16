@@ -258,7 +258,7 @@ def load_and_plot(*args):
         # actual computation of PPI
         canvas_ctrl.ppi_this_screen = ppi_img.width()/1.0
         # Create an array of "datetime" objects from GPSWeeks/Secs
-        CPL_data_obj.time_ax_arr = CPL_data_obj.data['meta']['Header']['ExactTime']
+        CPL_data_obj.time_ax_arr = CPL_data_obj.data['meta']['Nav']['UTC_Time']
         # Write the look angles to strings, then insert in GUI dropbox
         cur_angles = ['all']
         # Save the original nprofs. NOTE: This will be overwritten if
