@@ -20,6 +20,7 @@ import h5py
 import matplotlib.dates as mdates
 import ctypes
 from scipy.ndimage.filters import gaussian_filter
+from scipy.optimize import curve_fit
 # Libraries I did create
 from initializations import *
 from read_routines import *
@@ -27,10 +28,11 @@ from lidar import *
 from time_conversions import *
 
 # -----------------> SET RAOB FILE HERE <-------------------------------
-raob_file = raw_dir + 'raob_72393_040411_12'
+raob_file = raw_dir + 'raob_72317_091012_00'
 #raob_file = raw_dir + 'esrlraobfile_06feb13.txt'
 stop_raob_ht = 30.0 # km?
 tempfile = 'C:\\Users\\pselmer\\Desktop\\bray.temp'
+sigma = 2.0 # smoothing stddevs for AMB
 
 # Read in raob data from file
 
@@ -576,6 +578,10 @@ for DTT_file in DTT_files:
     one_DTT = read_in_dead_time_table(dtt_dir+DTT_file)
     DTT[cc,:] = one_DTT[:max_counts]
     cc += 1
+    
+# Create an array to hold all the overlap for the whole duration    
+
+OL = np.zeros((nCLS_files*file_len_recs,nbins,nwl),dtype=np.float64) - 999.9
 
 print('Starting core processing...') # <--------------------------------
 first_read = True
@@ -680,7 +686,7 @@ for f in range(0,nCLS_files):
         #nshots set in config file. not in raw data (CLS) [4/6/18]
         vrT = 1e-7 #CLS_data_1file['meta']['binwid'][0]
         # Range vector, broadcast to nc x nb for vectorized operations later
-        bins_range=np.broadcast_to(np.arange(0,nb*vrZ,vrZ,dtype=np.float32),(nc,nb))
+        bins_range=np.broadcast_to(np.arange(vrZ/2.0,nb*vrZ+vrZ/2.0,vrZ,dtype=np.float32),(nc,nb)) # changed for overlap [7/17/19]
         Y = 0.0 * (pi/180.0)                                  # Initialize YPR
         P = 0.0 * (pi/180.0)
         R = 0.0 * (pi/180.0)
@@ -726,8 +732,6 @@ for f in range(0,nCLS_files):
     DEM_laserspot_surftype = np.zeros(nr_1file,dtype=np.int8)-9
     saturate_ht = np.zeros((nc,nr_1file),dtype=np.float32)-99999.9
     AMB_save = np.zeros((nr_1file,nb,nwl),dtype=np.float32)-999.9
-    OL = np.zeros((nr_1file,nb,nwl),dtype=np.float64) - 999.9
-    
 
     # Right here, right now, test to see if any bin in current file is potentially saturated
 
@@ -946,8 +950,13 @@ for f in range(0,nCLS_files):
         mtsq_slant = np.zeros((nb,nwl),dtype=np.float64)
         for m in range(0,min_bin_num_abv_first_raob_ht+1): #+1 -> have to include the actual bin
             odm = odm + Bray[m,:] * sratm * (vrZ_computed/1e3)
-            mtsq_slant[m,:] = (np.exp(-2.0*odm))**(1.0/np.cos(ONA))          
-        AMB_save[i1f,:min_bin_num_abv_first_raob_ht+1,:] = Bray * mtsq_slant[:min_bin_num_abv_first_raob_ht+1,:]
+            mtsq_slant[m,:] = (np.exp(-2.0*odm))**(1.0/np.cos(ONA))
+        AMB_raw = Bray * mtsq_slant[:min_bin_num_abv_first_raob_ht+1,:]
+        AMB_smooth = np.empty_like(Bray)
+        for W in range(0,nwl): AMB_smooth[:,W] = gaussian_filter(AMB_raw[:,W], sigma)
+        AMB_smooth[:2,:] = AMB_raw[:2,:]  # smoothing can cause artifacts at edges
+        AMB_smooth[-2:,:] = AMB_raw[-2:,:]
+        AMB_save[i1f,:min_bin_num_abv_first_raob_ht+1,:] = AMB_smooth       
 
         # Populate saturate_ht with bin alts if any bins in current profile are saturated
         # NOTE: The order of cond's matters in if blocks in this code paragraph
@@ -1024,10 +1033,6 @@ for f in range(0,nCLS_files):
         # Calculate NRB right here. Don't pass to function.
         NRB[chan,:,:] = counts_ff[chan,:,:] / E
 
-    OL[:,:,0] = AMB_save[:,:,0] / NRB[0,:,:]
-    OL[:,:,1] = AMB_save[:,:,1] / NRB[1,:,:]
-    OL[:,:,2] = AMB_save[:,:,2] / (NRB[2,:,:]+NRB[3,:,:])
-
     # Delete bad records from output arrays
     tot_good_recs = good_rec_bool.sum()
     if tot_good_recs < nr_1file:
@@ -1043,7 +1048,6 @@ for f in range(0,nCLS_files):
         NRB = NRB[:,good_rec_bool,:]
         bg_save = bg_save[:,good_rec_bool]
         saturate_ht = saturate_ht[:,good_rec_bool]
-        OL = OL[good_rec_bool,:,:]
         AMB_save = AMB_save[good_rec_bool,:,:]
         print('\nXXXXXXXXXXXXXXXXXXXXXXX')
         deleted_recs = nr_1file - tot_good_recs
@@ -1052,6 +1056,11 @@ for f in range(0,nCLS_files):
         print('\nXXXXXXXXXXXXXXXXXXXXXXX')
         i = i - (nr_1file - tot_good_recs)
         nr_1file = tot_good_recs
+    
+    # Calculate the overlap
+    OL[i-nr_1file:i,:,0] = AMB_save[:,:,0] / NRB[0,:,:]
+    OL[i-nr_1file:i,:,1] = AMB_save[:,:,1] / NRB[1,:,:]
+    OL[i-nr_1file:i,:,2] = AMB_save[:,:,2] / (NRB[2,:,:]+NRB[3,:,:])
 
     # This is the overlap code, no averaging or NRB output
 
@@ -1061,6 +1070,46 @@ for f in range(0,nCLS_files):
     print('\nDone with file: '+CLS_file+'\n')
     print('**********************************\n')
 
+# /////////////// FINAL OVERLAP BIN ARRAY COMPUTATION \\\\\\\\\\\\\\\\\\
+# \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\//////////////////////////////////////
+
+# Trim off the edge of the OL array & filter out bad OL values
+
+OL = OL[:i,:,:]
+OLend = 142 # set an end for the overlap region
+SDKeep = 2
+# Remove any records where overlap is inf (or just not finite) in overlap region
+OL355colmax = OL[:,:,0].max(axis=1)
+OL532colmax = OL[:,:,1].max(axis=1)
+OL1064colmax = OL[:,:,2].max(axis=1)
+good355 = OL355colmax != np.inf
+good532 = OL532colmax != np.inf
+good1064 = OL1064colmax != np.inf
+OL355_2D = OL[good355,:,0]
+OL532_2D = OL[good532,:,0]
+OL1064_2D = OL[good1064,:,0]
+pdb.set_trace()
+# Only retain SDKeep stddevs to retain per bin
+for j in range(0,nbins):    
+    OL355_2D[:,j] = patch_outliers(OL355_2D[:,j], SDKeep)
+    OL532_2D[:,j] = patch_outliers(OL532_2D[:,j], SDKeep)
+    OL1064_2D[:,j] = patch_outliers(OL1064_2D[:,j], SDKeep)
+
+# Finesse and finalize the overlap calculation
+OL355 = OL355_2D.mean(axis=0)
+OL532 = OL532_2D.mean(axis=0)
+OL1064 = OL1064_2D.mean(axis=0)
+pdb.set_trace()
+def fit_func(x,a,b,c,d):
+    return a * np.arctan(b*x + c) + d
+o5 = (1/OL532) / 8.87929053e+13 # Manually determined norm factor
+popt, pcov = curve_fit(fit_func, np.arange(0,OLend), o5[:OLend])
+plt.plot( np.arange(0,OLend), fit_func(np.arange(0,OLend),*popt) )
+plt.plot( np.arange(0,OLend), o5[:OLend] )
+plt.show()
+pdb.set_trace()
+# ////////////////////////////////\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\//////////////////////////////////////
       
 print('Main L1A execution finished at: ',DT.datetime.now())
 pdb.set_trace()
