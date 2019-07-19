@@ -1211,6 +1211,10 @@ def vmol_interp(inputs):
         ; ****
     """
     
+    # NOTES:
+    #
+    # Changed the **4 to **4.09 to match the CATS ATBD. [7/18/19]
+    
     # inputs = [ht, pres, tmp, rel_humidity, num_levels, tempfile, stop_raob_ht]
     
     # Not sure if Python has common blocks. Let's just say it doesn't.
@@ -1274,7 +1278,7 @@ def vmol_interp(inputs):
             # n = p2*1.0d3 / (1.3806d-16*virtual_tbar) ;pressure from mb to dynes per cm2 using virtual temp
             n = p2*1.0e3 / (1.3806e-16*tbar) #pressure from mb to dynes per cm2 using actual temp 05-08-2002            
             
-            mbs[:] = n * 5.450 * (550.0 / lambd[:])**4 * 1.0e-28 * 1.0e2 # the 1.0d2 converts from 1/cm to 1/m
+            mbs[:] = n * 5.450 * (550.0 / lambd[:])**4.09 * 1.0e-28 * 1.0e2 # the 1.0d2 converts from 1/cm to 1/m
             
             t1 = t2
             p1 = p2
