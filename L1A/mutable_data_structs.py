@@ -18,6 +18,22 @@ def define_MSC_structure(nchans,nbins):
                             ('counts',np.uint16,(nchans,nbins)) ])
     
     return MCS_struct
+    
+
+def define_MSC_structure_r(nchans,nbins):
+    """ This function will define the final MCS structure for Roscoe
+        insturment data once the number of channels and number of bins
+        are determined.
+        
+        INPUTS:
+        nchans -> the number of channels
+        nbins -> the number of bins	    
+    """
+    
+    MCS_struct_r = np.dtype([ ('meta',MCS_meta_struct_r), 
+                            ('counts',np.uint16,(nchans,nbins)) ])
+    
+    return MCS_struct_r
 
 
  

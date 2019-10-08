@@ -43,6 +43,7 @@ def create_a_file_list_in_Windows(file_list,search_str):
         named types of files.
     """
     
+    pdb.set_trace()
     cmd = 'type nul > ' + file_list
     cmd_feedback = check_output(cmd, shell=True)
     cmd = 'del ' + file_list
@@ -1219,3 +1220,156 @@ def read_in_esrl_raob(infile):
         i += 1
         
     return raob
+
+def read_in_housekeeping_data_r(fname):
+    """ This "_r" version operates on Roscoe files.
+       
+        Routine to read in housekeeping data from a single file.
+        Takes only one input, the file name. All other constructs
+        are provided from imported modules.
+    """
+    
+    return( np.fromfile( fname, hk_struct_r, count=-1 ) )
+    
+    
+def read_in_mcs_data_r(fname):
+    """ Routine to read in raw data from a single Roscoe MCS file. 
+        Takes only one input, the file name. All other constructs
+        are provided from imported modules (serve like IDL's 
+        common blocks)
+    """
+    
+    # First, get nchans and nbins from the file...
+    samp = np.fromfile(fname,MCS_meta_struct_r,count=1)
+    
+    # Next, use that info to form your MSC data structure...
+    try:
+        MCS_struct = define_MSC_structure_r(samp['nchans'][0],samp['nbins'][0])
+    except IndexError:
+        print('Size of ingested data: ',samp.shape)
+        print('Bad data. Skipping file...')
+        return None
+    
+    # Finally, read in all data from the file at once
+    MCS_data = np.fromfile( fname, MCS_struct, count=-1 )
+    
+    return(MCS_data)    
+
+
+def read_selected_mcs_files_r(MCS_file_list):
+    """Function that will read in multiple Roscoe MCS files.
+       Takes in a list of files to read as its input and returns a 
+       numpy array "MCS_data" which is structured as "MCS_struct_r."
+    """
+    
+    with open(MCS_file_list) as MCS_list_fobj:
+        all_MCS_files = MCS_list_fobj.readlines()
+    nMCS_files = len(all_MCS_files)
+
+    # Read in the MCS (science) data
+
+    first_read = 1
+    r=0
+    for i in range(0,nMCS_files):
+        print("File # ====== ",i)
+        MCS_file = all_MCS_files[i]
+        MCS_file = MCS_file.rstrip()
+        MCS_data_1file = read_in_mcs_data_r(MCS_file)
+        if MCS_data_1file is None:
+            print('Skipping this file. Potentially corrupt data')
+            continue
+        # As of 10/8/19, no method to filter out bad recs for Roscoe.            
+        #skip_whole_file = filter_out_bad_recs(MCS_data_1file)
+        skip_whole_file = 0
+        if skip_whole_file == 1:
+            print('Skipping this file...') 
+            continue
+        if first_read:
+            first_read = 0
+            nc = MCS_data_1file['meta']['nchans'][0]
+            nb = MCS_data_1file['meta']['nbins'][0]            
+            # Put the parameters that won't change during 1 flight into variables
+            nshots = MCS_data_1file['meta']['nshots'][0]
+            # declare data structure to hold all data. estimate tot # recs first
+            tot_est_recs = int(rep_rate/nshots)*file_len_secs*n_files*nMCS_files
+            MCS_struct = define_MSC_structure(nc,nb)
+            MCS_data = np.zeros(tot_est_recs, dtype=MCS_struct)
+        nr_1file = MCS_data_1file.shape[0]
+        MCS_data[r:r+nr_1file] = MCS_data_1file
+        r += nr_1file   
+        #NOTE: You could put conditional break
+        #      statement in this loop to read-in
+        #      data from time segment only. 
+    
+    try:
+        MCS_data = MCS_data[0:r]
+    except UnboundLocalError:
+        print("\n\n******************************************\n")
+        print("There is no valid data in selected files. Pick other files.\n")
+        print("******************************************\n")
+        return False
+    
+    raw_data_object.data = MCS_data
+    raw_data_object.std_params = data_params
+    raw_data_object.ingested = True
+    raw_data_object.nprofs = r
+    raw_data_object.avgd_mask = np.zeros(nc,dtype=bool)
+    print('All MCS data are loaded.')    
+    return True     
+
+
+def read_selected_mcs_files(MCS_file_list):
+    """Function that will read in multiple CAMAL MCS files.
+       Takes in a list of files to read as its input and returns a 
+       numpy array "MCS_data" which is structured as "MCS_struct."
+    """
+    
+    with open(MCS_file_list) as MCS_list_fobj:
+        all_MCS_files = MCS_list_fobj.readlines()
+    nMCS_files = len(all_MCS_files)
+
+    # Read in the MCS (science) data
+
+    first_read = 1
+    r=0
+    for i in range(0,nMCS_files):
+        print("File # ====== ",i)
+        MCS_file = all_MCS_files[i]
+        MCS_file = MCS_file.rstrip()
+        MCS_data_1file = read_in_raw_data(MCS_file)
+        if MCS_data_1file is None:
+            print('Skipping this file. Potentially corrupt data')
+            continue
+        skip_whole_file = filter_out_bad_recs(MCS_data_1file)
+        if skip_whole_file == 1:
+            print('Skipping this file...') 
+            continue
+        if first_read:
+            first_read = 0	
+            # Put the parameters that won't change during 1 flight into variables
+            nshots = MCS_data_1file['meta']['nshots'][0]
+            vrT = MCS_data_1file['meta']['binwid'][0]
+            vrZ = (vrT * c) / 2.0
+            data_params = [nc,nb,nshots,vrT,vrZ] #store in list
+            # declare data structure to hold all data. estimate tot # recs first
+            n_files = min(nMCS_files,len(Fcontrol.sel_file_list))
+            tot_est_recs = int(rep_rate/nshots)*file_len_secs*n_files
+            MCS_struct = define_MSC_structure(nc,nb)
+            MCS_data = np.zeros(tot_est_recs, dtype=MCS_struct)
+        nr_1file = MCS_data_1file.shape[0]
+        MCS_data[r:r+nr_1file] = MCS_data_1file
+        r += nr_1file   
+        #NOTE: You could put conditional break
+        #      statement in this loop to read-in
+        #      data from time segment only. 
+    
+    try:
+        MCS_data = MCS_data[0:r]
+    except UnboundLocalError:
+        print("\n\n******************************************\n")
+        print("There is no valid data in selected files. Pick other files.\n")
+        print("******************************************\n")
+        return False
+
+    print('All MCS data are loaded.')    
+    return MCS_data

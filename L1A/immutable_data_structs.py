@@ -191,5 +191,24 @@ raob_struct = np.dtype([ ('UTC',DT.datetime), ('lat',np.float32), ('lon',np.floa
                   ('wspd',np.int32)     
                                                                        ])
 
+# Define structure of one Roscoe MCS record
+
+MCS_meta_struct_r = np.dtype([ ('CCSDS',CCSDS_struct), ('nchans',np.int32) ,
+                            ('nbins',np.int32), ('nshots',np.int32) ,
+                            ('binwid',np.float32), ('voltages',np.int32,(32,)) ,
+                            ('sync_byt1',np.uint8), ('sync_byt2',np.uint8) ,
+                            ('status',np.uint8,(4,)), ('EM',np.uint8,(15,)) ])
+
+                          
+# Define structure of one Roscoe housekeeping (hk) record
+
+hk_struct_r = np.dtype([ ('CCSDS',CCSDS_struct), ('GoodCmdCnt',np.int32) ,
+                      ('BadCmdCnt',np.int32), ('MCS24_status',np.int8) ,
+                      ('MSC24_state',np.int32), ('MCS24_npc',np.int32,(8,)) ,
+                      ('CtrlState',np.int32), ('CtrlSubmode',np.int32) ,
+                      ('dis_inp',np.int8) , ('dis_outp',np.int8), 
+                      ('ADVolt',np.float32,(32,)) , ('NASDAT_flags', np.uint8),
+                      ('IWG1_pkt_rec',np.uint32) ,('flags', np.uint8)                                
+                                                                         ])
                         
                           
