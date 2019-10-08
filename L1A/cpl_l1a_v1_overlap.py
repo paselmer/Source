@@ -2,6 +2,8 @@
 #
 # This code, derived from "cpl_l1a_v1.py," creates the XDR overlap table
 # required for CPL. Set "raob_file" before running.
+#
+# v1 interpolates a raob profile to each lidar bin for each lidar profile
 
 # Import libraries <----------------------------------------------------
 
@@ -28,8 +30,8 @@ from lidar import *
 from time_conversions import *
 
 # -----------------> SET RAOB FILE HERE <-------------------------------
-raob_file = raw_dir + 'raob_72317_091012_00'
-#raob_file = raw_dir + 'esrlraobfile_06feb13.txt'
+raob_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Iceax11\\11-631\\'
+raob_file = raob_dir + 'raob_72393_040411_12'
 stop_raob_ht = 30.0 # km?
 tempfile = 'C:\\Users\\pselmer\\Desktop\\bray.temp'
 sigma = 2.0 # smoothing stddevs for AMB
@@ -956,7 +958,7 @@ for f in range(0,nCLS_files):
         for W in range(0,nwl): AMB_smooth[:,W] = gaussian_filter(AMB_raw[:,W], sigma)
         AMB_smooth[:2,:] = AMB_raw[:2,:]  # smoothing can cause artifacts at edges
         AMB_smooth[-2:,:] = AMB_raw[-2:,:]
-        AMB_save[i1f,:min_bin_num_abv_first_raob_ht+1,:] = AMB_smooth       
+        AMB_save[i1f,:min_bin_num_abv_first_raob_ht+1,:] = AMB_smooth   
 
         # Populate saturate_ht with bin alts if any bins in current profile are saturated
         # NOTE: The order of cond's matters in if blocks in this code paragraph
@@ -1076,7 +1078,7 @@ for f in range(0,nCLS_files):
 # Trim off the edge of the OL array & filter out bad OL values
 
 OL = OL[:i,:,:]
-OLend = 142 # set an end for the overlap region
+OLend = 285 # set an end for the overlap region
 SDKeep = 2
 # Remove any records where overlap is inf (or just not finite) in overlap region
 OL355colmax = OL[:,:,0].max(axis=1)
@@ -1086,8 +1088,8 @@ good355 = OL355colmax != np.inf
 good532 = OL532colmax != np.inf
 good1064 = OL1064colmax != np.inf
 OL355_2D = OL[good355,:,0]
-OL532_2D = OL[good532,:,0]
-OL1064_2D = OL[good1064,:,0]
+OL532_2D = OL[good532,:,1]
+OL1064_2D = OL[good1064,:,2]
 pdb.set_trace()
 # Only retain SDKeep stddevs to retain per bin
 for j in range(0,nbins):    
@@ -1102,7 +1104,8 @@ OL1064 = OL1064_2D.mean(axis=0)
 pdb.set_trace()
 def fit_func(x,a,b,c,d):
     return a * np.arctan(b*x + c) + d
-o5 = (1/OL532) / 8.87929053e+13 # Manually determined norm factor
+o5 = (1/OL532) / 4e+14 # Manually determined norm factor
+o3 = (1/OL355) / 7e+12
 popt, pcov = curve_fit(fit_func, np.arange(0,OLend), o5[:OLend])
 plt.plot( np.arange(0,OLend), fit_func(np.arange(0,OLend),*popt) )
 plt.plot( np.arange(0,OLend), o5[:OLend] )
