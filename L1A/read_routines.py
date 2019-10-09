@@ -1,4 +1,8 @@
-# Routines to read in the various CAMAL data files
+# Routines to read in the various types of data files
+#
+# [10/9/19] **** MAJOR CHANGE ****
+# Import of "initializations.py" removed. This will cause headaches for 
+# a little while.
 
 import pdb
 import struct as struct
@@ -7,9 +11,9 @@ import datetime as DT
 import xdrlib
 from functools import partial
 import os
+from subprocess import check_output
 
 # Libraries I have created...
-from initializations import * #all directories and constants defined here
 from immutable_data_structs import * #data structs that don't change
 from mutable_data_structs import *   #data structs that can change
 from time_conversions import weeksecondstoutc, delta_datetime_vector
@@ -36,14 +40,13 @@ def delete_file(file_name):
         delete_file_in_Windows(file_name)    
     
 
-def create_a_file_list_in_Windows(file_list,search_str):    
+def create_a_file_list_in_Windows(file_list,search_str,raw_dir):    
     """ This code  will create a file list in the current directory
         with the given input name. The other input text string is 
         so code can be reused to search for different systematically
         named types of files.
     """
     
-    pdb.set_trace()
     cmd = 'type nul > ' + file_list
     cmd_feedback = check_output(cmd, shell=True)
     cmd = 'del ' + file_list
@@ -52,7 +55,7 @@ def create_a_file_list_in_Windows(file_list,search_str):
     cmd_feedback = check_output(cmd, shell=True)
     
     
-def create_a_file_list_in_Unix(file_list,search_str):
+def create_a_file_list_in_Unix(file_list,search_str,raw_dir):
     """ This code will create a file list in the current directory
         with the given input name. The other input text string is
         so code can be reused to search for different systematically
@@ -73,13 +76,13 @@ def create_a_file_list_in_Unix(file_list,search_str):
     cmd_feedback = check_output(cmd, shell=True)   
     
     
-def create_a_file_list(file_list,search_str):
+def create_a_file_list(file_list,search_str,raw_dir):
     """ Calls appropriate function depending on OS. """
     
     if (os.name != 'nt'):                                # Linux/Unix
-        create_a_file_list_in_Unix(file_list,search_str)
+        create_a_file_list_in_Unix(file_list,search_str,raw_dir)
     else:                                                # Windows
-        create_a_file_list_in_Windows(file_list,search_str)
+        create_a_file_list_in_Windows(file_list,search_str,raw_dir)
 
 
 def read_in_raw_data(fname):
@@ -131,7 +134,7 @@ def filter_out_bad_recs(MCS_struct):
     return skip_flag
     
     
-def read_in_gps_data(fname):
+def read_in_gps_data(fname, file_len_secs, gps_hz):
     """Routine to read in GPS files (CAMAL/ACATS).
     
        [12/15/17]
@@ -310,7 +313,7 @@ def decode_er2_like_wb57_nav_string(Nav_string,signs):
     return CLS_decoded_nav_data
             
 
-def decode_er2_nav_string(Nav_fields,signs):
+def decode_er2_nav_string(Nav_fields,signs,flt_date,bad_cls_nav_time_value):
     """ This function decodes an input ER2-style CLS Nav list of strings into its
         constituent parameters. Function returns a "decoded_nav_struct"
         datatype array of length one.
@@ -426,7 +429,7 @@ def decode_er2_nav_string(Nav_fields,signs):
     return CLS_decoded_nav_data
 
 
-def decode_uav_nav_string(Nav_fields):
+def decode_uav_nav_string(Nav_fields,flt_date,bad_cls_nav_time_value):
     """ This function decodes an input UAV-style CLS Nav list of strings into its
         constituent parameters. Function returns a "decoded_nav_struct"
         datatype array of length one.
@@ -614,7 +617,7 @@ def read_in_nav_data(fname, est_recs, UTC_adj=DT.timedelta(0,0,0)):
                     #nav_data_1file['air_sun_azi'][r] = row[32]
                 elif file_style == 'ER2':
                     # You need to decode this first...
-                    cls_decoded_nav = decode_er2_nav_string(row,signs)
+                    cls_decoded_nav = decode_er2_nav_string(row,signs,flt_date,bad_cls_nav_time_value)
                     nav_data_1file['UTC'][r] = cls_decoded_nav['UTC_Time'][0]
                     nav_data_1file['lat'][r] = cls_decoded_nav['GPS_Latitude'][0]
                     nav_data_1file['lon'][r] = cls_decoded_nav['GPS_Longitude'][0]
@@ -687,7 +690,7 @@ def read_in_dead_time_table(fname):
     return np.asarray(data_list,dtype=np.float32)
     
     
-def read_entire_gps_dataset(scrub='no'):
+def read_entire_gps_dataset(file_len_secs, gps_hz, scrub='no'):
     """ Read in entire gps file dataset (all files). Return a gps_struct
         array of the data, as well as separate, gps_UTC datetime.datetime
         array (for convenience   ).
@@ -712,7 +715,7 @@ def read_entire_gps_dataset(scrub='no'):
     est_gps_recs = int((file_len_secs * (gps_hz+1))*nGPS_files) # add a little buffer
     gps_data_all = np.zeros(est_gps_recs,dtype=gps_struct)
     for GPS_file in all_GPS_files:
-        gps_data_1file = read_in_gps_data(GPS_file.strip())
+        gps_data_1file = read_in_gps_data(GPS_file.strip(), file_len_secs, gps_hz)
         try:
             gps_data_all[j:j+gps_data_1file.shape[0]] = gps_data_1file
         except ValueError:
@@ -781,7 +784,7 @@ def read_entire_nav_dataset(search_str = '*nav*'):
     return nav_data_all
 
 
-def read_in_cls_data(fname,return_nav_dict=False):
+def read_in_cls_data(fname,nbins,flt_date,bad_cls_nav_time_value,return_nav_dict=False):
     """ Routine to read in raw data from a single CPL "CLS" file. 
         Takes only one input, the file name. All other constructs
         are provided from imported modules (serve like IDL's 
@@ -888,9 +891,9 @@ def read_in_cls_data(fname,return_nav_dict=False):
 
         if cls_type == 'ER2':
             #WRITE CODE TO PARSE ER2-STYLE NAV RECORD
-            CLS_decoded_data['meta']['Nav'][i] = decode_er2_nav_string(Nav_fields,signs)
+            CLS_decoded_data['meta']['Nav'][i] = decode_er2_nav_string(Nav_fields,signs,flt_date,bad_cls_nav_time_value)
         elif cls_type == 'UAV':
-            CLS_decoded_data['meta']['Nav'][i] = decode_uav_nav_string(Nav_fields)
+            CLS_decoded_data['meta']['Nav'][i] = decode_uav_nav_string(Nav_fields,flt_date,bad_cls_nav_time_value)
         else:
             #Don't split. We're going to decode by byte position
             Nav_fields = str( CLS_data['meta']['Nav'][i].view(navSview) )
@@ -997,7 +1000,7 @@ def remove_status_packets_from_data_edges(in_meta,drift_plot=False):
     return [skip_first, skip_last]    
 
 
-def read_entire_cls_dataset(Fcontrol=None):
+def read_entire_cls_dataset(file_len_recs,raw_dir,nbins,flt_date,bad_cls_nav_time_value,Fcontrol=None):
     """ This function reads in all the CLS data from the entire flight.
     """
     
@@ -1006,24 +1009,30 @@ def read_entire_cls_dataset(Fcontrol=None):
     # [5/24/18]
     # Fcontrol, or file control, added to ease recycling of CAMAL GUI code
     # to create CPL GUI
+    #
+    # [10/9/19]
+    # Retooled slightly to accomodate the removal of the initializations
+    # import from this module.
 
     cls_file_list = 'cls_file_list_for_nav_only.txt'
     search_str = '*.cls'
-    create_a_file_list(cls_file_list,search_str)    
+    create_a_file_list(cls_file_list,search_str,raw_dir)    
             
     with open(cls_file_list) as cls_list_fobj:
         all_cls_files = cls_list_fobj.readlines()
     ncls_files = len(all_cls_files)
     
     est_cls_recs = file_len_recs*ncls_files
-    cls_data_all = np.zeros(est_cls_recs,dtype=define_CLS_decoded_structure(max_chan,nbins))
     file_indx = np.zeros((ncls_files,2),dtype=np.uint32)
     j = 0
     for i in range(0,ncls_files):
         if i not in Fcontrol.sel_file_list: continue		
         cls_file = all_cls_files[i]
         cls_file = cls_file.strip()
-        cls_data_1file, Nav_dict = read_in_cls_data(cls_file,True)
+        cls_data_1file, Nav_dict = read_in_cls_data(cls_file,nbins,flt_date,bad_cls_nav_time_value,True)
+        if j == 0:
+             max_chan = cls_data_1file['meta']['Header']['NumChannels'][0]
+             cls_data_all = np.zeros(est_cls_recs,dtype=define_CLS_decoded_structure(max_chan,nbins))
         try:
             cls_data_all[j:j+cls_data_1file.shape[0]] = cls_data_1file
         except:

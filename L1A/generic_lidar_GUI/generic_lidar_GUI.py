@@ -9,7 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pdb
 # Custom libraries/modules
-from read_routines import *
+from generic_lidar_GUI_library import *
+from read_routines import * # no longer imports L1A initializations [10/9/19]
 from generic_lidar_GUI_initializations import * # !!NEEDS TO BE LAST!!
 
 filepath = 'C:\\Users\\pselmer\\Documents\\Roscoe\\data\\23Mar18-roscoe\\'
@@ -20,11 +21,9 @@ hk_file = 'hk__20180323_193557.data'
 
 updata = read_in_mcs_data_r(filepath+upfile)
 downdata = read_in_mcs_data_r(filepath+upfile)
-hk_data = read_in_housekeeping_data_r(filepath+hk_file)
-pdb.set_trace()
 
 file_list = 'raw_signal_file_list.txt'
-create_a_file_list(file_list,'*datadown*')
+create_a_file_list(file_list,'*datadown*',raw_dir)
 
 pdb.set_trace()
 
