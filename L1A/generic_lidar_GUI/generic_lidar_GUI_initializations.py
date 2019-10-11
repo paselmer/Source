@@ -23,13 +23,14 @@ import datetime as DT
 instrument_name = 'Roscoe' 
 
 # ************* SET THE NAME OF THE PROJECT & FLIGHT DATE **************
-proj_name = 'FIREX'
-flt_date = 'data' # in "CPL" form, not "CAMAL" form
+proj_name = 'Uplook_19'
+flt_date = 'data'     # in "CPL" form, not "CAMAL" form
 sortie = '20191004'   # Needn't actually be a sortie. Just a folder name.
+search_str = '*dataup*.data'     # How code will identify file names of files
 
 # *********** DEFINE CONSTANTS, DATA PARAMS, CONFIG OPTIONS  ***********
 # horizontal averaging (# of raw profiles)
-nhori = 20
+nhori = 1
 # Some instrument's read routines require this. CAMAL,Roscoe don't.
 file_len_recs = 9000
 # MCS data files (CAMAL, Roscoe, ACATS) should contain 5 minutes of data
@@ -41,26 +42,34 @@ nshots = 500
 # CLS data also don't include bin size. So define here (m).
 vrZ = 29.98
 # The laser rep rate in Hertz
-rep_rate = 5142.0
+rep_rate = 5000.0
+# Horizontal distance between profiles (m)
+dx = 200.0
 # Start and end bin of solar background region
 bg_st_bin = 770
-bg_ed_bin = 820
+bg_ed_bin = 800
 # This flag tells the code which equations to use to convert energy
 e_flg = 12
 # The number of wavelengths
-nwl = 3
+nwl = 2
+# The bin width for the histogram used to determine off-nadir angles
+ONA_bw = 3.0
+# The max off-nadir angle, for use with histogram code
+ONA_uplim = 17.0
+# The min off-nadir angle, for use with histogram code
+ONA_lowlim = -17.0
 # Which channels #'s are which wavelengths? (0=355,1=532,2=1064)
-wl_map = [0, 1, 2, 2]
+wl_map = [1, 1, 0, 0]
 # Create a list where index # of WL corresponds to string name of WL
-wl_str = ['355','532','1064']
+wl_str = ['355','1064']
 # default scale of color bar
-CBar_max = 50.0
+CBar_max = 70.0
 CBar_max_NRB = 5e13
 CBar_min = 0.0
 # The order of magnitude of the alt scale (help make round ticks)
 scale_alt_OofM = 1e3 #order of mag.
 # Default vertical range of bins to be plotted in curtain
-minbin=833
+minbin=900
 maxbin=0
 # curtain plot width and height (inches)
 figW = 16
@@ -69,7 +78,7 @@ figL = 10
 pp_figW = 6.5
 pp_figL = 7
 # "Up" or "Down?" Which direction is lidar pointed?
-pointing_dir = "Down"
+pointing_dir = "Up"
 # default axes limits for profile plot [xmin,xmax]/[ymin,ymax]
 pp_xax_bounds_raw_counts = [0,500]
 pp_xax_bounds_bgsub_counts = [-15,145]
@@ -85,6 +94,8 @@ max_chan = 4
 hori_cap = 20000
 # The padding around the curtain plot in inches
 CPpad = 0.1
+# The format specification string for dealing with the angles dropbox list
+angle_list_format_str = '{:9.5f}'
 # The attention bar
 attention_bar = '\n******************************\n'
 
@@ -100,6 +111,6 @@ else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
 
     # ******** DEFINE ALL DIRECTORIES ********
     # Set the directory of the raw data
-    raw_dir = 'C:\\Users\\pselmer\\Documents\\Roscoe\\data\\'+sortie+'\\'
+    raw_dir = 'C:\\Users\\pselmer\\Documents\\Roscoe\\data\\'+proj_name+'\\'+sortie+'\\'
     # Directory to put output
-    out_dir = 'C:\\Users\\pselmer\\Documents\\Roscoe\\data\\analysis\\'
+    out_dir = 'C:\\Users\\pselmer\\Documents\\Roscoe\\data\\'+proj_name+'\\analysis\\'

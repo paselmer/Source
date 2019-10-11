@@ -20,6 +20,7 @@ from lidar import average_lidar_data, get_a_color_map
 from read_routines import *
 from mutable_data_structs import define_MSC_structure
 from time_conversions import *
+from generic_lidar_GUI_initializations import *
 
 class file_control():
     """Object for managing the ingestion of various files"""
@@ -65,190 +66,6 @@ class canvas_control():
         fig.canvas.draw_idle()        
 
 
-class HandS_obj():
-    """ This object holds and manipulates health and status data """
-    
-    def __init__(self, data, rec_size, nrecs0):
-        """ Initialize attributes of this class """
-        self.data = data
-        self.rec_size = rec_size
-        self.nrecs0 = nrecs0
-        
-    def convert_temps_and_press(self):
-        """ Convert the raw temperatures and pressures into standard units """
-        
-        # Converts raw thermistor data to degrees Celcius
-        self.data['ScanTemp'][:,1:] = ( (self.data['ScanTemp'][:,1:]**2)*(-1.9724214) ) + \
-                                      ( self.data['ScanTemp'][:,1:]*(120.992655) ) - 443.417057 
-                                      
-        self.data['ScanTemp'][:,0] = (self.data['ScanTemp'][:,0]*(7.4134))-3.20342                                             
-                                      
-
-class lidar_data_obj():
-    """ This object holds and manipulates lidar data """
-    
-    def __init__(self, data, std_params, ingested, nprofs, z, avgd_mask,
-                 avgd_E, samp_chan, time_ax_arr, hist_bin_centers,
-                 hist_bin_width, samp_chan_map, nprofs0):
-       """Initialize attributes of this class"""
-       self.data = data
-       # std_params is list -> [nc,nb,nshots,vrT,vrZ] 
-       self.std_params = std_params
-       self.ingested = ingested
-       self.nprofs = nprofs
-       self.z = z
-       self.avgd_mask = avgd_mask
-       self.avgd_E = avgd_E
-       self.samp_chan = samp_chan # current data being used in plots
-       self.time_ax_arr = time_ax_arr
-       self.hist_bin_centers = hist_bin_centers
-       self.hist_bin_width = hist_bin_width
-       self.samp_chan_map = samp_chan_map
-       self.nprofs0 = nprofs0
-        
-    def update_avgd_mask(self,sel_chan):
-        self.avgd_mask[sel_chan-1] = True
-        
-    def set_bin_alt_array(self,pdir,yax,ang_bin_indx):
-        """pdir has string literal values of "Up" or "Down"
-           depending on the direction the lidar is pointed.
-        """
-        
-        # First bin index should correspond to 'all' angles. In this case,
-        # apply no angle correction 
-        if ang_bin_indx < 0:
-            cosfact = 1.0 # same as applying to angle
-            print('No cosine factor applied.')
-            
-        else:
-            cosfact = math.cos(self.hist_bin_centers[ang_bin_indx]*(pi/180.0))
-            print('------> cosine factor of '+str(self.hist_bin_centers[ang_bin_indx])+ \
-                  ' being applied.')
-        
-        if yax == 'alt':
-            if pdir == "Up":
-                self.z = np.median(self.data['meta']['GpsAlt']) + np.arange(0,self.std_params[1]*self.std_params[4],
-                                   self.std_params[4])
-            elif pdir == "Down":
-                self.z = np.median(self.data['meta']['GpsAlt']) - np.arange(0,
-                                   self.std_params[1]*self.std_params[4],
-                                   self.std_params[4]*cosfact)
-            else:
-                print("You entered a pointing_dir other than Up or Down. Assuming Down...")
-                self.z = np.median(self.data['meta']['GpsAlt']) - np.arange(0,
-                                   self.std_params[1]*self.std_params[4],
-                                   self.std_params[4]*cosfact)
-            #self.z = self.z * cosfact # Apply cosine no matter which above
-        elif yax == 'bins':
-            self.z = np.arange(1,self.std_params[1]+1)
-            #if pdir == "Up":
-            #    self.z = np.arange(1,self.std_params[1]+1)
-            #elif pdir == "Down":
-            #    self.z = np.arange(self.std_params[1],0,-1)
-            #else:
-            #    print("You entered a pointing_dir other than Up or Down. Assuming Down...")   
-            #    self.z = np.arange(self.std_params[1],0,-1)      
-            #pdb.set_trace()
-        else:
-            print("Something is seriously wrong with your code, Patrick. Stopping in \
-                   GUI_function.py")
-            pdb.set_trace()
-                               
-    def set_time_axis_array(self):
-        """ This method will create the time axis of samp_chan. 
-            Unless you know what you're doing, only call this immediately
-            after initial data read at raw resolution.
-        """
-        
-        # Set the full axis to datetime objects, initially preferrably
-        self.time_ax_arr = np.zeros(self.nprofs,dtype=DT.datetime)
-        for i in range(0,self.nprofs):
-            #pdb.set_trace()
-            self.time_ax_arr[i] = weeksecondstoutc(self.data['meta']['GpsWeek'][i]*1.0,
-                                self.data['meta']['Gps_msec'][i]/1e3,leapsecs )
-                                
-    def determine_look_angles(self):
-        """ 
-        This method will determine all the look angles within data.
-        Originally wittten with CAMAL in mind because CAMAL has
-        programmable, continuously variable scan angles.
-        
-        This method will produce a list of the float values of the
-        angles. 
-        """
-        
-        # Correct scan angles for fixed, known offset. Provided in 
-        # initialization file.
-        
-        self.data['meta']['scan_pos'] = self.data['meta']['scan_pos'] + angle_offset
-        
-        # The histogram parameters here come from the initialization file
-        nhbins = int( (scan_pos_uplim - scan_pos_lowlim)/scan_pos_bw )
-        dens, edges = np.histogram(self.data['meta']['scan_pos'],
-                      bins=nhbins,range=(scan_pos_lowlim,scan_pos_uplim))
-        delta = float(scan_pos_uplim - scan_pos_lowlim) / float(nhbins)
-        print("delta is ",delta)
-        center = edges[:len(dens)] + delta
-        mask = dens != 0
-        #print("The bin edges are :",edges)
-        print("This many bins have a freq of at least 1: ",dens[mask].shape)
-        print("These are the bins: ",center[mask])
-        self.hist_bin_centers = center[mask]
-        self.hist_bin_width = delta
-        #plt.plot(center,dens)
-        #plt.show()
-        
-    def apply_look_angle_mask(self,bin_indx,opt):
-        """ Code to apply mask to science data based on look angle 
-            Like other methods in this class, don't call before you load
-            data.
-        """   
-        
-        # This maps the full-length dataset to samp_chan
-        samp_chan_map = np.arange(0,self.nprofs).astype('uint32')
-        self.samp_chan_map = samp_chan_map # could be overwritten below
-        
-        # Go no farther if no angle is selected
-        if (opt == 'no_mask'): return
-        # If you make it to this line, a mask is going to be applied
-        print("An angle mask is being applied.")
-        
-        cs = self.hist_bin_centers[bin_indx]
-        lim1 = cs - self.hist_bin_width
-        lim2 = cs + self.hist_bin_width
-        print( 'limit1 = '+str(lim1).strip()+' limit2 = '+str(lim2).strip() )
-
-        # Make an array mask to mask "where" angle fall within bin
-        # First reduce array based on averaging, ang_mask then will be
-        # in "averaged space."
-        scan_pos_reduced = self.data[::nhori]['meta']['scan_pos']
-        scan_pos_reduced = scan_pos_reduced[0:self.nprofs]
-        ang_mask = ( (scan_pos_reduced >= lim1) & 
-             (scan_pos_reduced <= lim2)  )
-        #pdb.set_trace()
-        
-        if opt == 'nogaps':
-            
-            # Here we make a sample (samp_chan) with no gaps
-            # Remember, ang_mask will be in averaged space.
-            self.samp_chan = self.samp_chan[:,:][samp_chan_map[ang_mask]]
-            print('The shape of samp_chan is ',self.samp_chan.shape)
-            # Finalize the samp_chan_map. The numbers within this array
-            # should correspond to full-rez dataset indicies.
-            self.samp_chan_map = samp_chan_map[ang_mask]
-            
-        elif opt == 'gaps':
-            
-            # Here we make a sample (samp chan) with gaps
-            self.samp_chan[:,:][samp_chan_map[(ang_mask==False)]] = 0
-        
-        # Wrap up this method, overwrite self.nprofs
-        samp_chan_shape = self.samp_chan.shape
-        print('The shape of samp_chan is ',samp_chan_shape) 
-        self.nprofs = samp_chan_shape[0]
-        print('Length of samp_chan: ',samp_chan_shape[0])    
-        
-        
 
 def make_curtain_plot(counts_imgarr, nb, vrZ, z, canvas_ctrl, cb_min, cb_max,
                       xlab, ylab, tit, yax, yax_lims, xax, xax_lims, mpl_flg):
@@ -345,7 +162,7 @@ def make_curtain_plot(counts_imgarr, nb, vrZ, z, canvas_ctrl, cb_min, cb_max,
     cax = divider.append_axes("right",size="5%",pad=0.05)
     plt.colorbar(im, cax=cax)
     ax.autoscale
-    plt.savefig(source_dir+'current_curtain.png',bbox_inches='tight',pad_inches=CPpad)
+    plt.savefig('current_curtain.png',bbox_inches='tight',pad_inches=CPpad)
     CPpad_pix = CPpad * canvas_ctrl.ppi_this_screen # CPpad in pixels 
     # The following 1 line stores the "dpi" coordinates of the image corners
     im_Bbox = tf.Bbox.get_points(im.get_window_extent())
@@ -405,7 +222,7 @@ def make_curtain_plot_update_fig(samp_chan,nb,vrZ,z):
     plt.colorbar(im, cax=cax)
     #plt.show()
     ax.autoscale
-    plt.savefig(source_dir+'current_curtain.png',bbox_inches='tight')
+    plt.savefig('current_curtain.png',bbox_inches='tight')
     #plt.close(fig1)
     
     return None  

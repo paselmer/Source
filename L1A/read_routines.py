@@ -1265,21 +1265,30 @@ def read_in_mcs_data_r(fname):
     return(MCS_data)    
 
 
-def read_selected_mcs_files_r(MCS_file_list):
+def read_selected_mcs_files_r(MCS_file_list, rep_rate, file_len_secs, Fcontrol=None):
     """Function that will read in multiple Roscoe MCS files.
        Takes in a list of files to read as its input and returns a 
        numpy array "MCS_data" which is structured as "MCS_struct_r."
     """
+	
+	# INPUTS:
+	# MSC_file_list: List of MCS files to read
+	# Fcontrol:      List controlling which MCS files are read. Optional.
     
     with open(MCS_file_list) as MCS_list_fobj:
         all_MCS_files = MCS_list_fobj.readlines()
     nMCS_files = len(all_MCS_files)
+    if Fcontrol is not None:
+        n_files = nMCS_files
+    else:
+        n_files = len(Fcontrol)
 
     # Read in the MCS (science) data
 
     first_read = 1
     r=0
     for i in range(0,nMCS_files):
+        if i not in Fcontrol: continue
         print("File # ====== ",i)
         MCS_file = all_MCS_files[i]
         MCS_file = MCS_file.rstrip()
@@ -1300,9 +1309,9 @@ def read_selected_mcs_files_r(MCS_file_list):
             # Put the parameters that won't change during 1 flight into variables
             nshots = MCS_data_1file['meta']['nshots'][0]
             # declare data structure to hold all data. estimate tot # recs first
-            tot_est_recs = int(rep_rate/nshots)*file_len_secs*n_files*nMCS_files
-            MCS_struct = define_MSC_structure(nc,nb)
-            MCS_data = np.zeros(tot_est_recs, dtype=MCS_struct)
+            tot_est_recs = int(rep_rate/nshots)*file_len_secs*n_files
+            MCS_struct_r = define_MSC_structure_r(nc,nb)
+            MCS_data = np.zeros(tot_est_recs, dtype=MCS_struct_r)
         nr_1file = MCS_data_1file.shape[0]
         MCS_data[r:r+nr_1file] = MCS_data_1file
         r += nr_1file   
@@ -1318,30 +1327,34 @@ def read_selected_mcs_files_r(MCS_file_list):
         print("******************************************\n")
         return False
     
-    raw_data_object.data = MCS_data
-    raw_data_object.std_params = data_params
-    raw_data_object.ingested = True
-    raw_data_object.nprofs = r
-    raw_data_object.avgd_mask = np.zeros(nc,dtype=bool)
     print('All MCS data are loaded.')    
-    return True     
+    return MCS_data 
 
 
-def read_selected_mcs_files(MCS_file_list):
+def read_selected_mcs_files(MCS_file_list, rep_rate, file_len_secs, Fcontrol=None):
     """Function that will read in multiple CAMAL MCS files.
        Takes in a list of files to read as its input and returns a 
        numpy array "MCS_data" which is structured as "MCS_struct."
     """
+	
+	# INPUTS:
+	# MSC_file_list: List of MCS files to read
+	# Fcontrol:      List controlling which MCS files are read. Optional.	
     
     with open(MCS_file_list) as MCS_list_fobj:
         all_MCS_files = MCS_list_fobj.readlines()
     nMCS_files = len(all_MCS_files)
+    if Fcontrol is not None:
+        n_files = nMCS_files
+    else:
+        n_files = len(Fcontrol)	
 
     # Read in the MCS (science) data
 
     first_read = 1
     r=0
     for i in range(0,nMCS_files):
+        if i not in Fcontrol: continue
         print("File # ====== ",i)
         MCS_file = all_MCS_files[i]
         MCS_file = MCS_file.rstrip()
