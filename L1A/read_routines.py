@@ -914,7 +914,7 @@ def read_in_cls_data(fname,nbins,flt_date,bad_cls_nav_time_value,return_nav_dict
     else:
         return CLS_decoded_data
 
-def remove_status_packets_from_data_edges(in_meta,drift_plot=False):
+def remove_status_packets_from_data_edges(in_meta,bad_cls_nav_time_value,drift_plot=False):
     """ Function to eliminate status records from flight data.
         If first records of first file are invalid, this code 
         will handle that too, in the same manner.
@@ -1079,14 +1079,14 @@ def read_entire_cls_nav_dataset():
     return nav_data_all
 
 
-def read_entire_cls_meta_dataset():
+def read_entire_cls_meta_dataset(raw_dir,file_len_recs,nbins,flt_date,bad_cls_nav_time_value):
     """ This function reads in ONLY the Nav (256-byte) record from the
         CPL CLS files.
     """
 
     cls_file_list = 'cls_file_list_for_nav_only.txt'
     search_str = '*.cls'
-    create_a_file_list(cls_file_list,search_str)    
+    create_a_file_list(cls_file_list,search_str,raw_dir)    
             
     with open(cls_file_list) as cls_list_fobj:
         all_cls_files = cls_list_fobj.readlines()
@@ -1100,7 +1100,7 @@ def read_entire_cls_meta_dataset():
     for i in range(0,ncls_files):
         cls_file = all_cls_files[i]
         cls_file = cls_file.strip()
-        cls_data_1file, Nav_dict = read_in_cls_data(cls_file,True)
+        cls_data_1file, Nav_dict = read_in_cls_data(cls_file,nbins,flt_date,bad_cls_nav_time_value,True)
         if cls_data_1file is None: continue
         tot_Nav_dict.update(Nav_dict)
         try:
@@ -1113,7 +1113,7 @@ def read_entire_cls_meta_dataset():
         print('Finshed ingesting file: '+cls_file+' for meta purposes!')
     meta_data_all = meta_data_all[0:j] # trim the fat
 
-    skip_list = remove_status_packets_from_data_edges(meta_data_all)
+    skip_list = remove_status_packets_from_data_edges(meta_data_all,bad_cls_nav_time_value)
     meta_data_all = meta_data_all[skip_list[0]:meta_data_all.shape[0]-skip_list[1]]
     file_indx = file_indx - skip_list[0]
     file_indx[0,0] = 0    

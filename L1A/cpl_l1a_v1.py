@@ -297,7 +297,7 @@ def compute_time_offset_IWG1_CLS(cls_files):
 
     while fc < 2:
 
-        cls_data = read_in_cls_data(cls_files[fc].strip())
+        cls_data = read_in_cls_data(cls_files[fc].strip(),nbins,flt_date,bad_cls_nav_time_value)
 
         diff = cls_data['meta']['Nav']['UTC_Time'] - cls_data['meta']['Header']['ExactTime']
         diff_float_secs = np.zeros(diff.shape[0],dtype=np.float32)
@@ -367,7 +367,7 @@ def create_cls_interp_unixt_array(single_cls_file,cls_meta_data_all,
 
     # Load the data...
 
-    cls_data_1file = read_in_cls_data(single_cls_file)
+    cls_data_1file = read_in_cls_data(single_cls_file,nbins,flt_date,bad_cls_nav_time_value)
     nr0 = cls_data_1file.shape[0]
 
     if Nav_source == 'cls':
@@ -420,7 +420,7 @@ print('Starting main L1A execution at: ',DT.datetime.now())
 # Create and load file list for CLS data
 CLS_file_list = 'processing_file_list.txt'
 search_str = '*.cls'
-create_a_file_list(CLS_file_list,search_str)
+create_a_file_list(CLS_file_list,search_str,raw_dir)
 with open(CLS_file_list) as CLS_list_fobj:
     all_CLS_files = CLS_list_fobj.readlines()
 nCLS_files = len(all_CLS_files)
@@ -611,7 +611,7 @@ elif Nav_source == 'cls':
 
     # Load the entire nav dataset into memory. This data will be used in both
     # the 'cls' Nav block and later on in the main file loop.
-    cls_meta_data_all, nav2cls_indx, FL_trunc, usable_file_range = read_entire_cls_meta_dataset()
+    cls_meta_data_all, nav2cls_indx, FL_trunc, usable_file_range = read_entire_cls_meta_dataset(raw_dir,file_len_recs,nbins,flt_date,bad_cls_nav_time_value)
     #meta_save = np.copy(cls_meta_data_all) #uncomment to compare processed to original
     cls_nav_data_all = np.copy(cls_meta_data_all['Nav'])
 

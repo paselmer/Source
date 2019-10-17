@@ -231,7 +231,7 @@ def load_and_plot(*args):
     # Create file list using system commands. ---
     # Will send different sys commands depending on OS.
     
-    create_a_file_list(MCS_file_list,'*.cls')
+    create_a_file_list(MCS_file_list,'*.cls',raw_dir)
         
     # Check user input for selected files ---
     
@@ -250,7 +250,7 @@ def load_and_plot(*args):
     reinitialize_avgd_mask = False
     if CPL_data_obj.ingested is False:
         # Read in the data from selected files (controlled by file_ctrl)
-        CPL_data_obj.data = read_entire_cls_dataset(file_ctrl)
+        CPL_data_obj.data = read_entire_cls_dataset(file_len_recs,raw_dir,nbins,flt_date,bad_cls_nav_time_value,file_ctrl)
         # Now that data have been read-in, set the ingested flag to True
         CPL_data_obj.ingested = True
         # In addition to data ingestion, compute PPI here (so only does 1x)

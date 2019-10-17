@@ -553,7 +553,9 @@ def put_bins_onto_fixed_frame(ff,af,orig_counts):
     u, ui, ncounts = np.unique(ff_bin_numbers,return_index=True,return_counts=True)
     new_counts_frme = np.zeros((nc,ff.shape[0]),dtype=np.float32)
 
+    if af.max() < 9000.0: pdb.set_trace()
     new_counts_frme[:,ff_bin_numbers-1] = orig_counts[:,:ff_bin_numbers.shape[0]]
+    pdb.set_trace()
     places = np.where(ncounts > 1)[0]
     if places.shape[0] > 0:
         for k in range(0,places.shape[0]):
