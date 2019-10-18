@@ -545,17 +545,29 @@ def put_bins_onto_fixed_frame(ff,af,orig_counts):
     # loop, it probably means that the actual bin alts are outside the 
     # range of the fixed bin alts (as defined in the initializations.py
     # file by you!)
+    #
+    # Update, 10/18/19
+    # Issue has been fixed, I believe.
+    # The error only occured when the fixed frame wasn't low enough and
+    # the lowest bin had more than one af bins to go into it.
+    # Subtracting 1 from ff_bin_numbers fixed the issue. Thinking about
+    # this, I think this was a bug. The first ff bin number started at
+    # subscript #1, when really, (af[1]-af[0])/2 should really have been
+    # put into subscript #0. Same thing for the edge of the array, and this
+    # is where the trouble occurred.
    
     nc = orig_counts.shape[0] # number of channels, presumably
+    
+    if (af.min() < ff.min()): 
+        print('Fixed frame does not extend far enough to')
+        print('accomodate actual frame.',af.min(),ff.min())
 
     af_midpoints = (af[:-1] + af[1:])/2.0
-    ff_bin_numbers = np.digitize(af_midpoints,ff)
+    ff_bin_numbers = np.digitize(af_midpoints,ff) - 1
     u, ui, ncounts = np.unique(ff_bin_numbers,return_index=True,return_counts=True)
     new_counts_frme = np.zeros((nc,ff.shape[0]),dtype=np.float32)
 
-    if af.max() < 9000.0: pdb.set_trace()
     new_counts_frme[:,ff_bin_numbers-1] = orig_counts[:,:ff_bin_numbers.shape[0]]
-    pdb.set_trace()
     places = np.where(ncounts > 1)[0]
     if places.shape[0] > 0:
         for k in range(0,places.shape[0]):

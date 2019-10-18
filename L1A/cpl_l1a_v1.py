@@ -237,6 +237,8 @@
 #
 # [7/1/19] trans_total initialized to zero. Error corrected WRT last update which added
 # the min_avg_prof enforcement block.
+#
+# [10/18/19] adjustments for initializations-free read_routines
 
 
 # Import libraries <----------------------------------------------------

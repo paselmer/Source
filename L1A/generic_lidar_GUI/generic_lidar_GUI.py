@@ -248,7 +248,8 @@ def load_and_plot(*args):
         lidar_obj.ONA_lowlim = lidar_obj_temp.ONA_lowlim
         lidar_obj.ONA_bin_centers = lidar_obj_temp.ONA_bin_centers
         lidar_obj.ONA_internal_bw = lidar_obj_temp.ONA_internal_bw
-        lidar_obj.samp_chan = lidar_obj_temp.samp_chan        
+        lidar_obj.samp_chan = lidar_obj_temp.samp_chan
+        del lidar_obj_temp        
         # Now that data have been read-in, set the ingested flag to True
         lidar_obj.ingested = True
         # In addition to data ingestion, compute PPI here (so only does 1x)

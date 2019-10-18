@@ -214,6 +214,42 @@ def select_and_standardize_data(selected_files):
         SLO.ONA_lowlim = None
         SLO.ONA_bin_centers = None
         
+    elif instrument_name == 'CPL':
+        
+        bad_cls_nav_time_value = DT.datetime(1970,1,1,0,0,0)
+        CLS_data = read_entire_cls_dataset(file_len_recs,raw_dir,nbins,flt_date,bad_cls_nav_time_value,Fcontrol=None)
+        SLO.nr = CLS_data['counts'].shape[0]
+        SLO.nb = CLS_data['counts'].shape[2]
+        SLO.nc = CLS_data['counts'].shape[1]
+        SLO.dz = vrZ
+        SLO.dx = dx
+        SLO.nr0 = nr
+        SLO.nshots = nshots
+        SLO.nhori = nhori
+        SLO.pdir = pointing_dir
+        SLO.rec_arr = np.arange(0,SLO.nr)
+        SLO.timearr = CLS_data['meta']['Nav']['UTC_Time']
+        SLO.bin_arr = np.arange(0,SLO.nb)
+        z0 = np.mean(CLS_data['meta']['Nav']['GPS_alt'])
+        if SLO.pdir == "Up":
+            SLO.alt_arr = z0 + np.arange(0, SLO.nb) * SLO.dz
+        elif SLO.pdir == "Down":
+            SLO.alt_arr = z0 - np.arange(0, SLO.nb) * SLO.dz
+        else:
+            SLO.alt_arr = z0 - np.arange(0, SLO.nb) * SLO.dz   
+        SLO.platform_alt_arr = z0
+        SLO.counts = CLS_data['counts']
+        SLO.energy = None
+        SLO.ingested = True
+        SLO.avgd_mask = [False for x in range(0,SLO.nc)]
+        SLO.samp_chan_map = None
+        SLO.ONA_arr = None
+        SLO.ONA_bw = None
+        SLO.ONA_uplim = None
+        SLO.ONA_lowlim = None
+        SLO.ONA_bin_centers = None        
+        
+        
     return SLO
         
         
