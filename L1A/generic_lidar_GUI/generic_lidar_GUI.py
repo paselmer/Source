@@ -222,7 +222,7 @@ def load_and_plot(*args):
     reinitialize_avgd_mask = False
     if lidar_obj.ingested is False:
         # Read in the data from selected instrument & files (controlled by file_ctrl)
-        lidar_obj_temp = select_and_standardize_data(file_ctrl.sel_file_list)
+        lidar_obj_temp = select_and_standardize_data(file_ctrl)
         lidar_obj.nr = lidar_obj_temp.nr
         lidar_obj.nb = lidar_obj_temp.nb
         lidar_obj.nc = lidar_obj_temp.nc
@@ -327,7 +327,7 @@ def load_and_plot(*args):
             EMsubmit = EMs[:,wl]
         else:
             print('No energy data. Setting energy array to all ones.')
-            EMsubmit = np.ones(lidar_obj.nr,nwl)
+            EMsubmit = np.ones(lidar_obj.nr)
         if nhori > 1:
             nelems = EMsubmit.shape
             trunc_nelems = int(nelems[0]/nhori)
@@ -336,8 +336,8 @@ def load_and_plot(*args):
             print("The shape of EMsubmit is ",EMsubmit.shape)
             EMsubmit = np.mean( EMsubmit.reshape(-1,nhori), axis=1 )*1e-6
             print("The shape of EMsubmit is ",EMsubmit.shape)
-        samp_chan = correct_raw_counts(samp_chan,EMsubmit,np.arange(0,nb*vrZ,vrZ),
-                                       lidar_obj.nr,nb,bg_st_bin,bg_ed_bin,
+        samp_chan = correct_raw_counts(samp_chan,EMsubmit,np.arange(0,lidar_obj.nb*lidar_obj.dz,lidar_obj.dz),
+                                       lidar_obj.nr,lidar_obj.nb,bg_st_bin,bg_ed_bin,
                                        opt)
     # Store samp_chan for possible profile plotting (samp_chan_mask set in here!)                                      
     lidar_obj.samp_chan = samp_chan   
@@ -386,7 +386,7 @@ def load_and_plot(*args):
     else:
         xax_lims = [ 0, lidar_obj.nr ]
         xlabel = 'Record number'
-    CPlot, im_width, im_Bbox = make_curtain_plot(samp_chan,nb,vrZ,
+    CPlot, im_width, im_Bbox = make_curtain_plot(samp_chan,nb,lidar_obj.dz,
                                                  z,canvas_ctrl, color_bar_min,
                                                  color_bar_max, xlabel, ylabel,
                                                  title, yax_type, yax_lims, xax_type, xax_lims,
