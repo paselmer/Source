@@ -152,6 +152,9 @@
 # small hole in logic that didn't mask out the first element of the averaged
 # data in a single file in a particular case where min_avg_prof and 
 # min_scan_len were not equal.
+#
+# [10/23/19] updates for read_routines.py
+# Updates made to accomodate intializations-free read_routines.py.
 
 
 # Import libraries <----------------------------------------------------
@@ -197,7 +200,7 @@ def compute_time_offsets(MCS_file=None,quick='no'):
         time_offset_UnixT = def_time_offset_UnixT # in init. file       
     else:
         MCS_data_1file = read_in_raw_data(MCS_file)
-        nav_data_all = read_entire_nav_dataset()
+        nav_data_all = read_entire_nav_dataset('*nav*',raw_dir,est_nav_recs_1file,secs_btwn_instr_UnixT_and_UTC)
         UnixT_epoch = DT.datetime(1970,1,1)
         nav_UnixT_timedelta = nav_data_all['UnixT'] - \
             UnixT_epoch - DT.timedelta(seconds=secs_btwn_instr_UnixT_and_UTC)
@@ -233,7 +236,7 @@ print('Starting main L1A execution at: ',DT.datetime.now())
 # Create and load file list for MCS data
 MCS_file_list = 'processing_file_list.txt'
 search_str = 'data*'
-create_a_file_list(MCS_file_list,search_str)
+create_a_file_list(MCS_file_list,search_str,raw_dir)
 with open(MCS_file_list) as MCS_list_fobj:
     all_MCS_files = MCS_list_fobj.readlines()
 nMCS_files = len(all_MCS_files)
@@ -315,7 +318,7 @@ elif Nav_source == 'nav':
     #       several Nav_source's is selected. "nav" variables will 
 
     # Load the entire nav dataset into memory
-    nav_data_all = read_entire_nav_dataset()
+    nav_data_all = read_entire_nav_dataset('*nav*',raw_dir,est_nav_recs_1file,secs_btwn_instr_UnixT_and_UTC)
     
     # Interpolate data records to match CAMAL's data rate.
     # 10 Hz as of 2/2/18. Data rate set in initializations.

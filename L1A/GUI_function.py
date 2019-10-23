@@ -273,7 +273,7 @@ def ingest_entire_dataset(MCS_file_list, raw_data_object, Fcontrol):
         if MCS_data_1file is None:
             print('Skipping this file. Potentially corrupt data')
             continue
-        skip_whole_file = filter_out_bad_recs(MCS_data_1file)
+        skip_whole_file = filter_out_bad_recs(MCS_data_1file,minweek)
         if skip_whole_file == 1:
             print('Skipping this file...') 
             continue

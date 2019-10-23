@@ -23,14 +23,14 @@ import datetime as DT
 instrument_name = 'Roscoe' 
 
 # ************* SET THE NAME OF THE PROJECT & FLIGHT DATE **************
-proj_name = 'Uplook_19'
-flt_date = '04oct19'     # in "CPL" form, not "CAMAL" form
-sortie = '20191004'   # Needn't actually be a sortie. Just a folder name.
-search_str = '*datadown*.data'     # How code will identify file names of files
+proj_name = 'PELIcoe_19'
+flt_date = '21oct19'     # in "CPL" form, not "CAMAL" form
+sortie = '20191021'   # Needn't actually be a sortie. Just a folder name.
+search_str = '*dataup*.data'     # How code will identify file names of files
 
 # *********** DEFINE CONSTANTS, DATA PARAMS, CONFIG OPTIONS  ***********
 # horizontal averaging (# of raw profiles)
-nhori = 1
+nhori = 10
 # Some instrument's read routines require this. CAMAL,Roscoe don't.
 file_len_recs = 9000
 # MCS data files (CAMAL, Roscoe, ACATS) should contain 5 minutes of data
@@ -49,7 +49,7 @@ dx = 200.0
 bg_st_bin = 870
 bg_ed_bin = 900
 # This flag tells the code which equations to use to convert energy
-e_flg = 6
+e_flg = 12
 # The number of wavelengths
 nwl = 2
 # The bin width for the histogram used to determine off-nadir angles
@@ -78,13 +78,13 @@ figL = 7
 pp_figW = 6
 pp_figL = 6.5
 # "Up" or "Down?" Which direction is lidar pointed?
-pointing_dir = "Up"
+pointing_dir = "Down"
 # default axes limits for profile plot [xmin,xmax]/[ymin,ymax]
 pp_xax_bounds_raw_counts = [0,500]
 pp_xax_bounds_bgsub_counts = [-15,145]
 pp_xax_bounds_NRB = [-7e12,5e13]
-pp_yax_bounds_bins = [1000,0]
-pp_yax_bounds_alt = [-10e3,20e3]
+pp_yax_bounds_bins = [900,0]
+pp_yax_bounds_alt = [-1e3,20e3]
 # Y-axis bounds of the energy monitor plot
 EMp_yax_bounds = [0,150]
 # Channel # entries by user cannot be outside this range

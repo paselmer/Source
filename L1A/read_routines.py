@@ -118,7 +118,7 @@ def read_in_housekeeping_data(fname):
     return( np.fromfile( fname, hk_struct, count=-1 ) )
   
     
-def filter_out_bad_recs(MCS_struct):
+def filter_out_bad_recs(MCS_struct,minweek):
     """ Currently, only works on CAMAL data [12/5/17]
         The data objects are CAMAL MCS or hk.
     """
@@ -750,7 +750,7 @@ def read_entire_gps_dataset(file_len_secs, gps_hz, scrub='no'):
     return [gps_data_all, gps_UTC] 
     
     
-def read_entire_nav_dataset(search_str = '*nav*'):
+def read_entire_nav_dataset(search_str,raw_dir,est_nav_recs_1file,secs_btwn_instr_UnixT_and_UTC):
     """ Read in entire nav file dataset (all files) """
     
     # [6/18/18] 
@@ -761,7 +761,7 @@ def read_entire_nav_dataset(search_str = '*nav*'):
     # calling code's needs.
 
     nav_file_list = 'nav_file_list.txt'
-    create_a_file_list(nav_file_list,search_str)    
+    create_a_file_list(nav_file_list,search_str,raw_dir)    
             
     with open(nav_file_list) as nav_list_fobj:
         all_nav_files = nav_list_fobj.readlines()
@@ -1020,14 +1020,25 @@ def read_entire_cls_dataset(file_len_recs,raw_dir,nbins,flt_date,bad_cls_nav_tim
             
     with open(cls_file_list) as cls_list_fobj:
         all_cls_files = cls_list_fobj.readlines()
-    ncls_files = len(all_cls_files)
+    if (max(Fcontrol.sel_file_list) < 90) & (Fcontrol is not None):
+        ncls_files = len(Fcontrol.sel_file_list)
+        actual_cls_files = []
+        for x in Fcontrol.sel_file_list:
+            if x > len(all_cls_files)-1: continue
+            actual_cls_files.append(all_cls_files[x])
+        all_cls_files = actual_cls_files
+        Fnumbers = Fcontrol.sel_file_list
+    else:
+        ncls_files = len(all_cls_files)
+        Fnumbers = [x for x in range(0,ncls_files)]
     
     est_cls_recs = file_len_recs*ncls_files
     file_indx = np.zeros((ncls_files,2),dtype=np.uint32)
     j = 0
-    for i in range(0,ncls_files):
+    k = 0
+    for i in Fnumbers:
         if i not in Fcontrol.sel_file_list: continue		
-        cls_file = all_cls_files[i]
+        cls_file = all_cls_files[k]
         cls_file = cls_file.strip()
         cls_data_1file, Nav_dict = read_in_cls_data(cls_file,nbins,flt_date,bad_cls_nav_time_value,True)
         if j == 0:
@@ -1038,6 +1049,7 @@ def read_entire_cls_dataset(file_len_recs,raw_dir,nbins,flt_date,bad_cls_nav_tim
         except:
             pdb.set_trace()
         j += cls_data_1file.shape[0]
+        k += 1
         print('Finshed ingesting file: '+cls_file)
     cls_data_all = cls_data_all[0:j] # trim the fat
 

@@ -297,7 +297,7 @@ def load_and_plot(*args):
                 print('Set a more reasonable averaging # in initialization file.')
                 return None
             elif (nhori > 1):
-                samp_chan = lidar_obj.data['counts'][:,selected_chan[i]-1,:]
+                samp_chan = lidar_obj.counts[:,selected_chan[i]-1,:]
                 samp_chan = average_lidar_data(samp_chan,nhori,0)
                 new_shape = samp_chan.shape
                 lidar_obj.nr = new_shape[0]
