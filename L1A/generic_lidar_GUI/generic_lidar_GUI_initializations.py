@@ -24,8 +24,8 @@ instrument_name = 'Roscoe'
 
 # ************* SET THE NAME OF THE PROJECT & FLIGHT DATE **************
 proj_name = 'PELIcoe_19'
-flt_date = '21oct19'     # in "CPL" form, not "CAMAL" form
-sortie = '20191021'   # Needn't actually be a sortie. Just a folder name.
+flt_date = '23oct19'     # in "CPL" form, not "CAMAL" form
+sortie = '20191023'   # Needn't actually be a sortie. Just a folder name.
 search_str = '*dataup*.data'     # How code will identify file names of files
 
 # *********** DEFINE CONSTANTS, DATA PARAMS, CONFIG OPTIONS  ***********
@@ -58,7 +58,7 @@ ONA_bw = 3.0
 ONA_uplim = 17.0
 # The min off-nadir angle, for use with histogram code
 ONA_lowlim = -17.0
-# Which channels #'s are which wavelengths? (0=355,1=532,2=1064)
+# Which channels #'s are which wavelengths? (0=355,1=532,2=1064) OR (0=355,1=1064)
 wl_map = [1, 1, 0, 0]
 # Create a list where index # of WL corresponds to string name of WL
 wl_str = ['355','1064']

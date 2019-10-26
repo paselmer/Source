@@ -327,7 +327,7 @@ def load_and_plot(*args):
             EMsubmit = EMs[:,wl]
         else:
             print('No energy data. Setting energy array to all ones.')
-            EMsubmit = np.ones(lidar_obj.nr)
+            EMsubmit = np.ones(lidar_obj.counts.shape[0])
         if nhori > 1:
             nelems = EMsubmit.shape
             trunc_nelems = int(nelems[0]/nhori)

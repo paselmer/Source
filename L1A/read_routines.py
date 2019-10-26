@@ -134,7 +134,7 @@ def filter_out_bad_recs(MCS_struct,minweek):
     return skip_flag
     
     
-def read_in_gps_data(fname, file_len_secs, gps_hz):
+def read_in_gps_data(fname, file_len_secs, gps_hz, gps_pitch_offset, gps_roll_offset):
     """Routine to read in GPS files (CAMAL/ACATS).
     
        [12/15/17]
@@ -690,7 +690,7 @@ def read_in_dead_time_table(fname):
     return np.asarray(data_list,dtype=np.float32)
     
     
-def read_entire_gps_dataset(file_len_secs, gps_hz, scrub='no'):
+def read_entire_gps_dataset(file_len_secs, gps_hz, raw_dir, gps_pitch_offset, gps_roll_offset, leapsecs, scrub='no'):
     """ Read in entire gps file dataset (all files). Return a gps_struct
         array of the data, as well as separate, gps_UTC datetime.datetime
         array (for convenience   ).
@@ -705,7 +705,7 @@ def read_entire_gps_dataset(file_len_secs, gps_hz, scrub='no'):
     
     GPS_file_list = 'gps_file_list.txt'
     search_str = 'gps*'
-    create_a_file_list(GPS_file_list,search_str)
+    create_a_file_list(GPS_file_list,search_str,raw_dir)
     
     with open(GPS_file_list) as GPS_list_fobj:
         all_GPS_files = GPS_list_fobj.readlines()
@@ -715,7 +715,7 @@ def read_entire_gps_dataset(file_len_secs, gps_hz, scrub='no'):
     est_gps_recs = int((file_len_secs * (gps_hz+1))*nGPS_files) # add a little buffer
     gps_data_all = np.zeros(est_gps_recs,dtype=gps_struct)
     for GPS_file in all_GPS_files:
-        gps_data_1file = read_in_gps_data(GPS_file.strip(), file_len_secs, gps_hz)
+        gps_data_1file = read_in_gps_data(GPS_file.strip(), file_len_secs, gps_hz, gps_pitch_offset, gps_roll_offset)
         try:
             gps_data_all[j:j+gps_data_1file.shape[0]] = gps_data_1file
         except ValueError:

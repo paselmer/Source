@@ -155,6 +155,10 @@
 #
 # [10/23/19] updates for read_routines.py
 # Updates made to accomodate intializations-free read_routines.py.
+#
+# [10/25/19] camal_l1a_v2 started
+# New version started to deal with strange values in raw profiles first
+# noticed during October 2019 flights.
 
 
 # Import libraries <----------------------------------------------------
@@ -257,6 +261,7 @@ DEM_lib.get_DEM_point.restype = DEM_out
 for MCS_file in all_MCS_files:
     time_offset_UnixT, time_offset_IWG1 = compute_time_offsets(MCS_file.strip(),offset_choice)
     if time_offset_UnixT is not None: break
+
 if time_offset_UnixT is None:
     print("There are not enough matches to compute IWG1 time offset.")
     print("You could try setting the initialization file to grab \
@@ -272,7 +277,7 @@ print("Time offsets are: ", time_offset_UnixT, time_offset_IWG1)
 if Nav_source == 'gps':
 
     # Load the entire gps dataset into memory
-    gps_data_all, gps_UTC = read_entire_gps_dataset('scrub')
+    gps_data_all, gps_UTC = read_entire_gps_dataset(file_len_secs, gps_hz, raw_dir, gps_pitch_offset, gps_roll_offset, leapsecs, 'scrub')
     
     # Interpolate data records to match CAMAL's data rate.
     # 10 Hz as of 2/2/18. Data rate set in initializations.
@@ -355,7 +360,6 @@ elif Nav_source == 'nav':
     # to the interpolated array that was just created, nav_interp.
     
     nav_data_all = nav_interp
-    pdb.set_trace()
     
     # This variable will be the same no matter what the Nav_source
     Nav_hz = nav_hz    
@@ -739,7 +743,11 @@ for f in range(0,nMCS_files):
         # Apply dead time and overlap corrections
         cc = 0 # count the channels
         for DTT_file in DTT_files:
-            MCS_data_1file['counts'][i1f][cc,:] = DTT[ cc, np.rint(MCS_data_1file['counts'][i1f][cc,:]).astype(np.uint32) ]
+            # Check for noise spike making count out-of-range of DTT
+            if (MCS_data_1file['counts'][i1f][cc,:].max() > DTT[cc,:].shape[0]):
+                good_rec_bool[i1f] = False
+            else:
+                MCS_data_1file['counts'][i1f][cc,:] = DTT[ cc, np.rint(MCS_data_1file['counts'][i1f][cc,:]).astype(np.uint32) ]
             cc += 1
     
         # Calculate the off nadir angle
