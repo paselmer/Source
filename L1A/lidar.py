@@ -167,9 +167,9 @@ def convert_raw_energy_monitor_values(raw_EMs,nwl,instr='CAMAL',e_flg=None):
         #EMall[:,1] = 0.003932537 + 4.11985e-11*EMall[:,1] - 8.82687e-21*EMall[:,1]**2 + 0.0*EMall[:,1]**3
         #EMall[:,2] = 0.012758984 + 2.45103e-10*EMall[:,2] - 1.17876e-19*EMall[:,2]**2 + 0.0*EMall[:,2]**3
         # As of 1/26/18, Andrew Kupchock says convert the energy monitors as follows
-        EMall[:,0] = 1.29089e-10*EMall[:,0] + 0.024267116
+        EMall[:,2] = 1.29089e-10*EMall[:,2] + 0.024267116
         EMall[:,1] = 2.71388E-11*EMall[:,1] + 0.005726336
-        EMall[:,2] = 1.36981E-10*EMall[:,2] + 0.00206153
+        EMall[:,0] = 1.36981E-10*EMall[:,0] + 0.00206153
         # At this point all EM values are in milli-joules. Convert to micro-joules
         # in return statement.
         EMall = EMall*1e3
