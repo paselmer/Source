@@ -1,6 +1,17 @@
 # Main program level of GUI to perform basic visualization and analysis of
 # lidars crafted in the vein of Goddard Space Flight Center's Cloud Physics
 # Lidar (CPL).
+#
+# NOTES:
+#
+# [11/4/2019] Profile-when-click working, at least for CPL.
+# Originally, for the CPL/CAMAL GUIs, I stored the bin array in a single
+# attribute, z, and it switched back and forth between bin # and altittude
+# as needed.
+# For now, for the click profile plot, the z bin array (z_plot_arr) is
+# re-assigne for each new click on the curtain. On my selmerwl-2 Dell,
+# this doesn't appear to result in a noticeable dcrease in performance,
+# so I'm leaving it as-is for now.
 
 import sys
 sys.path.append('..')     # Code is one level down*
@@ -249,6 +260,10 @@ def load_and_plot(*args):
         lidar_obj.ONA_bin_centers = lidar_obj_temp.ONA_bin_centers
         lidar_obj.ONA_internal_bw = lidar_obj_temp.ONA_internal_bw
         lidar_obj.samp_chan = lidar_obj_temp.samp_chan
+        lidar_obj.roll = lidar_obj_temp.roll
+        lidar_obj.pitch = lidar_obj_temp.pitch
+        lidar_obj.lat = lidar_obj_temp.lat
+        lidar_obj.lon = lidar_obj_temp.lon
         del lidar_obj_temp        
         # Now that data have been read-in, set the ingested flag to True
         lidar_obj.ingested = True
@@ -429,9 +444,12 @@ def canvas_Lclick(event):
                 pp, = plt.plot( [], [], figure=fig2 )
                 plt.title('\n\n') #leave blank lines as space for title
                 plt.xlabel(lab_tag)
-                ylab = 'Bin number'
                 if (yax_type == 'alt'):
                     ylab = 'Altitude (m)'
+                    z_plot_arr = lidar_obj.alt_arr
+                else:
+                    ylab = 'Bin number'
+                    z_plot_arr = lidar_obj.bin_arr
                 plt.ylabel(ylab)
                 #plt.tight_layout()
                 canvas_ctrl.lines2D_obj = pp
@@ -439,18 +457,25 @@ def canvas_Lclick(event):
                 # Create protocol for user clicking "X" in prof plot window...
                 canvas_ctrl.prof_plot_top.protocol("WM_DELETE_WINDOW",close_prof_plot_window)
             
+            yax_type = yax_drop.get() 
+            if (yax_type == 'alt'):
+                ylab = 'Altitude (m)'
+                z_plot_arr = lidar_obj.alt_arr
+            else:
+                ylab = 'Bin number'
+                z_plot_arr = lidar_obj.bin_arr
             datetimeformat = "%Y-%m-%d %H:%M:%S"
-            nx0 = lidar_obj.data['meta'].shape
+            nx0 = lidar_obj.lat.shape
             # The "prof_num*nhori" will account for any averaging of data (any nhori >=1)
             prof_transl = lidar_obj.samp_chan_map[prof_num]*nhori
             prof_plot_title = 'UTC: ' + DT.datetime.strftime(lidar_obj.time_arr[prof_transl],datetimeformat) + \
-                              '\nlat: ' + str(lidar_obj.data['meta']['Nav']['GPS_Latitude'][prof_transl])[0:6] + \
-                              ', lon: ' + str(lidar_obj.data['meta']['Nav']['GPS_Longitude'][prof_transl])[0:6] + \
-                              '\nroll: ' + str(lidar_obj.data['meta']['Nav']['RollAngle'][prof_transl])[0:6] + \
-                              ', pitch: ' + str(lidar_obj.data['meta']['Nav']['PitchAngle'][prof_transl])[0:6]                              
+                              '\nlat: ' + str(lidar_obj.lat[prof_transl])[0:6] + \
+                              ', lon: ' + str(lidar_obj.lon[prof_transl])[0:6] + \
+                              '\nroll: ' + str(lidar_obj.roll[prof_transl])[0:6] + \
+                              ', pitch: ' + str(lidar_obj.pitch[prof_transl])[0:6]                              
             plt.title(prof_plot_title)
             canvas_ctrl.update_any_canvas_ctrl_plot(lidar_obj.samp_chan[prof_num,:],
-                                         lidar_obj.z, fig2)
+                                         z_plot_arr, fig2)
             
 def plot_Emon():
     """This function will plot the energy monitor values
@@ -568,7 +593,7 @@ root.bind("<Return>",load_and_plot)
 img_bounds = [0,0,0,0]
 lidar_obj = standard_lidar_object(None,None,None,None,None,None,None,None,
        None,None,None,None,None,None,None,None,None,None,None,None,None,
-       None,None,None,None,None,)
+       None,None,None,None,None,None,None,None,None)
 canvas_ctrl = canvas_control(img_bounds, None, False, None, None, None, 
                              None, False, None, None)    
 file_ctrl = file_control([-999])                                                     
@@ -620,7 +645,7 @@ sel_files.set('1')
 ts_switch = IntVar()
 ts_all_rad = Radiobutton(timeslice_group,text="All",variable=ts_switch,value=1)
 ts_files_rad = Radiobutton(timeslice_group,text="files...",variable=ts_switch,value=0)
-ts_switch.set(1)
+ts_switch.set(0)
 angle_group = LabelFrame(LHSframe,text="Select angle")    # Angle group
 ang_list = ttk.Combobox(angle_group,values=("all"),width=10)
 gaps = IntVar()
@@ -650,7 +675,7 @@ curt_type = IntVar()
 raw_radio = Radiobutton(dtype_radios, text='raw counts',variable=curt_type,value=1)
 bgsub_radio = Radiobutton(dtype_radios, text='BG sub counts',variable=curt_type,value=2)
 NRB_radio = Radiobutton(dtype_radios, text='NRB',variable=curt_type,value=3)
-curt_type.set(1)
+curt_type.set(2)
 CBar_scale_group = LabelFrame(LHSframe,text="CBar scale") # Color bar scale group
 cbar_max_l = ttk.Label(CBar_scale_group, text='max')
 cbar_max = StringVar()

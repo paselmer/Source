@@ -47,6 +47,10 @@ class standard_lidar_object():
     # ONA_bin_centers --> Exactly as it sounds
     # ONA_internal_bw --> Spacing between bin centers. Used internally.
     # samp_chan --> Convenient way for GUI to store and maipulate chosen data
+    # roll --> Numpy array of roll angle (degrees), float or int
+    # pitch --> Numpy array of pitch angle (degrees), float or int
+    # lat --> Numpy array of latitude (degrees), float or int
+    # lon --> Numpy array of longitude (degrees), float or int
     
     def __init__(self, nr, nb, nc, dz, dx, nr0, nshots, nhori, pdir,
                        rec_arr, time_arr, bin_arr, alt_arr, platform_alt_arr,
@@ -54,7 +58,7 @@ class standard_lidar_object():
                        ingested, avgd_mask, samp_chan_map,
                        ONA_arr, ONA_bw, ONA_uplim, ONA_lowlim, 
                        ONA_bin_centers, ONA_internal_bw,
-                       samp_chan
+                       samp_chan, roll, pitch, lat, lon
                 ):
         """ Initialize attributes of this class """
         self.nr = nr
@@ -83,6 +87,10 @@ class standard_lidar_object():
         self.ONA_bin_centers = ONA_bin_centers
         self.ONA_internal_bw = ONA_internal_bw
         self.samp_chan = samp_chan
+        self.roll = roll
+        self.pitch = pitch
+        self.lat = lat
+        self.lon = lon
         
     def update_avgd_mask(self,sel_chan):
         """ Update mask that tells GUI which channels have been averaged """
@@ -171,7 +179,7 @@ def select_and_standardize_data(file_ctrl):
     # Instantiate object
     SLO = standard_lidar_object(None,None,None,None,None,None,None,None,
        None,None,None,None,None,None,None,None,None,None,None,None,None,
-       None,None,None,None,None,)
+       None,None,None,None,None,None,None,None,None)
     
     if instrument_name == 'Roscoe':
         
@@ -216,6 +224,10 @@ def select_and_standardize_data(file_ctrl):
         SLO.ONA_uplim = None
         SLO.ONA_lowlim = None
         SLO.ONA_bin_centers = None
+        SLO.roll = np.zeros(0,SLO.nr)
+        SLO.pitch = np.zeros(0,SLO.nr)
+        SLO.lat = np.zeros(0,SLO.nr)
+        SLO.lon = np.zeros(0,SLO.nr)
         
     elif instrument_name == 'CPL':
         
@@ -231,7 +243,7 @@ def select_and_standardize_data(file_ctrl):
         SLO.nhori = nhori
         SLO.pdir = pointing_dir
         SLO.rec_arr = np.arange(0,SLO.nr)
-        SLO.timearr = CLS_data['meta']['Nav']['UTC_Time']
+        SLO.time_arr = CLS_data['meta']['Nav']['UTC_Time']
         SLO.bin_arr = np.arange(0,SLO.nb)
         z0 = np.mean(CLS_data['meta']['Nav']['GPS_Altitude'])
         if SLO.pdir == "Up":
@@ -250,7 +262,11 @@ def select_and_standardize_data(file_ctrl):
         SLO.ONA_bw = None
         SLO.ONA_uplim = None
         SLO.ONA_lowlim = None
-        SLO.ONA_bin_centers = None        
+        SLO.ONA_bin_centers = None
+        SLO.roll = CLS_data['meta']['Nav']['RollAngle']
+        SLO.pitch = CLS_data['meta']['Nav']['PitchAngle']
+        SLO.lat = CLS_data['meta']['Nav']['GPS_Latitude']
+        SLO.lon = CLS_data['meta']['Nav']['GPS_Longitude']
         
         
     return SLO
