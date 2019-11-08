@@ -1407,3 +1407,49 @@ def read_selected_mcs_files(MCS_file_list, rep_rate, file_len_secs, Fcontrol=Non
 
     print('All MCS data are loaded.')    
     return MCS_data
+
+def read_acls_std_atm_file(std_atm_file):
+    """ Read in data from those classic ACLS standard atmosphere files
+        that are used for CPL.
+    """
+
+    with open(std_atm_file,'r') as f_obj:
+        Ray_data = f_obj.readlines()
+
+    dz = 29.98
+    sratm = 8.0*np.pi/3.0 # molecular lidar ratio
+    Bray_alt = []
+    Bray355 = []
+    Bray532 = []
+    Bray1064 = []
+    for line in Ray_data:
+        linesplit = line.split()
+        if len(linesplit) > 7: continue
+        Bray_alt.append(float(linesplit[0]))
+        Bray355.append(float(linesplit[4]))
+        Bray532.append(float(linesplit[5]))
+        Bray1064.append(float(linesplit[6]))
+    
+    Bray_alt = np.asarray(Bray_alt)
+    Bray355 = np.asarray(Bray355)
+    Bray532 = np.asarray(Bray532)
+    Bray1064 = np.asarray(Bray1064)
+    mtsq_slant355 = np.zeros(Bray355.shape[0])
+    mtsq_slant532 = np.zeros(Bray532.shape[0])
+    mtsq_slant1064 = np.zeros(Bray1064.shape[0])
+    
+    odm355 = - 0.5 * np.log(1.0)
+    odm532 = - 0.5 * np.log(1.0)
+    odm1064 = - 0.5 * np.log(1.0)
+    for j in range(0,Bray355.shape[0]):
+        odm355 = odm355 + Bray355[j] * sratm * dz/1e3
+        odm532 = odm532 + Bray532[j] * sratm * dz/1e3
+        odm1064 = odm1064 + Bray1064[j] * sratm * dz/1e3
+        mtsq_slant355[j] = (np.exp(-2.0*odm355))#**(1.0/np.cos(ONA_samp))
+        mtsq_slant532[j] = (np.exp(-2.0*odm532))#**(1.0/np.cos(ONA_samp))
+        mtsq_slant1064[j] = (np.exp(-2.0*odm1064))#**(1.0/np.cos(ONA_samp))
+    AMB355 = Bray355 * mtsq_slant355 
+    AMB532 = Bray532 * mtsq_slant532
+    AMB1064 = Bray1064 * mtsq_slant1064
+    
+    return [Bray_alt, AMB355, AMB532, AMB1064]
