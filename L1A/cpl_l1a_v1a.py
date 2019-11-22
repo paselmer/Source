@@ -527,17 +527,20 @@ def load_overlap_configuration(overlaps_config_file):
 # Overlaps configuration file defined here. 
 # As of 11/19/19, I've decided it should reside in the L1A source directory
 # and that its name should never change.
-overlaps_config_file = 'overlaps_configuration.csv'
-overlap_dict, overlap_map = load_overlap_configuration(overlaps_config_file)   
-nb = 833
-nc = 4
-all_overlaps = load_all_possible_overlaps(overlap_dict, nb, nc) 
-plt.show()
-pdb.set_trace()    
+#overlaps_config_file = 'overlaps_configuration.csv'
+#overlap_dict, overlap_map = load_overlap_configuration(overlaps_config_file)   
+#nb = 833
+#nc = 4
+#all_overlaps = load_all_possible_overlaps(overlap_dict, nb, nc) 
+#plt.show()
+#pdb.set_trace()    
     
     
 # Start main execution here <-------------------------------------------
 print('Starting main L1A execution at: ',DT.datetime.now())
+
+# File detailing how to map OLs to different portions of the flight
+overlaps_config_file = 'overlaps_configuration.csv'
 
 # Create and load file list for CLS data
 CLS_file_list = 'processing_file_list.txt'
@@ -907,7 +910,8 @@ first_read = True
 usable_file_indicies = range(usable_file_range[0],usable_file_range[1])
 trans_bin = [0,0]
 trans_total = 0
-last_file = False 
+last_file = False
+OL_map_indx = 0 # count thru overlap map as required
 for f in range(0,nCLS_files):
 
     if f not in usable_file_indicies:
@@ -1028,7 +1032,9 @@ for f in range(0,nCLS_files):
         # First user-defined defined configuration for this flight
         overlap_dict, overlap_map = load_overlap_configuration(overlaps_config_file) 
         # Now load all the OL tables into an array
-        all_overlaps = load_all_possible_overlaps(overlap_dict)
+        all_overlaps = load_all_possible_overlaps(overlap_dict,nb,nc)
+        # Define here only once so you don't redefine every loop iteration
+        overlaps_chan_seq = np.zeros((nc,nb),dtype=np.float32)
         # Open the hdf5 file and create the datasets
         hdf5_fname = L1_dir+'NRB_'+proj_name+'_'+flt_date+'_'+Nav_source+'.hdf5'
         hdf5_file = h5py.File(hdf5_fname, 'a')
@@ -1129,8 +1135,9 @@ for f in range(0,nCLS_files):
             Nav_save[i1f]['lon'] = Nav_match['lon']
             Nav_save[i1f]['lat'] = Nav_match['lat'] 
             Nav_save[i1f]['GPS_alt'] = Nav_match['alt']
-            time_str = gps_UTC_interp[interp2orig_indicies[i1f]].strftime("%Y-%m-%dT%H:%M:%S.%f")           
+            time_str = gps_UTC_interp[interp2orig_indicies[i1f]].strftime("%Y-%m-%dT%H:%M:%S.%f")
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC'] # Nav_match fields dependant on dataset
             Y = 0.0# Nav_match['yaw'] * (pi/180.0) Woah! This isn't what I think yaw should be [3/22/18]
             P = Nav_match['pitch'] * (pi/180.0)
             R = Nav_match['roll'] * (pi/180.0) 
@@ -1156,6 +1163,7 @@ for f in range(0,nCLS_files):
             Nav_save[i1f]['lat'] = Nav_match['lat']
             time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC'] # Nav_match fields dependant on dataset
             # NOTE on next line: Invalids are -999.9, so max should choose valid if exists
             Nav_save[i1f]['GPS_alt'] = max(Nav_match['GPS_alt_msl'],Nav_match['GPS_alt'])
             Y = Nav_match['drift'] * (pi/180.0) 
@@ -1181,6 +1189,7 @@ for f in range(0,nCLS_files):
             # byte array for IDL.
             time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")    
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC'] # Nav_match fields dependant on dataset
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt']
             Y = 0.0 #Nav_match['drift'] * (pi/180.0) 
             P = Nav_match['pitch'] * (pi/180.0)
@@ -1205,6 +1214,7 @@ for f in range(0,nCLS_files):
             # byte array for IDL.
             time_str = Nav_match['UTC_Time'].strftime("%Y-%m-%dT%H:%M:%S.%f")
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC_Time'] # Nav_match fields dependant on dataset
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_Altitude']
             Y = 0.0 #Nav_match['drift'] * (pi/180.0) 
             P = Nav_match['PitchAngle'] * (pi/180.0)
@@ -1308,6 +1318,22 @@ for f in range(0,nCLS_files):
         # Apply overlap correction here. I would have applied it at the same time as the
         # deadtime, except CPL's overlaps can be funky in far ranges, which interferes with
         # background sub.
+        if (current_Nav_UTC > overlap_map[OL_map_indx][0][1]) & (OL_map_indx < len(overlap_map)-1):
+            print('UTC = '+current_Nav_UTC.strftime("%Y-%m-%dT%H:%M:%S")+'. Now using the following overlap tables...')
+            print('355 nm: '+overlap_dict[overlap_map[OL_map_indx][1][0]])
+            print('532 nm: '+overlap_dict[overlap_map[OL_map_indx][1][1]])
+            print('1064 nm: '+overlap_dict[overlap_map[OL_map_indx][1][2]]+'\n')
+            OL_map_indx += 1
+            # Just do the channels w/o a loop for now [11/20/19]
+            overlaps_chan_seq[0,:] = all_overlaps[overlap_map[OL_map_indx][1][0],0,:]
+            overlaps_chan_seq[1,:] = all_overlaps[overlap_map[OL_map_indx][1][1],1,:]
+            overlaps_chan_seq[2,:] = all_overlaps[overlap_map[OL_map_indx][1][2],2,:]
+            overlaps_chan_seq[3,:] = all_overlaps[overlap_map[OL_map_indx][1][2],3,:]
+        else:
+            overlaps_chan_seq[0,:] = all_overlaps[overlap_map[OL_map_indx][1][0],0,:]
+            overlaps_chan_seq[1,:] = all_overlaps[overlap_map[OL_map_indx][1][1],1,:]
+            overlaps_chan_seq[2,:] = all_overlaps[overlap_map[OL_map_indx][1][2],2,:]
+            overlaps_chan_seq[3,:] = all_overlaps[overlap_map[OL_map_indx][1][2],3,:]
         range_cor_af_counts_float32 = range_cor_af_counts_float32 / overlaps_chan_seq
     
         # Put the bins in the fixed altitude frame
@@ -1590,19 +1616,19 @@ print("camal_l1a.py has finished normally.")
 
 ######################################################################### BELOW THIS LINE SHALL NOT BE PART OF L1A PROCESS
 
-tit = '355 nm NRB'
-xlimits = [0,ONA_save.shape[0]]
-ylimits = [810,0]#[900,500]
-samp_chan = NRB[0,:,:]# + NRB[3,:,:]
-curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 5e8, hori_cap, pointing_dir,
-                      figW, figL, CPpad, 'records', 'alt (m)', tit, 'alt', ylimits, 'recs', 
-                      xlimits, scale_alt_OofM, 1, out_dir)
-pdb.set_trace()
+#tit = '355 nm NRB'
+#xlimits = [0,ONA_save.shape[0]]
+#ylimits = [810,0]#[900,500]
+#samp_chan = NRB[0,:,:]# + NRB[3,:,:]
+#curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 5e8, hori_cap, pointing_dir,
+                      #figW, figL, CPpad, 'records', 'alt (m)', tit, 'alt', ylimits, 'recs', 
+                      #xlimits, scale_alt_OofM, 1, out_dir)
+#pdb.set_trace()
 
-make_custom_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 1e8, hori_cap, pointing_dir,
-                      figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',  
-                      [ylimits[0],ylimits[1]], 'recs', [xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir, str(f).strip()+'.png',
-                      np.arange(xlimits[0],xlimits[1]),Nav_save['pitch'][xlimits[0]:xlimits[1]],
-                      np.arange(xlimits[0],xlimits[1]),ONA_save[xlimits[0]:xlimits[1]]*(180.0/np.pi),
-                      np.arange(xlimits[0],xlimits[1]),Nav_save['roll'][xlimits[0]:xlimits[1]])
-pdb.set_trace()
+#make_custom_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 1e8, hori_cap, pointing_dir,
+                      #figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',  
+                      #[ylimits[0],ylimits[1]], 'recs', [xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir, str(f).strip()+'.png',
+                      #np.arange(xlimits[0],xlimits[1]),Nav_save['pitch'][xlimits[0]:xlimits[1]],
+                      #np.arange(xlimits[0],xlimits[1]),ONA_save[xlimits[0]:xlimits[1]]*(180.0/np.pi),
+                      #np.arange(xlimits[0],xlimits[1]),Nav_save['roll'][xlimits[0]:xlimits[1]])
+#pdb.set_trace()
