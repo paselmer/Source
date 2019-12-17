@@ -8,9 +8,9 @@ import datetime as DT
 #       for Unix vs. Windows
 
 # ******** SET THE NAME OF THE PROJECT & FLIGHT DATE ********
-proj_name = 'PODEX'
-flt_date = '28jan13' # in "CPL" form, not "CAMAL" form
-sortie = '13-921'
+proj_name = 'PELIcoe_19'
+flt_date = '30oct19' # in "CPL" form, not "CAMAL" form
+sortie = '30Oct19'
 
 # ******** SET THE TIME RANGE BOUNDARIES FOR DATA PROCESSING ********
 process_start = DT.datetime(2000,9,1,0,0,0) #yr,mon,dy,hr,min,sec
@@ -21,7 +21,7 @@ process_end   = DT.datetime(2020,10,13,0,0,0)
 c = const.c
 pi =const.pi
 # The number of leap seconds since 1980-01-06 00:00:00
-leapsecs = 14
+leapsecs = 0
 # Each CLS data file should contain 9000 records
 file_len_recs = 9000
 # Amazingly, the number of vertical bins is not reported in the
@@ -32,7 +32,7 @@ nshots = 500
 # CLS data also don't include bin size. So define here (m).
 vrZ = 29.98
 # The laser rep rate in Hertz
-rep_rate = 5000.0
+rep_rate = 5142.0
 # Start and end bin of solar background region
 bg_st_bin = 770
 bg_ed_bin = 820
@@ -42,9 +42,9 @@ bg_ed_alt = -2500.0
 # The bin resolution in the fixed frame (m)
 vrZ_ff = 30.0
 # List containing top and bottom altitudes (m) of the fixed frame
-ff_bot_alt,ff_top_alt = [-22e3,22.005e3]
+ff_bot_alt,ff_top_alt = [-12e3,22.005e3]
 # This flag tells the code which equations to use to convert energy
-e_flg = 6
+e_flg = 12
 # The number of wavelengths
 nwl = 3
 # Which channels #'s are which wavelengths? (0=355,1=532,2=1064)
@@ -81,10 +81,10 @@ DTT_files = ['dttable_355_0135-072102.xdr','dttable_532_11296-021009_30m.xdr',
 # Saturation values, per bin per 500 shots. List in detector order.
 saturation_values = [3080.9, 1570.0, 1420.0, 1470.0]    
 # The overlap file to use
-overlap_file = 'olaptable_cpl-ccviceax_comb_iceland12.xdr'
+overlap_file = 'olaptable_cpl-D082019_T205400-end_firex_method2_v2.xdr'
 # The number of seconds needed to convert from the instrument's Unix time
 # to UTC. Typically either 5 hours (cold season) or 4 hours (warm season).
-secs_btwn_instr_UnixT_and_UTC = 18000
+secs_btwn_instr_UnixT_and_UTC = 14400
 # Roll and pitch offsets for GPS (degrees). Subtract these from read-in vals.
 gps_roll_offset = 0.0
 gps_pitch_offset = 0.0
@@ -101,7 +101,7 @@ min_avg_profs = 4
 # horizontal averaging (# of raw profiles)
 nhori = 1
 # default scale of color bar
-CBar_max = 50.0
+CBar_max = 80.0
 CBar_max_NRB = 5e13
 CBar_min = 0.0
 # The order of magnitude of the alt scale (help make round ticks)
@@ -110,7 +110,7 @@ scale_alt_OofM = 1e3 #order of mag.
 minbin=833
 maxbin=0
 # curtain plot width and height (inches)
-figW = 26
+figW = 16
 figL = 10
 # profile plot width and height (inches)
 pp_figW = 6.5
@@ -121,7 +121,7 @@ pointing_dir = "Down"
 pp_xax_bounds_raw_counts = [0,100]
 pp_xax_bounds_bgsub_counts = [-15,45]
 pp_xax_bounds_NRB = [-7e12,5e13]
-pp_yax_bounds_bins = [1000,0]
+pp_yax_bounds_bins = [833,0]
 pp_yax_bounds_alt = [-10e3,20e3]
 # Y-axis bounds of the energy monitor plot
 EMp_yax_bounds = [0,150]
@@ -133,19 +133,21 @@ hori_cap = 20000
 # The padding around the curtain plot in inches
 CPpad = 0.1
 # For actual data processing (not the GUI), nav data source
-Nav_source = 'iwg1' #'nav' 'gps' 'iwg1' or 'cls'
+Nav_source = 'cls' #'nav' 'gps' 'iwg1' or 'cls'
 # IWG1 data file
-IWG1_file = "IWG1.28Jan2013-2203.txt"
+IWG1_file = "IWG1.30Oct2019-2040.txt"
 # Don't process any data when below this alt (m). Doesn't apply to GUI.
 alt_cutoff = 500
 # Don't process any profiles where off-nadir angle exceeds this many radians.
-ONA_cutoff = 30.0 * (pi/180.0)
+ONA_cutoff = 20.0 * (pi/180.0)
 # Invalid/bad Nav values get overwritten with this value - datetime.datetime object.
 bad_cls_nav_time_value = DT.datetime(1970,1,1,0,0,0)
 # The attention bar
 attention_bar = '\n******************************\n'
 # The maximum number of hours a dataset is expected to be
 max_flt_hours = 30
+# The number of standard deviations of EM values to keep. Can set negative to keep all.
+Estds = 4
 
 if (os.name != 'nt'): # IF UNIX-BASED MACHINE, DEFINE DIRECTORIES HERE
 

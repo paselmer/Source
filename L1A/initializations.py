@@ -8,98 +8,101 @@ import datetime as DT
 #       for Unix vs. Windows
 
 # ******** SET THE NAME OF THE PROJECT & FLIGHT DATE ********
-proj_name = 'PELIcoe'
-flt_date = '20aug19' # in "CPL" form, not "CAMAL" form
-sortie = '20aug19'
+proj_name = 'PELIcoe_19'
+flt_date = '20191023'
+search_str = '*dataup*.data'
+EM_file_tag = 'datadown' # As of 12/17/19, good EMs only in "down" files. Set to 'datadown'
 
 # ******** SET THE TIME RANGE BOUNDARIES FOR DATA PROCESSING ********
-process_start = DT.datetime(2000,9,1,0,0,0) #yr,mon,dy,hr,min,sec
-process_end   = DT.datetime(2020,10,13,0,0,0)
+process_start = DT.datetime(2019,10,23,16,17,31) #yr,mon,dy,hr,min,sec
+process_end   = DT.datetime(2020,12,7,21,50,0)
 
 # ******** DEFINE CONSTANTS & DATA PARAMS ********
 # Speed of light in meters per second
 c = const.c
 pi =const.pi
+# Unix Time epoch
+UnixT_epoch = DT.datetime(1970,1,1)
 # The number of leap seconds since 1980-01-06 00:00:00
-leapsecs = 0
-# Each CLS data file should contain 9000 records
-file_len_recs = 9000
-# Amazingly, the number of vertical bins is not reported in the
-# CLS data don't not include this. So, define it here.
-nbins = 833
-# Number of shots accumulated per record
-nshots = 500
-# CLS data also don't include bin size. So define here (m).
-vrZ = 29.98
+leapsecs = 16
+# Each MCS data file should contain 5 minutes of data
+file_len_secs = 5 * 60
 # The laser rep rate in Hertz
-rep_rate = 5142.0
-# Start and end bin of solar background region
-bg_st_bin = 770
-bg_ed_bin = 820
+rep_rate = 5000.0
 # Start and end altitudes of solar background region (meters)
 bg_st_alt = -500.0
-bg_ed_alt = -2500.0
+bg_ed_alt = -1500.0
 # The bin resolution in the fixed frame (m)
 vrZ_ff = 30.0
 # List containing top and bottom altitudes (m) of the fixed frame
-ff_bot_alt,ff_top_alt = [-20e3,22.005e3]
-# This flag tells the code which equations to use to convert energy
-e_flg = 12
+ff_bot_alt,ff_top_alt = [-15e3,22.005e3]
 # The number of wavelengths
-nwl = 3
-# Which channels #'s are which wavelengths? (0=355,1=532,2=1064)
-wl_map = [0, 1, 2, 2]
+nwl = 2
+# Which channels #'s are which wavelengths? (0=355,1=532,2=1064) OR (0=355,1=1064)
+wl_map = [1, 1, 0, 0]
 # Create a list where index # of WL corresponds to string name of WL
-wl_str = ['355','532','1064']
+wl_str = ['355','1064']
 # Minimum GPS week value. All < than are filtered out.
 minweek = 1000
+# Housekeeping record size in bytes
+hk_rec_size = 269
 # GPS data rate in GPS files (records per second). Please make a float!
 gps_hz = 2.0
 # An estimate of the number of records in 1 gps file
 est_gps_recs_1file = 5*60*10 + 30
 # A maximum # of IWG1 records. Data are 1 Hz and flight can be 8 hours.
-est_IWG1_recs = 35000
+est_IWG1_recs = 30000
 # An estimate of the number of nav records in 1 file
 est_nav_recs_1file = 5*60*10 + 30
-# CLS data records per second. Please make it a float!
-CLS_hz = float(rep_rate) / float(nshots)
-# The resolution of CPL's instrument clock in seconds
-inst_clk_rez = 1.0
-# Computed and init. file difference can't exceed this tolerance.
-CLS_hz_tol = 0.05
+# MCS data records per second. Please make it a float!
+MCS_hz = 10.0
 # IWG1 records per second. Please make it a float!
 IWG1_hz = 1.0
 # nav (refering to file type) records per second. (Please make it a float!) 
 nav_hz = 1.0
 # Set the Polarization Gain ratios for the wavelenghts [532nm, 1064nm]
-PGain = [0.00,0.8043]
+PGain = [0.00,0.00]
 # Set this to the maximum possible count rate. Don't set > recs in DTT file!
 max_counts = 16000
 # Dead time tables [list]. List in channel order OR ELSE!!!
-DTT_files = ['dttable_355_0135-072102.xdr','dttable_532_11296-021009_30m.xdr',
-    'dttable_1064par_8351-021009_30m.xdr','dttable_1064per_8346-021009_30m.xdr']
+DTT_files = ['dttable_camal_chan1_27238-022318.xdr',
+    'dttable_camal_chan2_27243-022318.xdr', 'dttable_camal_chan3_27239-022318.xdr',
+    'dttable_camal_chan4_27242-022318.xdr']
 # Saturation values, per bin per 500 shots. List in detector order.
-saturation_values = [3080.9, 1570.0, 1420.0, 1470.0]    
+saturation_values = [5000.0, 5000.0, 5000.0, 5000.0]    
 # The overlap file to use
-overlap_file = 'olaptable_cpl-041717_comb_goesrfix.xdr'
+overlap_file = 'OLOnes_Roscoe.xdr' #'olaptable_cpl-ccviceax_comb_iceland12.xdr'      
 # The number of seconds needed to convert from the instrument's Unix time
 # to UTC. Typically either 5 hours (cold season) or 4 hours (warm season).
-secs_btwn_instr_UnixT_and_UTC = 18000
+secs_btwn_instr_UnixT_and_UTC = 0
+# Offset that might be required if Unix Time between nav files and MSC
+# files doesn't provide an exact match to link to other clocks (seconds).
+nudge = 1.0
+# Set this to 'quick' to just grab the hard-coded time offsets below
+offset_choice = 'quick'
+def_time_offset_UnixT = DT.timedelta(seconds=943.993)
 # Roll and pitch offsets for GPS (degrees). Subtract these from read-in vals.
-gps_roll_offset = 0.0
-gps_pitch_offset = 0.0
-# Subtract this number of seconds from CLS data to manually fudge a better
-# match to the Nav data.
-nudge = 0.0
+gps_roll_offset = 0.033
+gps_pitch_offset = 0.088
 
 
 # ******** CONFIGURATION PARAMETERS ********
-# Average the data to this time. In seconds. Set to -99.9 for no averaging.
-secs2avg = 1.0
+# Averaging method - 'by_scan' or 'by_records_only'
+avg_method = 'by_records_only'
+# Specify the number of seconds to average
+# If <= 0 & 'by_records_only,' no averaging. Set to impossibly high value
+# and set avg_method = 'by_scan' to average entire scan.
+secs2avg = 5.0
 # Minimum number of raw profiles than can be used in an average profile
-min_avg_profs = 4
-# horizontal averaging (# of raw profiles)
-nhori = 10
+min_avg_profs = 10
+# NOTE: margin variables will apply to 'by_records_only'
+# If averaging 'by_scan,' specify # of records to ignore on front of angle transition
+front_recs_margin = 0
+# If averaging 'by_scan,' specify # of records to ignore on back of angle transition
+back_recs_margin = 0
+# Min # of consecutive records the scan angle needs to hold (within tolerance)
+# Set to zero to ignore, i.e. not filter out on basis of scan angle
+min_scan_len = 3
 # default scale of color bar
 CBar_max = 50.0
 CBar_max_NRB = 5e13
@@ -107,10 +110,10 @@ CBar_min = 0.0
 # The order of magnitude of the alt scale (help make round ticks)
 scale_alt_OofM = 1e3 #order of mag.
 # Default vertical range of bins to be plotted in curtain
-minbin=833
+minbin=1000
 maxbin=0
 # curtain plot width and height (inches)
-figW = 16
+figW = 18
 figL = 10
 # profile plot width and height (inches)
 pp_figW = 6.5
@@ -118,8 +121,8 @@ pp_figL = 7
 # "Up" or "Down?" Which direction is lidar pointed?
 pointing_dir = "Down"
 # default axes limits for profile plot [xmin,xmax]/[ymin,ymax]
-pp_xax_bounds_raw_counts = [0,500]
-pp_xax_bounds_bgsub_counts = [-15,145]
+pp_xax_bounds_raw_counts = [0,100]
+pp_xax_bounds_bgsub_counts = [-15,45]
 pp_xax_bounds_NRB = [-7e12,5e13]
 pp_yax_bounds_bins = [1000,0]
 pp_yax_bounds_alt = [-10e3,20e3]
@@ -127,25 +130,24 @@ pp_yax_bounds_alt = [-10e3,20e3]
 EMp_yax_bounds = [0,150]
 # Channel # entries by user cannot be outside this range
 min_chan = 1
-max_chan = 4
+max_chan = 5
 # Cap on the number of profiles that can be used to generate curtain.
 hori_cap = 20000
 # The padding around the curtain plot in inches
 CPpad = 0.1
+# Set default housekeeping axis values
+hk_y_max = 100
+hk_y_min = -100
 # For actual data processing (not the GUI), nav data source
-Nav_source = 'cls' #'nav' 'gps' 'iwg1' or 'cls'
+Nav_source = 'nav' #'nav' 'gps' or 'iwg1'
 # IWG1 data file
-IWG1_file = "IWG1.12Aug2013-2105"
+IWG1_file = "IWG1.08Dec2017-0031.txt"
 # Don't process any data when below this alt (m). Doesn't apply to GUI.
-alt_cutoff = 500
+alt_cutoff = 10000
 # Don't process any profiles where off-nadir angle exceeds this many radians.
-ONA_cutoff = 30.0 * (pi/180.0)
-# Invalid/bad Nav values get overwritten with this value - datetime.datetime object.
-bad_cls_nav_time_value = DT.datetime(1970,1,1,0,0,0)
+ONA_cutoff = 20.0 * (pi/180.0)
 # The attention bar
 attention_bar = '\n******************************\n'
-# The maximum number of hours a dataset is expected to be
-max_flt_hours = 30
 # The number of standard deviations of EM values to keep. Can set negative to keep all.
 Estds = 4
 
@@ -153,26 +155,25 @@ if (os.name != 'nt'): # IF UNIX-BASED MACHINE, DEFINE DIRECTORIES HERE
 
     # ******** DEFINE ALL DIRECTORIES ********
     # Set the directory of the raw data
-    raw_dir = '/cpl3/'+proj_name+'/Raw_data/'+sortie+'/'
+    raw_dir = '/cpl3/CAMAL/Data/'+proj_name+'/'+flt_date+'/raw/'
     # Set the directory of the L0 data
-    L0_dir = '/cpl3/'+proj_name+'/L0/'
+    L0_dir = '/cpl3/CAMAL/Data/'+proj_name+'/'+flt_date+'/L0/'
     # Set the directory of the L1 data
-    L1_dir = '/cpl3/'+proj_name+'/L1/'
+    L1_dir = '/cpl3/CAMAL/Data/'+proj_name+'/'+flt_date+'/L1/'
     # Set the directory of the L2 data
-    L2_dir = '/cpl3/'+proj_name+'/L2/'
+    L2_dir = '/cpl3/CAMAL/Data/'+proj_name+'/'+flt_date+'/L2/'
     # Set the directory that contains configuration files
     config_dir = '/cpl3/CAMAL/Config/'
     # The source directory
     source_dir = '/cpl3/CAMAL/Source/L1A/'
     # Directory to put output
-    out_dir = '/cpl3/'+proj_name+'/analysis/'
+    out_dir = '/cpl3/CAMAL/Analysis/'+proj_name+'/'+flt_date+'/'
     # Directory and name of library containing C codes
     clib_path = source_dir + 'C_lib_unix/'
     clib = 'CAMAL_C_lib_v0.so'
-    # Directory containing dead time files
-    dtt_dir = '/cpl/dhlavka/Cpl/Config/'
+    dtt_dir = config_dir + 'dttables/'
     # Directory containing overlap files
-    olap_dir = '/cpl/dhlavka/Cpl/Config/'
+    olap_dir = '/home/selmer/compute_OL/' 
     # Directory and name of the DEM
     DEM_dir = config_dir + 'DEM/'
     DEM_name = 'JPL-CloudSat.dem'
@@ -183,31 +184,29 @@ if (os.name != 'nt'): # IF UNIX-BASED MACHINE, DEFINE DIRECTORIES HERE
 
 else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
 
-    # ******** DEFINE ALL DIRECTORIES ********
+	    # ******** DEFINE ALL DIRECTORIES ********
     # Set the directory of the raw data
-    raw_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\'+sortie+'\\'
-    # Set the directory of the L0 data
-    L0_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\L0\\'
+    #raw_dir = 'F:\\CAMAL\\from_datakey\\'+flt_date+'\\'
+    raw_dir = 'C:\\Users\\pselmer\\Documents\\Roscoe\\data\\'+proj_name+'\\'+flt_date+'\\'
     # Set the directory of the L1 data
-    L1_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\L1\\'
+    L1_dir = 'C:\\Users\\pselmer\\Documents\\Roscoe\\data\\'+proj_name+'\\L1\\'
     # Set the directory of the L2 data
-    L2_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\L2\\'
+    L2_dir = 'C:\\Users\\pselmer\\Documents\\Roscoe\\data\\'+proj_name+'\\L2\\'
     # Set the directory that contains configuration files
     config_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Config\\'
-    # The source directory
-    source_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Source\\L1A\\'
     # Directory to put output
-    out_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\'+proj_name+'\\analysis\\'
+    out_dir = 'C:\\Users\\pselmer\\Documents\\Roscoe\\data\\'+proj_name+'\\analysis\\'
     # Directory and name of library containing C codes
-    clib_path = source_dir + 'C_lib_Win64\\CAMAL_C_lib_Win64\\x64\\Release\\'
+    clib_path = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Source\\L1A\\C_lib_Win64\\CAMAL_C_lib_Win64\\x64\\Release\\'
     clib = 'CAMAL_C_lib_Win64.dll'
-    # Directory containing dead time files    
-    dtt_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Config\\'
+    # Directory of dead time tables
+    dtt_dir = config_dir + 'CAMAL_dttables\\'
     # Directory containing overlap files
-    olap_dir = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Config\\'    
+    olap_dir = config_dir
     # Directory and name of the DEM
-    DEM_dir = 'C:\\Users\\pselmer\\Documents\\CAMAL\\camal\\config_source\\DEM\\'
+    DEM_dir = config_dir + '\\DEM\\'
     DEM_name = 'JPL-CloudSat.dem'
     # Directory and name of C++ library with functions to read in DEM
-    DEM_lib_path = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\Source\\DEM_reader_code\\JPL_DEM_CPP_DLL\\x64\\Release\\'
+    DEM_lib_path = 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\source\\DEM_reader_code\\JPL_DEM_CPP_DLL\\x64\\Release\\'
     DEM_Cpp_name = 'JPL_DEM_CPP_DLL.dll'
+

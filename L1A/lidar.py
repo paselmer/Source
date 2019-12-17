@@ -2,7 +2,7 @@
 from subprocess import check_output
 import numpy as np
 import pdb
-from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
+from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm, LogNorm
 from matplotlib.colorbar import ColorbarBase
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -300,6 +300,32 @@ def convert_raw_energy_monitor_values(raw_EMs,nwl,instr='CAMAL',e_flg=None):
              print(str(e_flg)+' is an invalid e_flg value. Stopping in Energy Monitor conversion funtion.')
              pdb.set_trace()
         EMall = emon_c
+
+    elif instr == 'Roscoe':
+    
+        sz = raw_EMs.shape
+        nr = sz[0]
+    
+        # [0,1] -> [355 nm, 1064 nm]
+		# No 532 nm for Roscoe [12/17/19]
+        EMall = np.zeros((nr,nwl),dtype=np.int32) #nwl is in initializations.py
+        
+        EMall[:,0] = raw_EMs[:,5].astype(np.int32)*16**0 + \
+            raw_EMs[:,6].astype(np.int32)*16**2 +     \
+            raw_EMs[:,7].astype(np.int32)*16**4 +     \
+            raw_EMs[:,8].astype(np.int32)*16**6 +     \
+            raw_EMs[:,9].astype(np.int32)*16**8
+        EMall[:,1] = raw_EMs[:,10].astype(np.int32)*16**0 + \
+            raw_EMs[:,11].astype(np.int32)*16**2 +     \
+            raw_EMs[:,12].astype(np.int32)*16**4 +     \
+            raw_EMs[:,13].astype(np.int32)*16**6 +     \
+            raw_EMs[:,14].astype(np.int32)*16**8           
+        
+        # After this line EMall is now of dtype float
+        EMall = EMall.astype(np.float32)
+        #EMall[:,0] = EMall[:,0] / EMall[:,0].max()
+        EMall[:,1] = EMall[:,1] / EMall[:,1].max()
+        EMall[:,0] = EMall[:,1] # 355 nm has no valid values
 
     else:
         
@@ -1336,126 +1362,7 @@ def vmol_interp(inputs):
         
     
     
-def make_custom_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_dir,
-                      figW, figL, CPpad, xlab, ylab, tit, yax, yax_lims, xax, 
-                      xax_lims, scale_alt_OofM, mpl_flg, out_dir, savefname,
-                      X1,Y1,X1b,Y1b,X2,Y2):
-    """ Function intended to be used to experiment and make custom [1/26/18]
-        1-time plots. If plots prove valuable for future reproduction,
-        then make a new function with those commands.
-    """
-    
-    # USE THIS FUNCTION FOR IMAGE
-    # The variable counts_imgarr is local to this function, and will not
-    # mess up anything outside this scope. Therefore it can be sliced and
-    # diced here, without crashing anything outside this scope.
-    
-    # INPUTS:
-    #
-    
-    # OUTPUTS:
-    # 
 
-    # expand vertical dimension of image by using np.repeat [retired Oct 2017]
-    # subsetting array by user-input bins installed [12/6/17]
-    counts_imgarr = counts_imgarr[int(min(yax_lims)):int(max(yax_lims)),:]
-    counts_imgarr = counts_imgarr[:,int(min(xax_lims)):int(max(xax_lims))]
-    img_arr_shape = counts_imgarr.shape
-    print('The shape of counts_imgarr is: ',img_arr_shape)
-    
-    # horizontal dimension capped at certain # of profiles (in init file)
-    # doing this to save memory & CPU work when rendering image
-    if img_arr_shape[1] > hori_cap:
-        nthin = int(img_arr_shape[1] / hori_cap)
-        counts_imgarr = counts_imgarr[:,::nthin]
-        img_arr_shape = counts_imgarr.shape
-        print('The shape of counts_imgarr is: ',img_arr_shape)     
-
-    # you need to manipulate altitude array in order to properly
-    # label image plot
-    if pointing_dir == "Up":
-        alt_imgarr = np.flipud(z)
-    else:
-        alt_imgarr = z
-    newsize=alt_imgarr.size
-    alt_ind = np.linspace(0,newsize-1,newsize,dtype='uint32')
-    print('The shape of alt_ind is: ',alt_ind.shape)
-    #yax_lims = [ alt_ind[newsize-1],alt_ind[0] ]
-    #yax_lims = [ y1,y2 ] # y1, y2 determine zoom along vertical axis
-
-    # Actually plot the photon counts
-    fig1 = plt.figure(1,figsize=(figW,figL))
-    plt.subplot(311)
-    ax = plt.gca() # ax is now the "handle" to the figure
-    plt.xlabel(xlab)
-    plt.ylabel(ylab)
-    plt.title(tit)
-    cm = get_a_color_map()
-    im = ax.imshow(counts_imgarr, cmap=cm, clim=(cb_min,cb_max),
-                   interpolation='nearest',aspect='auto', 
-                   extent=xax_lims+yax_lims)                 
-                   
-    # Format the x-axis   
-    if (xax == 'time'):
-        ax.xaxis_date()
-        time_format = mdates.DateFormatter('%H:%M:%S')
-        ax.xaxis.set_major_formatter(time_format)
-        fig1.autofmt_xdate()
-                   
-    # Format the y-axis
-    locs, labels = plt.yticks()
-    if (yax == 'alt'): 
-        delta_check = vrZ
-        y2_ind = int(max(yax_lims))
-        if y2_ind >= nb: 
-            y2 = z[nb-1]
-        else:
-            y2 = z[y2_ind]
-        y1 = z[int(min(yax_lims))]            
-        ys = [y1,y2]
-        min_y = math.ceil(min(ys)/scale_alt_OofM)*scale_alt_OofM
-        max_y = math.floor(max(ys)/scale_alt_OofM)*scale_alt_OofM
-        ndivi = int( (max_y - min_y) / scale_alt_OofM )
-        ytick_lab = np.linspace(min_y,max_y, ndivi+1)
-    else:
-        delta_check = 2
-        ndivi = 20
-        ytick_lab = np.linspace(yax_lims[0],yax_lims[1],ndivi+1)        
-    ytick_ind = np.zeros(ytick_lab.size) + 999
-    k=0
-    for e in ytick_lab:
-        m = abs(e - alt_imgarr) < delta_check # where diff is smaller than 60 meters
-        if (np.sum(m) == 0):  #all false
-            k=k+1
-            continue
-        else:
-            ytick_ind[k] = alt_ind[m][0]
-            k=k+1
-    actual_ticks_mask = ytick_ind != 999
-    ytick_lab = ytick_lab[actual_ticks_mask]
-    ytick_ind = ytick_ind[actual_ticks_mask]          	    
-    plt.yticks(ytick_ind,ytick_lab)
-        
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right",size="2%",pad=0.05)
-    plt.colorbar(im, cax=cax)
-    ax.autoscale
-    
-    # Now that you've plotted the curtain, make other subplots...
-    
-    plt.subplot(312,sharex=ax)
-    plt.plot(X1,Y1,'r',marker='x')
-    plt.plot(X1b,Y1b,'g',marker='D')
-    plt.ylabel('scan angle (deg)')
-    plt.subplot(313,sharex=ax)
-    plt.plot(X2,Y2,'b',marker='o')
-    plt.ylabel('IWG1 roll (deg)')
-   
-    plt.savefig(out_dir+savefname,bbox_inches='tight',pad_inches=CPpad)
-    
-    if mpl_flg == 1: plt.show()
-    plt.close(fig1)    
-    return None
 
 def stacked_curtains_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_dir,
                       figW, figL, CPpad, xlab, ylab, tit, yax, yax_lims, xax, 
@@ -1604,4 +1511,138 @@ def stacked_curtains_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, p
     plt.close(fig1)   
     return None        
 
-# Put classes below this line <-----------------------------------------
+
+def custom_curtain_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, pointing_dir,
+                      figW, figL, CPpad, xlab, ylab, tit, yax, yax_lims, xax, 
+                      xax_lims, scale_alt_OofM, mpl_flg, out_dir, 
+                      outfile_name='new_curtain.png', cm_choose=False):
+    """ CUSTOM FUNCTION. DON'T USE UNLESS YOU CREATED THIS!
+    """
+    
+    # USE THIS FUNCTION FOR IMAGE
+    # The variable counts_imgarr is local to this function, and will not
+    # mess up anything outside this scope. Therefore it can be sliced and
+    # diced here, without crashing anything outside this scope.
+    
+    # INPUTS:
+    #
+    # counts_imgarr -> The 2D array to image. [bins x profs]
+    # nb            -> The number of bins. (scalar int/float)
+    # vrZ           -> Vertical resolution in meters
+    # z             -> The y-axis values, corresponding to "bins" dimension of
+    #                  counts_imgarr.
+    # cb_min        -> The min value for the color bar.
+    # cb_max        -> The max value for the color bar.
+    # hori_cap      -> # of profs can't exceed this. Done to prevent code from 
+    #                  burdening computer by rendering image of a super massive
+    #                  gigantic array.
+    # pointing_dir  -> Is the lidar looking "Up" or "Down?"
+    # figW          -> The figure width
+    # figL          -> The figure length
+    # CPpad         -> Parameter that controls padding around the plot (inches).
+    # xlab          -> xaxis title (string)
+    # ylab          -> yaxis title (string)
+    # tit           -> Main title (string)
+    # yax           -> String identifying type of yaxis, "alt" or "bins"
+    # yax_lims      -> [Bin number of lowest alt, Bin number of greatest alt]
+    # xax           -> String identifying type of xaxis, "recs" or "time"
+    # xax_lims      -> [record # A, record # B]
+    # scale_alt_OofM-> The order of magnitude of z's scale (10 m, 1000 m, etc)
+    # mpl_flg       -> If this flag == 1, interactive MPL window appears
+    # out_dir       -> Directory where image will be saved; "new_curtain.png"
+    # cm_choose     -> The name of the prebuilt matplotlib color map you'd
+    #                  like to use. Defaults to False, which results in
+    #                  get_a_color_map() module being used to define color map.
+    
+    # OUTPUTS:
+    # 
+
+    # expand vertical dimension of image by using np.repeat [retired Oct 2017]
+    # subsetting array by user-input bins installed [12/6/17]
+    counts_imgarr = counts_imgarr[int(min(yax_lims)):int(max(yax_lims)),:]
+    if xax != 'time': counts_imgarr = counts_imgarr[:,int(min(xax_lims)):int(max(xax_lims))]
+    img_arr_shape = counts_imgarr.shape
+    print('The shape of counts_imgarr is: ',img_arr_shape)
+    
+    # horizontal dimension capped at certain # of profiles (in init file)
+    # doing this to save memory & CPU work when rendering image
+    if img_arr_shape[1] > hori_cap:
+        nthin = int(img_arr_shape[1] / hori_cap)
+        counts_imgarr = counts_imgarr[:,::nthin]
+        img_arr_shape = counts_imgarr.shape
+        print('The shape of counts_imgarr is: ',img_arr_shape)     
+
+    # you need to manipulate altitude array in order to properly
+    # label image plot
+    if pointing_dir == "Up":
+        alt_imgarr = np.flipud(z)
+    else:
+        alt_imgarr = z
+    newsize=alt_imgarr.size
+    alt_ind = np.linspace(0,newsize-1,newsize,dtype='uint32')
+    print('The shape of alt_ind is: ',alt_ind.shape)
+    #yax_lims = [ alt_ind[newsize-1],alt_ind[0] ]
+    #yax_lims = [ y1,y2 ] # y1, y2 determine zoom along vertical axis
+
+    # Actually plot the photon counts
+    fig1 = plt.figure(1,figsize=(figW,figL))
+    ax = plt.gca() # ax is now the "handle" to the figure
+    plt.xlabel(xlab)
+    plt.ylabel(ylab)
+    plt.title(tit)
+    cm = get_a_color_map()
+    if cm_choose: cm = plt.get_cmap(cm_choose)
+    im = ax.imshow(counts_imgarr, cmap=cm, clim=(cb_min,cb_max),
+                   interpolation='nearest',aspect='auto', 
+                   extent=xax_lims+yax_lims, norm=LogNorm(vmin=cb_min, vmax=cb_max))                 
+                   
+    # Format the x-axis   
+    if (xax == 'time'):
+        ax.xaxis_date()
+        time_format = mdates.DateFormatter('%H:%M:%S')
+        ax.xaxis.set_major_formatter(time_format)
+        fig1.autofmt_xdate()
+                   
+    # Format the y-axis
+    locs, labels = plt.yticks()
+    if (yax == 'alt'): 
+        delta_check = vrZ
+        y2_ind = int(max(yax_lims))
+        if y2_ind >= nb: 
+            y2 = z[nb-1]
+        else:
+            y2 = z[y2_ind]
+        y1 = z[int(min(yax_lims))]            
+        ys = [y1,y2]
+        min_y = math.ceil(min(ys)/scale_alt_OofM)*scale_alt_OofM
+        max_y = math.floor(max(ys)/scale_alt_OofM)*scale_alt_OofM
+        ndivi = int( (max_y - min_y) / scale_alt_OofM )
+        ytick_lab = np.linspace(min_y,max_y, ndivi+1)
+    else:
+        delta_check = 2
+        ndivi = 20
+        ytick_lab = np.linspace(yax_lims[0],yax_lims[1],ndivi+1)        
+    ytick_ind = np.zeros(ytick_lab.size) + 999
+    k=0
+    for e in ytick_lab:
+        m = abs(e - alt_imgarr) < delta_check # where diff is smaller than 60 meters
+        if (np.sum(m) == 0):  #all false
+            k=k+1
+            continue
+        else:
+            ytick_ind[k] = alt_ind[m][0]
+            k=k+1
+    actual_ticks_mask = ytick_ind != 999
+    ytick_lab = ytick_lab[actual_ticks_mask]
+    ytick_ind = ytick_ind[actual_ticks_mask]          	    
+    plt.yticks(ytick_ind,ytick_lab)
+        
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right",size="2%",pad=0.05)
+    plt.colorbar(im, cax=cax)
+    ax.autoscale
+    plt.savefig(out_dir+outfile_name,bbox_inches='tight',pad_inches=CPpad)
+    if mpl_flg == 1: plt.show()
+    plt.close(fig1)
+    
+    return None

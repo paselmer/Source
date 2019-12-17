@@ -587,7 +587,7 @@ for f in range(0,nMCS_files):
         for chan in range(0,nc):
             overlaps_chan_seq[chan,:] = overlaps[wl_map[chan],:]        
         # Open the hdf5 file and create the datasets
-        hdf5_fname = L1_dir+'NRB_'+proj_name+'_'+flt_date+'_'+Nav_source+'.hdf5'
+        hdf5_fname = L1_dir+'CAMAL_NRB_'+proj_name+'_'+flt_date+'_'+Nav_source+'.hdf5'
         hdf5_file = h5py.File(hdf5_fname, 'a')         
         try:            
             meta_dset = hdf5_file.create_dataset("meta", (1,), maxshape=(None,), dtype=MCS_meta_struct)

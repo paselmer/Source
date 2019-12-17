@@ -224,10 +224,10 @@ def select_and_standardize_data(file_ctrl):
         SLO.ONA_uplim = None
         SLO.ONA_lowlim = None
         SLO.ONA_bin_centers = None
-        SLO.roll = np.zeros(0,SLO.nr)
-        SLO.pitch = np.zeros(0,SLO.nr)
-        SLO.lat = np.zeros(0,SLO.nr)
-        SLO.lon = np.zeros(0,SLO.nr)
+        SLO.roll = np.zeros(SLO.nr)
+        SLO.pitch = np.zeros(SLO.nr)
+        SLO.lat = np.zeros(SLO.nr)
+        SLO.lon = np.zeros(SLO.nr)
         
     elif instrument_name == 'CPL':
         
