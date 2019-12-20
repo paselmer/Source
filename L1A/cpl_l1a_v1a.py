@@ -241,7 +241,8 @@
 # [10/18/19] adjustments for initializations-free read_routines
 #
 # [11/18/19] *** V1A CREATED ***
-# cpl_l1a_v1a.py functions the same as cpl_l1a_v1.py, except that it 
+# cpl_l1a_v1a.py functions the same as cpl_l1a_v1.py, except that it uses an input CSV file,
+# "overlaps_configuration.csv" to map different overlap tables to differenct portions of the flight.
 
 
 # Import libraries <----------------------------------------------------
@@ -427,7 +428,7 @@ def load_all_possible_overlaps(overlap_dict,nb,nc):
     """
     
     # INPUTS:
-    # overlap_dict -> From load_overlap_configuration(). Containts the 
+    # overlap_dict -> From load_overlap_configuration(). Contains the 
     #    names of all overlap tables.
     # nb -> Number of bins (833 for CPL)
     # nc -> Number of channels (4 for CPL)
@@ -1224,7 +1225,8 @@ for f in range(0,nCLS_files):
             GEOS_fobj.write(GEOS_out_str)
     
         # Proceed no farther in processing if altitude is not high enough
-        if Nav_save[i1f]['GPS_alt'] < alt_cutoff:
+        if (Nav_save[i1f]['GPS_alt'] < alt_cutoff) | (np.isnan(Nav_save[i1f]['GPS_alt'])):
+            
             #print('Bad altitude: ',Nav_save[i1f]['GPS_alt'])
             #print('Will not process until good alt is read.\n')
             good_rec_bool[i1f] = False

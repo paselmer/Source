@@ -30,7 +30,7 @@ search_str = 'dataup*.data'     # How code will identify file names of files
 
 # *********** DEFINE CONSTANTS, DATA PARAMS, CONFIG OPTIONS  ***********
 # horizontal averaging (# of raw profiles)
-nhori = 1
+nhori = 5
 # Some instrument's read routines require this. CAMAL,Roscoe don't.
 file_len_recs = 9000
 # MCS data files (CAMAL, Roscoe, ACATS) should contain 5 minutes of data
@@ -83,7 +83,7 @@ pointing_dir = "Down"
 pp_xax_bounds_raw_counts = [0,500]
 pp_xax_bounds_bgsub_counts = [-15,145]
 pp_xax_bounds_NRB = [-7e12,5e13]
-pp_yax_bounds_bins = [900,0]
+pp_yax_bounds_bins = [510,490]
 pp_yax_bounds_alt = [-1e3,20e3]
 # Y-axis bounds of the energy monitor plot
 EMp_yax_bounds = [0,150]

@@ -1,11 +1,13 @@
 # Roscoe L1A processing code.
 # NOTE: The most current version of the L1A code must always be named
 #       "roscoe_l1a.py." All versions of the code must be saved as
-#       "camal_l1a_vX.py" but not actually be source file that's exectued.
+#       "roscoe_l1a_vX.py" but not actually be source file that's exectued.
 #
 # UPDATE LOG:
 # 
 # [12/16/19] v0 created
+#
+# 
 
 # Import libraries <----------------------------------------------------
 
@@ -598,6 +600,11 @@ for f in range(0,nMCS_files):
             i = i + 1
             i1f = i1f + 1
             continue
+            
+        # Patch over bins with phantom signal [12/18/19]
+        for cc in range(0,nc):
+            MCS_data_1file['counts'][i1f,cc,phb1:phb2+1] = ( np.linspace( MCS_data_1file['counts'][i1f,cc,phb1-1],
+                MCS_data_1file['counts'][i1f,cc,phb2+1], (phb2+2) - (phb1-1), dtype=np.uint16 )[1:-1] )
 
         # Convert to float for subsequent manipulation within this loop
         counts_float32 = MCS_data_1file['counts'][i1f].astype(np.float32)
