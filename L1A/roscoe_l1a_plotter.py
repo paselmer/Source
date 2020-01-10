@@ -13,16 +13,17 @@ import matplotlib.dates as mdates
 
 # Set limits to define subset of whole dataset
 
-z0 = -500.0  # meters
-z1 = 20000.0
-t0 = DT.datetime(2018,10,23,16,17,0) # times
+z0 = 18000.0  # meters
+z1 = 40000.0
+t0 = DT.datetime(2018,10,20,16,17,0) # times
 t1 = DT.datetime(2020,10,23,16,56,19)
-wl_choice = 1 # 0=355, 1=1064
-NRB_scale = 8e9
+wl_choice = 0 # 0=355, 1=1064
+NRB_scale = 1e8
+pdir = 'Up' # 'Up' or 'Down'
 
 # Load background-substracted counts file (NRB-style format)
 
-h5_file = L1_dir+'Roscoe_NRB_PELIcoe_19_20191023_nav.hdf5'
+h5_file = L1_dir+'Roscoe_NRB_PELIcoe_19_20191021_nav_OLOnes_Up.hdf5'
 h5f = h5py.File(h5_file, 'r')
 # Keys to data...
 #['DEM_laserspot', 'DEM_laserspot_surftype', 'DEM_nadir', 'DEM_nadir_surftype', 
@@ -36,6 +37,7 @@ nb = np.array(h5f['num_ff_bins'])
 nb = nb[0]
 c = np.array(h5f['nrb'])
 nav = np.array(h5f['nav'],dtype=nav_save_struct)
+dem = np.array(h5f['DEM_laserspot'])
 
 # Initialize some new variables
 t = np.zeros(nr,dtype=DT.datetime)
@@ -58,8 +60,12 @@ r1 = indicies[testt1][-1]
 bin_nums = np.arange(0,nb)
 testz0 = z >= z0
 testz1 = z >= z1
-b1 = bin_nums[testz0].argmax()
-b0 = bin_nums[testz1].argmax()
+if pdir == 'Down':
+  b1 = bin_nums[testz0].argmax()
+  b0 = bin_nums[testz1].argmax()
+else:
+  b0 = bin_nums[testz0].min()
+  b1 = bin_nums[testz1].min()
 if wl_choice == 0:
     c = c[2,r0:r1+1,b0:b1+1] + c[2,r0:r1+1,b0:b1+1]
 elif wl_choice == 1:
@@ -89,7 +95,15 @@ xsize = 25
 ysize = 13
 im_file_name = 'NRB.png'
 
-curtain_plot(c.transpose(), nb, 30.0/1e3, z/1e3, 0, NRB_scale, hori_cap, pointing_dir,
+cmea = c.mean(axis=0)
+plt.plot(cmea,z)
+plt.title('355 nm NRB, mean of whole flight, 21 Oct 19')
+plt.xlabel('NRB')
+plt.ylabel('altitude (m)')
+plt.show()
+pdb.set_trace()
+
+curtain_plot(c.transpose(), nb, 30.0/1e3, z/1e3, 0, NRB_scale, hori_cap, pdir,
   xsize, ysize, CPpad, xtit, ytit, tit,  yax_type,[ylimits[0],ylimits[1]], xax_type,
   [xlimits[0],xlimits[1]], 1, 1, out_dir)
 pdb.set_trace()

@@ -7,7 +7,10 @@
 # 
 # [12/16/19] v0 created
 #
-# 
+# [1/10/20] background subtraction corrected for up-looking processing
+# A few more lines of code were added because the background zone
+# selection code that worked for downward-looking did not work for
+# upward-looking.
 
 # Import libraries <----------------------------------------------------
 
@@ -672,8 +675,12 @@ for f in range(0,nMCS_files):
         # Subtract background and correct raw counts for range (in scope of actual bin-alt frame)
         # It's difficult to apply range correction once counts are in fixed frame.
         try:
-            bg_loc1 = np.argwhere(bin_alts <= bg_st_alt)[0][0]
-            bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[-1][0]	   
+            if pointing_dir == 'Down':
+              bg_loc1 = np.argwhere(bin_alts <= bg_st_alt)[0][0]
+              bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[-1][0]
+            else:
+              bg_loc1 = np.argwhere(bin_alts <= bg_st_alt)[-1][0]
+              bg_loc2 = np.argwhere(bin_alts >= bg_ed_alt)[0][0]
             bg_1D = np.mean(counts_float32[:,bg_loc1:bg_loc2],axis=1) 
             bg_save[:,i1f] = bg_1D
             bg = np.broadcast_to(bg_1D, (nb,nc)).transpose()
@@ -703,6 +710,8 @@ for f in range(0,nMCS_files):
         i1f = i1f + 1  # increment record counter for current file by 1
          
     if i == 0: continue
+    
+    pdb.set_trace()
     
     # Apply polarization gain ratio to 1064 perpendicular channel
     print(attention_bar)
