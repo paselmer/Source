@@ -1020,7 +1020,8 @@ def read_entire_cls_dataset(file_len_recs,raw_dir,nbins,flt_date,bad_cls_nav_tim
             
     with open(cls_file_list) as cls_list_fobj:
         all_cls_files = cls_list_fobj.readlines()
-    if (max(Fcontrol.sel_file_list) < 90) & (Fcontrol is not None):
+    n_cls = len(all_cls_files)
+    if (max(Fcontrol.sel_file_list) < n_cls) & (Fcontrol is not None):
         ncls_files = len(Fcontrol.sel_file_list)
         actual_cls_files = []
         for x in Fcontrol.sel_file_list:
@@ -1037,7 +1038,9 @@ def read_entire_cls_dataset(file_len_recs,raw_dir,nbins,flt_date,bad_cls_nav_tim
     j = 0
     k = 0
     for i in Fnumbers:
-        if i not in Fcontrol.sel_file_list: continue		
+        if i not in Fcontrol.sel_file_list:
+            k += 1
+            continue		
         cls_file = all_cls_files[k]
         cls_file = cls_file.strip()
         cls_data_1file, Nav_dict = read_in_cls_data(cls_file,nbins,flt_date,bad_cls_nav_time_value,True)
