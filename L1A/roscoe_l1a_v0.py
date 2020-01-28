@@ -287,6 +287,7 @@ for DTT_file in DTT_files:
 
 print('Starting core processing...') # <--------------------------------
 first_read = True
+hdf5_created = False
 trans_bin = [0,0]
 trans_total = 0
 last_file = False 
@@ -400,7 +401,7 @@ for f in range(0,nMCS_files):
     if not first_read: time_bins = np.arange(trans_bin[0],MCS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
 
     # Save/create a few key data parameters...
-    if first_read:
+    if ((first_read) & (not hdf5_created)):
         nb =  MCS_data_1file['meta']['nbins'][0]              # # of bins
         vrZ = (MCS_data_1file['meta']['binwid'][0] * c) / 2.0 # vert. rez in m
         nc = MCS_data_1file['meta']['nchans'][0]              # # of channels
@@ -485,6 +486,7 @@ for f in range(0,nMCS_files):
         PGain_dset[:] = np.asarray(PGain) # convert list to array
         bin_alt_dset[:] = ffrme
         nb_ff_dset[:] = nb_ff
+        hdf5_created = True
         
     counts_ff = np.zeros((nc,nr_1file,nb_ff),dtype=np.float32)
     NRB = np.empty_like(counts_ff)
@@ -710,8 +712,6 @@ for f in range(0,nMCS_files):
         i1f = i1f + 1  # increment record counter for current file by 1
          
     if i == 0: continue
-    
-    pdb.set_trace()
     
     # Apply polarization gain ratio to 1064 perpendicular channel
     print(attention_bar)
