@@ -1470,4 +1470,4 @@ print("NRB has been written to the HDF5 file:"+hdf5_fname)
 # The final message
 
 print('Total raw profiles processed: '+str(i))
-print("camal_l1a.py has finished normally.")
+print("cpl_l1a.py has finished normally.")
