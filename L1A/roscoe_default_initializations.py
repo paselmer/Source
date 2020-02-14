@@ -60,8 +60,8 @@ MCS_hz = 10.0
 IWG1_hz = 1.0
 # nav (refering to file type) records per second. (Please make it a float!) 
 nav_hz = 1.0
-# Set the Polarization Gain ratios for the wavelenghts [532nm, 1064nm]
-PGain = [0.00,0.00]
+# Set the Polarization Gain ratios for the wavelenghts [355nm, 1064nm]
+PGain = [1.00,1.00]
 # Set this to the maximum possible count rate. Don't set > recs in DTT file!
 max_counts = 16000
 # Dead time tables [list]. List in channel order OR ELSE!!!
