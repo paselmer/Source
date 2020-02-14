@@ -715,10 +715,11 @@ for f in range(0,nMCS_files):
     
     # Apply polarization gain ratio to 1064 perpendicular channel
     print(attention_bar)
-    print("Applying pgain factor to hard-coded channel of index 3")
+    print("Applying pgain factor to hard-coded channel of indicies 1,3")
     print("This should represent the 1064 nm channel")
     print(attention_bar)
-    counts_ff[3,:,:] = counts_ff[3,:,:] * PGain[1]
+    counts_ff[1,:,:] = counts_ff[1,:,:] * PGain[1] # 1064 nm perp
+    counts_ff[3,:,:] = counts_ff[3,:,:] * PGain[0] # 355 nm perp
     
     # Compute NRB & populate saturate_ht array
     EMs = convert_raw_energy_monitor_values(MCS_data_1file['meta']['EM'],nwl,'Roscoe')
