@@ -799,6 +799,12 @@ def read_in_cls_data(fname,nbins,flt_date,bad_cls_nav_time_value,return_nav_dict
     #                           Reccomended to set to DT.datetime(1970,1,1,0,0,0).
     # return_nav_dict -> Only known application is for L1A processing.
     
+    # OUTPUT:
+    # CLS_decoded_data -> Numpy array structure with length equal to number
+    #     of records within CLS file. Count are raw, except header and Nav
+    #     data have been decoded where necessary.
+    # [CLS_decoded_data, Nav_dict] -> Returned if nav_dict is True.
+    
     # NOTES:
     #
     # CLS files DO NOT contain the year. This routine reads the year from the initialization file!
