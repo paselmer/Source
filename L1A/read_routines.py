@@ -3,6 +3,9 @@
 # [10/9/19] **** MAJOR CHANGE ****
 # Import of "initializations.py" removed. This will cause headaches for 
 # a little while.
+#
+# [2/25/20] Most of the bumps from initializations import removal should
+# be gone. But it's possible an issue will be found at some point.
 
 import pdb
 import struct as struct
@@ -786,10 +789,15 @@ def read_entire_nav_dataset(search_str,raw_dir,est_nav_recs_1file,secs_btwn_inst
 
 def read_in_cls_data(fname,nbins,flt_date,bad_cls_nav_time_value,return_nav_dict=False):
     """ Routine to read in raw data from a single CPL "CLS" file. 
-        Takes only one input, the file name. All other constructs
-        are provided from imported modules (serve like IDL's 
-        common blocks)
     """
+    
+    # INPUT:
+    # fname -> Full-path name of CLS file.
+    # nbins -> Integer # of bins, likely 833.
+    # flt_date -> String like this, rep. date of flight: '06dec19'
+    # bad_cls_nav_time_value -> datetime.datetime object representing invalid data.
+    #                           Reccomended to set to DT.datetime(1970,1,1,0,0,0).
+    # return_nav_dict -> Only known application is for L1A processing.
     
     # NOTES:
     #
@@ -800,6 +808,8 @@ def read_in_cls_data(fname,nbins,flt_date,bad_cls_nav_time_value,return_nav_dict
     # Bill and Dennis used "GPS" parameters for processing. So use "GPS_Latitude" not "Lat."
     #
     # Invalid and/or missing fields set to -999.9
+    #
+    # Inputs added because initializations.py import was removed from this module. [2/25/20]
 
     # Assume an ER2 style CLS file as default
     ER2_nav_nbytes = 256
