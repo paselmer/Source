@@ -6,6 +6,9 @@
 #
 # [2/25/20] Most of the bumps from initializations import removal should
 # be gone. But it's possible an issue will be found at some point.
+#
+# [3/26/20] **** Minor change ****
+# Offset of gps pitch occurs before reversal of pitch orientation
 
 import pdb
 import struct as struct
@@ -180,8 +183,8 @@ def read_in_gps_data(fname, file_len_secs, gps_hz, gps_pitch_offset, gps_roll_of
                     gps_struct_1file[i]['north'] = one_rec[6]
                     gps_struct_1file[i]['east'] = one_rec[7]
                     gps_struct_1file[i]['vert'] = one_rec[8]
-                    gps_struct_1file[i]['pitch'] = one_rec[9]
-                    gps_struct_1file[i]['pitch'] = gps_struct_1file[i]['pitch']*(-1.0) - gps_pitch_offset
+                    gps_struct_1file[i]['pitch'] = one_rec[9] - gps_pitch_offset
+                    gps_struct_1file[i]['pitch'] = gps_struct_1file[i]['pitch']*(-1.0)
                     gps_struct_1file[i]['roll'] = float(one_rec[10]) - gps_roll_offset
                     gps_struct_1file[i]['yaw'] = one_rec[11]
                     #if gps_struct_1file[i]['GpsWeek'] > 0: pdb.set_trace()
