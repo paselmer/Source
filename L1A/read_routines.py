@@ -1475,3 +1475,17 @@ def read_acls_std_atm_file(std_atm_file):
     AMB1064 = Bray1064 * mtsq_slant1064
     
     return [Bray_alt, AMB355, AMB532, AMB1064]
+
+
+def read_in_cats_l0_data(cats_l0_fname, nchans, nbins):
+    """ Read data from single CATS (ISS) file into a structured numpy array.
+        'nchans' varies based on raw data mode.
+    """
+    
+    cats_l0_structure = define_CATS_L0_struct(nchans, nbins)
+    
+    l0_data = np.fromfile(cats_l0_fname, dtype=cats_l0_structure)
+    l0_data['chan'] = np.bitwise_and(l0_data['chan'], 32767) # remove parity bit
+    
+    return l0_data
+     
