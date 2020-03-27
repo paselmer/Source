@@ -554,7 +554,8 @@ def compute_raw_bin_altitudes(nb,pdir,z0,bsize,ONA):
     elif pdir == "Down":
         z = z0 - np.arange(0, nb)*bsize*cosfact
     else:
-        z = z0 - np.arange(0, nb*bsize, bsize)*bsize*cosfact
+        print('Invalid option entered in compute_raw_bin_altitudes')
+        pdb.set_trace()
         
     return z        
 
