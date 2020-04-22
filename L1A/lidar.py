@@ -13,6 +13,38 @@ import matplotlib.dates as mdates
 from read_routines import read_in_raw_data
 from initializations import *
 
+# UPDATES / NOTES:
+
+# [4/2/20] split_bins_onto_fixed_frame
+# *** Andrew created new rebinning function ***
+# For the re-binning software it is a little more involved then just a subtraction 
+# and a multiplicative factor.
+# I kept the setup very similar to the original function but I made a new 
+# split_bins_onto_fixed_frame(ff, af, orig_counts) function.
+# Ff is the altitude at the top of the bin in the fixed frame
+# Af is the altitude at the top of the bin in the altitude frame
+# Ff_bin_numbers is the index in ff where af resides between that index and the next bin
+# Af_current is the percentage of af that overlaps the bin it was placed into 
+# (remember af is the top of the bin). The bin of ff[ff_bin_number]
+# The remainder of the percentage would then be in the next bin. That percentage 
+# is stored in af_next.
+# When the af bin is a subset of the ff bin then af_current will equal 1 and 
+# the next afbin is likely also assigned to that ff bin. Places stores these 
+# locations to remove the need for a long for loop.
+# For each bin in af the following assigns the percentage of original counts 
+# to the originally assigned bin. Then the remaining percentage is assigned to 
+# the next bin. This does all 833 sequentially so for each bin in places, the value 
+# is likely overwritten by the following bin in af.
+# new_counts_frme[:, ff_bin_numbers[a]] += (orig_counts[:, a] * af_current[a])
+# new_counts_frme[:, ff_bin_numbers[a] + 1] += (orig_counts[:, a] * af_next[a])
+# provided places exists, and the index is not the final bin (833, cannot be 
+# overwritten by 834 because it DNE) the original value of the bin is added 
+# back into the ff for each af in places.
+#
+# [4/22/20] bug fixed in put_bins_onto_fixed_frame 
+# Correction made by Andrew Kupchock. ff_bin_numbers was not being
+# properly indexed in places where > 1 af bin was in single bin.
+
 
 def average_lidar_data(a,ne,nd):
     """Average lidar data (or other arrays).
@@ -582,26 +614,38 @@ def put_bins_onto_fixed_frame(ff,af,orig_counts):
     # subscript #1, when really, (af[1]-af[0])/2 should really have been
     # put into subscript #0. Same thing for the edge of the array, and this
     # is where the trouble occurred.
+    #
+    # Update, 4/10/20
+    # Correction made by Andrew Kupchock. ff_bin_numbers was not being
+    # properly indexed in places where > 1 af bin was in single bin.
+    # From email with Andrew:
+    # " For lidar.py it is not just the addition of split_bins_onto_fixed_frame() 
+    #   function but also the correction of put_bins_onto_fixed_frame() 
+    #   to reference ff_bin_number(ui(places(k))) and not excluding the 
+    #   ui as well as that one bin offset. "
    
-    nc = orig_counts.shape[0] # number of channels, presumably
-    
-    if (af.min() < ff.min()): 
+    nc = orig_counts.shape[0]  # number of channels, presumably
+
+    if (af.min() < ff.min()):
         print('Fixed frame does not extend far enough to')
-        print('accomodate actual frame.',af.min(),ff.min())
+        print('accomodate actual frame.', af.min(), ff.min())
 
-    af_midpoints = (af[:-1] + af[1:])/2.0
-    ff_bin_numbers = np.digitize(af_midpoints,ff) - 1
-    u, ui, ncounts = np.unique(ff_bin_numbers,return_index=True,return_counts=True)
-    new_counts_frme = np.zeros((nc,ff.shape[0]),dtype=np.float32)
-
-    new_counts_frme[:,ff_bin_numbers-1] = orig_counts[:,:ff_bin_numbers.shape[0]]
+    af_midpoints = (af[:-1] + af[1:]) / 2.0
+    ff_bin_numbers = np.digitize(af_midpoints, ff) - 1
+    # ff_bin_numbers holds the index of the bin altitude above the af_midpoint
+    u, ui, ncounts = np.unique(ff_bin_numbers, return_index=True, return_counts=True)
+    # u is the unique array, ui the index of the unique ff_bin_number values
+    new_counts_frme = np.zeros((nc, ff.shape[0]), dtype=np.float32)
+    new_counts_frme[:, ff_bin_numbers] = orig_counts[:, :ff_bin_numbers.shape[0]]
+    # Updated above to just ff_bin_numbers without the -1 for the new counts frame assignment
     places = np.where(ncounts > 1)[0]
     if places.shape[0] > 0:
-        for k in range(0,places.shape[0]):
-            orig_indx = np.argwhere(ff_bin_numbers == ff_bin_numbers[places[k]])
-            for ch in range(0,nc):
-                new_counts_frme[ch,ff_bin_numbers[places[k]]] = np.mean(orig_counts[ch,orig_indx])
-
+        for k in range(0, places.shape[0]):
+            orig_indx = np.argwhere(ff_bin_numbers == ff_bin_numbers[ui[places[k]]])
+            # Updated above to be ff_bin_numbers[ui[places[k]]] instead of ff_bin_numbers[places[k]]
+            for ch in range(0, nc):
+                new_counts_frme[ch, ff_bin_numbers[ui[places[k]]]] = np.mean(orig_counts[ch, orig_indx])
+                # Updated above to be ff_bin_numbers[ui[places[k]]] instead of ff_bin_numbers[places[k]]
     return new_counts_frme
     
 def put_bins_onto_fixed_frame_C(np_clib,ff,af,orig_counts,nc):
@@ -663,7 +707,53 @@ def put_bins_onto_fixed_frame_C(np_clib,ff,af,orig_counts,nc):
 
     return new_counts_frme
     
-    
+def split_bins_onto_fixed_frame(ff, af, orig_counts):
+    """ "Interp" counts onto fixed frame. The method of interpolation
+        used here is not well-suited for much more than lidar data.
+        In fact, it's more appropriately called a re-binning, not
+        an interpolation. Created based off conversations with Steve and Patrick.
+    """
+
+    # Update, 4/1/20
+    # Taken from put_bins now splits percentage of counts to new bin in that region
+
+    nc = orig_counts.shape[0]  # number of channels, presumably
+    if (af.min() < ff.min()):
+        print('Fixed frame does not extend far enough to')
+        print('accomodate actual frame.', af.min(), ff.min())
+
+    af_wid = np.fabs(af[0] - af[1])
+    # Assuming all altitude frame bins are the same length
+    ff_bin_numbers = np.digitize(af, ff) - 1
+    af_current = np.zeros((af.shape[0]))
+    af_current = np.amin([np.fabs(af - ff[ff_bin_numbers + 1]) / af_wid, np.ones((af.shape[0]), dtype=np.float32)],
+                         axis=0)
+    # Determine the distance between the top of the altitude frame bin and the bottom of the bin it was place into
+    # Then takes that distance and divides by the length of the altitude bin to determine percentage. Force maximum
+    # of 1.0
+    af_next = 1 - af_current
+    # af_next is the remaining percentage in the next bin ff_bin_numbers_idx+1 in ff
+    # The span will never be greater than across 2 bins
+    new_counts_frme = np.zeros((nc, ff.shape[0]), dtype=np.float32)
+
+    places = np.where(af_current == 1)[0]
+    # Locate where altitude bins are completely inside the fixed frame
+    a = np.arange(0, af.shape[0])
+    new_counts_frme[:, ff_bin_numbers[a]] += (orig_counts[:, a] * af_current[a])
+    new_counts_frme[:, ff_bin_numbers[a] + 1] += (orig_counts[:, a] * af_next[a])
+    # Actual reassignment of bins occurs here - correction made below for overwritten bins that overlap
+
+    if places.shape[0] > 0:
+        # make sure shape is not empty
+        for k in range(0, places.shape[0]):
+            if places[k] < af.shape[0]-1:
+                # Avoids error with final bin trying to see if following bin overwrites it
+                if ff_bin_numbers[places[k]] == ff_bin_numbers[places[k] + 1]:
+                    # Determine if next altitude bin also starts in the same fixed frame bin
+                    new_counts_frme[:, ff_bin_numbers[places[k]]] += (orig_counts[:, places[k]] * af_current[places[k]])
+                    # adds back in previously overwritten counts in new_counts_frame
+
+    return new_counts_frme      
 
     
 def get_a_color_map():

@@ -210,5 +210,4 @@ hk_struct_r = np.dtype([ ('CCSDS',CCSDS_struct), ('GoodCmdCnt',np.int32) ,
                       ('ADVolt',np.float32,(32,)) , ('NASDAT_flags', np.uint8),
                       ('IWG1_pkt_rec',np.uint32) ,('flags', np.uint8)                                
                                                                          ])
-                        
-                          
+
