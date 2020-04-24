@@ -378,7 +378,6 @@ def create_cls_interp_unixt_array(single_cls_file,cls_meta_data_all,
             cls_data_1file = cls_data_1file[firstlast_trunc[0]:]
         if firstlast_flag == 1:
             cls_data_1file = cls_data_1file[:nr0-firstlast_trunc[1]]
-        good_data_len = Navi[1] - Navi[0]
         cls_data_1file['meta']['Nav'] = cls_meta_data_all['Nav'][Navi[0]:Navi[1]]
         cls_nav_data_1file = cls_data_1file['meta']['Nav']
         del_t = np.zeros(cls_nav_data_1file.shape[0],dtype=DT.datetime)
@@ -615,6 +614,7 @@ elif Nav_source == 'cls':
     # Load the entire nav dataset into memory. This data will be used in both
     # the 'cls' Nav block and later on in the main file loop.
     cls_meta_data_all, nav2cls_indx, FL_trunc, usable_file_range = read_entire_cls_meta_dataset(raw_dir,file_len_recs,nbins,flt_date,bad_cls_nav_time_value)
+    #meta_save = np.copy(cls_meta_data_all) #uncomment to compare processed to original
     cls_nav_data_all = np.copy(cls_meta_data_all['Nav'])
 
     UnixT_epoch = DT.datetime(1970,1,1)
@@ -1471,24 +1471,3 @@ print("NRB has been written to the HDF5 file:"+hdf5_fname)
 
 print('Total raw profiles processed: '+str(i))
 print("cpl_l1a.py has finished normally.")
-pdb.set_trace()
-
-
-######################################################################### BELOW THIS LINE SHALL NOT BE PART OF L1A PROCESS
-
-tit = '355 nm NRB'
-xlimits = [0,ONA_save.shape[0]]
-ylimits = [810,0]#[900,500]
-samp_chan = NRB[0,:,:]# + NRB[3,:,:]
-curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 5e8, hori_cap, pointing_dir,
-                      figW, figL, CPpad, 'records', 'alt (m)', tit, 'alt', ylimits, 'recs', 
-                      xlimits, scale_alt_OofM, 1, out_dir)
-pdb.set_trace()
-
-make_custom_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 1e8, hori_cap, pointing_dir,
-                      figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',  
-                      [ylimits[0],ylimits[1]], 'recs', [xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir, str(f).strip()+'.png',
-                      np.arange(xlimits[0],xlimits[1]),Nav_save['pitch'][xlimits[0]:xlimits[1]],
-                      np.arange(xlimits[0],xlimits[1]),ONA_save[xlimits[0]:xlimits[1]]*(180.0/np.pi),
-                      np.arange(xlimits[0],xlimits[1]),Nav_save['roll'][xlimits[0]:xlimits[1]])
-pdb.set_trace()

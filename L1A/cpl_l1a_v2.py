@@ -506,8 +506,16 @@ def load_overlap_configuration(overlaps_config_file):
             line = f_obj.readline()
             Lc += 1
         
-        OL_keys = OL_times[-3:]
-        OL_times = OL_times[:-4]
+        # Figure out the number of overlap tables the user has programmed.
+        list_len = len(OL_times)
+        Ic = 1 # list Item counter
+        for item in OL_times:
+            if item[0] == 'Overlaps key':
+                nOL = list_len - Ic
+            Ic += 1
+        OL_keys = OL_times[-1*nOL:]  # Last 
+        OL_times = OL_times[:-1*nOL-1]
+        print('{0:d} overlap tables detected.'.format(nOL))
         
         overlap_dict = {}
         for item in OL_keys: overlap_dict[AlphaNum[item[0].strip()]] = item[1].strip()
@@ -732,37 +740,11 @@ elif Nav_source == 'cls':
     # Load the entire nav dataset into memory. This data will be used in both
     # the 'cls' Nav block and later on in the main file loop.
     cls_meta_data_all, nav2cls_indx, FL_trunc, usable_file_range = read_entire_cls_meta_dataset(raw_dir,file_len_recs,nbins,flt_date,bad_cls_nav_time_value)
+    #meta_save = np.copy(cls_meta_data_all) #uncomment to compare processed to original
     cls_nav_data_all = np.copy(cls_meta_data_all['Nav'])
 
     UnixT_epoch = DT.datetime(1970,1,1)
     m = 1.0 / CLS_hz
-    
-    # TEST CODE TEST CODE TEST CODE
-    # TEST CODE TEST CODE TEST CODE
-    #prev = -999.9
-    #diff = 0
-    #runsum = 0.0
-    #runcnt = 0
-    #for i in range(0,cls_nav_data_all.shape[0]):
-        #if i > 0: diff = cls_nav_data_all['UTC_Time'][i].second - cls_nav_data_all['UTC_Time'][i-1].second
-        #if  (diff > 0):
-            #deltaarr = np.array( [DT.timedelta(seconds=x) for x in np.linspace(0,0.9,runcnt)] )
-            #cls_nav_data_all['UTC_Time'][i-runcnt:i] = cls_nav_data_all['UTC_Time'][i-runcnt:i] + deltaarr
-            #runsum = 0.0
-            #runcnt = 0
-        #runsum = runsum + 0.1
-        #runcnt = runcnt + 1
-        
-    for i in range(0,cls_nav_data_all.shape[0]):
-        ts1 = (cls_meta_data_all['Engineering']['Reserved'][i][0]).tobytes().decode('utf-8')
-        ts2 = (cls_meta_data_all['Engineering']['Reserved'][i][1]).tobytes().decode('utf-8')
-        ts3 = (cls_meta_data_all['Engineering']['Reserved'][i][2]).tobytes().decode('utf-8')
-        # '10:52:49.050'
-        pre = cls_nav_data_all['UTC_Time'][i].strftime('%Y-%m-%dT')
-        Tstr = ts1 + ts2 + ts3
-        cls_nav_data_all['UTC_Time'][i] = DT.datetime.strptime(pre+Tstr[:-4],'%Y-%m-%dT%H:%M:%S') + DT.timedelta(seconds=float(Tstr[-3:])/1000.0)
-    # TEST CODE TEST CODE TEST CODE        
-    # END TEST CODE END TEST CODE
     
     # Identify all the unique UTC_Times and their starting indexes
     u, ui, ncounts = np.unique(cls_nav_data_all['UTC_Time'],return_index=True,return_counts=True)
@@ -798,7 +780,7 @@ elif Nav_source == 'cls':
     Nav_unique = np.zeros(n_u,dtype=CLS_decoded_nav_struct)
     for i in range(0,n_u): 
         Nav_UnixT[i] = (cls_nav_data_all['UTC_Time'][ui[i]] - UnixT_epoch).total_seconds()
-        Nav_unique[i] = cls_nav_data_all[ui[i]]
+        Nav_unique[i] = cls_nav_data_all[ui[i]] 
 
     # Compute # of elapsed seconds since first record (float)    
     u, ui, ncounts = np.unique(cls_meta_data_all['Header']['ExactTime'],return_index=True,return_counts=True)
@@ -900,10 +882,9 @@ elif Nav_source == 'cls':
         cls_meta_data_all['Nav']['UTC_Time'] = nav_interp['UTC_Time'][offset_indx:offset_indx+cls_meta_data_all.shape[0]]
 
     #plt.plot_date(cls_meta_data_all['Nav']['UTC_Time'],cls_meta_data_all['Nav']['RollAngle'],marker='x')
-    plt.plot_date(cls_nav_data_all['UTC_Time'],cls_nav_data_all['RollAngle'],marker='x')
-    plt.plot_date(nav_interp['UTC_Time'],nav_interp['RollAngle'],marker='o')
-    plt.show()
-    pdb.set_trace() 
+    #plt.plot_date(nav_interp['UTC_Time'],nav_interp['RollAngle'],marker='o')
+    #plt.show()
+    #pdb.set_trace() 
     
     # NOW, set the array that will be used in processing, cls_nav_data_all equal
     # to the interpolated array that was just created, nav_interp.
@@ -1033,9 +1014,9 @@ for f in range(0,nCLS_files):
         vrT = 1e-7 #CLS_data_1file['meta']['binwid'][0]
         # Range vector, broadcast to nc x nb for vectorized operations later
         bins_range=np.broadcast_to(np.arange(0,nb*vrZ,vrZ,dtype=np.float32),(nc,nb))
-        Y = 0.0 * (pi/180.0)                                  # Initialize YPR
-        P = 0.0 * (pi/180.0)
-        R = 0.0 * (pi/180.0)
+        Y = 0.0 * (np.pi/180.0)                                  # Initialize YPR
+        P = 0.0 * (np.pi/180.0)
+        R = 0.0 * (np.pi/180.0)
         i = 0 # counts total records of entire dataset (flight)
         g = 0
         # Create array to help compute heading if using GPS data...
@@ -1052,7 +1033,7 @@ for f in range(0,nCLS_files):
         time_bins = np.arange(CLS_UnixT_float64_orig[0],CLS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
         # Make the overlap_vector into an array where the 1st dim. lines up sequentially
         # with the channels
-        overlaps_chan_seq = np.ones((nc,nb),dtype=overlaps.dtype)
+        overlaps_chan_seq = np.ones((nc,nb),dtype=np.float32)
         # Code has option of whether to process using single or multiple overlaps  
         if multi_OLs:
             # Load all possible overlap tables into array [nOLs, nchans, nbins]
@@ -1170,9 +1151,10 @@ for f in range(0,nCLS_files):
             Nav_save[i1f]['GPS_alt'] = Nav_match['alt']
             time_str = gps_UTC_interp[interp2orig_indicies[i1f]].strftime("%Y-%m-%dT%H:%M:%S.%f")           
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC_Time'] # Nav_match fields dependant on dataset
             Y = 0.0# Nav_match['yaw'] * (pi/180.0) Woah! This isn't what I think yaw should be [3/22/18]
-            P = Nav_match['pitch'] * (pi/180.0)
-            R = Nav_match['roll'] * (pi/180.0) 
+            P = Nav_match['pitch'] * (np.pi/180.0)
+            R = Nav_match['roll'] * (np.pi/180.0) 
             # Write 'lat,lon,UTC' out to file
             GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['lon'],Nav_match['lat'],time_str[:19])
             GEOS_fobj.write(GEOS_out_str)            
@@ -1195,11 +1177,12 @@ for f in range(0,nCLS_files):
             Nav_save[i1f]['lat'] = Nav_match['lat']
             time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC_Time'] # Nav_match fields dependant on dataset
             # NOTE on next line: Invalids are -999.9, so max should choose valid if exists
             Nav_save[i1f]['GPS_alt'] = max(Nav_match['GPS_alt_msl'],Nav_match['GPS_alt'])
-            Y = Nav_match['drift'] * (pi/180.0) 
-            P = Nav_match['pitch'] * (pi/180.0)
-            R = Nav_match['roll'] * (pi/180.0)  
+            Y = Nav_match['drift'] * (np.pi/180.0) 
+            P = Nav_match['pitch'] * (np.pi/180.0)
+            R = Nav_match['roll'] * (np.pi/180.0)  
             # Write 'lat,lon,UTC' out to file
             GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['lon'],Nav_match['lat'],time_str[:19])
             GEOS_fobj.write(GEOS_out_str)	    
@@ -1220,10 +1203,11 @@ for f in range(0,nCLS_files):
             # byte array for IDL.
             time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")    
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC_Time'] # Nav_match fields dependant on dataset
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt']
-            Y = 0.0 #Nav_match['drift'] * (pi/180.0) 
-            P = Nav_match['pitch'] * (pi/180.0)
-            R = Nav_match['roll'] * (pi/180.0)
+            Y = 0.0 #Nav_match['drift'] * (np.pi/180.0) 
+            P = Nav_match['pitch'] * (np.pi/180.0)
+            R = Nav_match['roll'] * (np.pi/180.0)
             # Write 'lat,lon,UTC' out to file
             GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['lon'],Nav_match['lat'],time_str[:19])
             GEOS_fobj.write(GEOS_out_str)
@@ -1248,10 +1232,11 @@ for f in range(0,nCLS_files):
             # byte array for IDL.
             time_str = Nav_match['UTC_Time'].strftime("%Y-%m-%dT%H:%M:%S.%f")
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC_Time'] # Nav_match fields dependant on dataset
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_Altitude']
-            Y = Nav_save[i1f]['drift'] * (pi/180.0) 											     #Yaw now incorporated!! 3/30/2020
-            P = ((Nav_match['PitchAngle'] + cpl_pitch_offset) + ((Nav_match['RollAngle'] + cpl_roll_offset) * cpl_pitch_roll_factor))  * (pi/180.0)  #Offsets added 3/30/2020
-            R = (Nav_match['RollAngle'] + cpl_roll_offset) * (pi/180.0)
+            Y = Nav_save[i1f]['drift'] * (np.pi/180.0) 											     #Yaw now incorporated!! 3/30/2020
+            P = ((Nav_match['PitchAngle'] + cpl_pitch_offset) + ((Nav_match['RollAngle'] + cpl_roll_offset) * cpl_pitch_roll_factor))  * (np.pi/180.0)  #Offsets added 3/30/2020
+            R = (Nav_match['RollAngle'] + cpl_roll_offset) * (np.pi/180.0)
             # Write 'lat,lon,UTC' out to file
             GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['GPS_Longitude'],Nav_match['GPS_Latitude'],time_str[:19])
             GEOS_fobj.write(GEOS_out_str)
@@ -1340,7 +1325,7 @@ for f in range(0,nCLS_files):
             print(attention_bar)
             print("!!!!!!! WARNING !!!!!!!")
             print("No data within defined background region! Using background of zero.")
-            print(Nav_save[i1f]['UTC'],' ONA: ',ONA*(180.0/pi))
+            print(Nav_save[i1f]['UTC'],' ONA: ',ONA*(180.0/np.pi))
             print("!!!!!!! WARNING !!!!!!!")
             print(attention_bar)
             bg = np.zeros((nc,nb))
@@ -1645,24 +1630,7 @@ print("NRB has been written to the HDF5 file:"+hdf5_fname)
 
 print('Total raw profiles processed: '+str(i))
 print("cpl_l1a.py has finished normally.")
-pdb.set_trace()
 
 
 ######################################################################### BELOW THIS LINE SHALL NOT BE PART OF L1A PROCESS
-
-tit = '355 nm NRB'
-xlimits = [0,ONA_save.shape[0]]
-ylimits = [810,0]#[900,500]
-samp_chan = NRB[0,:,:]# + NRB[3,:,:]
-curtain_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 5e8, hori_cap, pointing_dir,
-                      figW, figL, CPpad, 'records', 'alt (m)', tit, 'alt', ylimits, 'recs', 
-                      xlimits, scale_alt_OofM, 1, out_dir)
-pdb.set_trace()
-
-make_custom_plot(samp_chan.transpose(), nb_ff, vrZ_ff, ffrme, 0, 1e8, hori_cap, pointing_dir,
-                      figW, figL, CPpad, 'records', 'altitude(m)', tit, 'alt',  
-                      [ylimits[0],ylimits[1]], 'recs', [xlimits[0],xlimits[1]], scale_alt_OofM, 1, out_dir, str(f).strip()+'.png',
-                      np.arange(xlimits[0],xlimits[1]),Nav_save['pitch'][xlimits[0]:xlimits[1]],
-                      np.arange(xlimits[0],xlimits[1]),ONA_save[xlimits[0]:xlimits[1]]*(180.0/np.pi),
-                      np.arange(xlimits[0],xlimits[1]),Nav_save['roll'][xlimits[0]:xlimits[1]])
 pdb.set_trace()

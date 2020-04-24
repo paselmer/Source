@@ -29,3 +29,36 @@ Overlaps key,,,,,,,,,,,,,,,
 A,olaptable_cpl-D082019_T205400-end_firex_method2_v2.xdr,,,,,,,,,,,,,,
 B,olaptable_cpl-D082019_Tbeg-210700_firex_method2_v2.xdr,,,,,,,,,,,,,,
 C,olaptable_cpl-firex-part2.xdr,,,,,,,,,,,,,,
+
+----------------->      DESCRIPTION OF ABOVE FORMAT STARTS HERE <---------------------
+
+First off, this file is intended to be created on a per-project basis. The file describes the overlaps to use for each segment of each flight
+in a given project.
+
+Top row always starts with "Record span /1000." This row lists the kilo-profile segments where different overlaps can be applied. The maximum
+number of profiles for any of the given flights of a project is written out here. No flight can exceed the max.
+
+Rows 2 through X.
+X = 13 in this example.
+The first item in these rows is the flight date in DDmmmYY form. The rest of the column items are the keys for the overlap tables listed at the
+bottom of the file. Each key item has '/' characters separating the keys for each of the wavelengths. The form is `1064/355/532.`
+No, that wasn't a typo. The form is really `1064/355/532.` Don't believe me? See the load_overlap_configuration function in the L1A code. Look
+near the bottom of the function. The reason this form got started is related to shell script I created to analyze many overlaps for FIREX.
+The keys correspond to the profiles in the top row.
+
+The "XXX" row.
+The literal string "XXX" needs to be here. This is for the reader code. Don't edit this row with divides things.
+
+The row after the "XXX" row. Keep. Don't edit. First items is "Times for overlaps."
+
+Rows Y through Z.
+Y = 16 and Z = 27 in this example.
+These identify the times spans over which to apply the corresponding overlaps. Times formatted according to Python Datetime library's
+"%Y-%m-%dT%H:%M:%S" specifier. Start and end times separated by '/'
+
+"Overlaps key" row. Don't edit.
+
+Rows R through S.
+R = 29 and S = 31 in this example.
+First item in each of these rows is a letter of the alphabet, the second item is the pathless name of an overlap table file.
+You can list as many overlap tables as there are letters in the alphabet.
