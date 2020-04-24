@@ -239,6 +239,13 @@
 # the min_avg_prof enforcement block.
 #
 # [10/18/19] adjustments for initializations-free read_routines
+#
+# [4/22/20] ***** Version 2 started, cpl_l1a_v2 *****
+# This version was started to incorporate attitude correction parameters
+# from Andrew. The option to incorporate multiple overlaps, started in
+# code cpl_l1a_v1a.py, was also included in this new version.
+# The initializations file has been updated to include attitude correction
+# parameters, and parameters in file have been regrouped.
 
 
 # Import libraries <----------------------------------------------------
@@ -378,6 +385,7 @@ def create_cls_interp_unixt_array(single_cls_file,cls_meta_data_all,
             cls_data_1file = cls_data_1file[firstlast_trunc[0]:]
         if firstlast_flag == 1:
             cls_data_1file = cls_data_1file[:nr0-firstlast_trunc[1]]
+        good_data_len = Navi[1] - Navi[0]
         cls_data_1file['meta']['Nav'] = cls_meta_data_all['Nav'][Navi[0]:Navi[1]]
         cls_nav_data_1file = cls_data_1file['meta']['Nav']
         del_t = np.zeros(cls_nav_data_1file.shape[0],dtype=DT.datetime)
@@ -415,9 +423,127 @@ def create_cls_interp_unixt_array(single_cls_file,cls_meta_data_all,
     return [interp_UnixT,CLS_UnixT_float64_orig,cls_data_1file]
 	
 
+# Dictionary of letters and integers
+AlphaNum = {}
+for i in range(65,91): AlphaNum[chr(i)] = i-65 
+	
+def load_all_possible_overlaps(overlap_dict,nb,nc):
+    """ Function that will load all possible overlap tables into an array
+        of [nOLs, nchans, nbins]. That array is returned.
+    """
+    
+    # INPUTS:
+    # overlap_dict -> From load_overlap_configuration(). Contains the 
+    #    names of all overlap tables.
+    # nb -> Number of bins (833 for CPL)
+    # nc -> Number of channels (4 for CPL)
+    
+    # OUTPUT:
+    # all_overlaps -> array containing the OL data from all OL table files
+    #    [nOLs, nc, nb]
+    
+    nOLs = len(overlap_dict)
+    all_overlaps = np.zeros((nOLs,nc,nb),dtype=np.float32)
+    
+    for i in range(0,nOLs):
+        # Load the overlap table
+        overlap_file = overlap_dict[i]
+        overlap_vector = read_in_overlap_table(olap_dir+overlap_file)
+        # Overlap is one long array, where first nbins (833) are
+        # 355, next nbins are 532, and next (final) nbins are 1064.
+        overlaps = overlap_vector.reshape((nwl,nb))
+        # Make the overlap_vector into an array where the 1st dim. lines up sequentially
+        # with the channels
+        overlaps_chan_seq = np.ones((nc,nbins),dtype=overlaps.dtype)
+        for chan in range(0,nc):
+            overlaps_chan_seq[chan,:] = overlaps[wl_map[chan],:]
+        all_overlaps[i,:,:] = overlaps_chan_seq
+        
+    return all_overlaps
+    
+def load_overlap_configuration(overlaps_config_file):
+    """ Function that will look at special (not L1A initializations)
+        user-defined config file to determine which overlap tables go
+        to which segments (defined by time) of the data.
+    """
+    
+    # INPUT:
+    # overlaps_config_file -> specially formatted file that identifies the
+    #    overlap tables and the time spans to which to apply them.
+    
+    # OUTPUTS:
+    # overlap_dict -> dictionary that uses integer codes as keys to
+    #    identify the string names of overlap table files.
+    # overlap_map -> list [[], []] that maps time spans to the OL table
+    #    to use, by wavelength.
+    #    [ [datetime1, datetime2], [355,532,1064] ]
+    
+    
+    with open(overlaps_config_file) as f_obj:
+        line = f_obj.readline()
+        Lc = 0 # line counter
+        Cc = 0 # codes element counter
+        Tc = 0 # times element counter
+        OL_codes = []
+        OL_times = []
+        XXXflag = False
+        flt_indx = None
+        while line:
+            split_line = line.split(',')
+            if split_line[0].strip() == 'XXX': XXXflag = True
+            if (Lc > 0) & (not XXXflag):
+                OL_codes.append(split_line)
+                if flt_date in OL_codes[Cc]: flt_indx = Cc
+                Cc += 1
+            elif (split_line[0] == 'Times for overlaps') | (Lc == 0) | (split_line[0].strip() == 'XXX'):
+                pass # Skip this line
+            elif (Lc > 1) & (len(OL_codes) > 0):
+                OL_times.append(split_line)
+                Tc += 1
+            else:
+                print('Overlaps configuration not formatted as expected...')
+                pdb.set_trace()
+            line = f_obj.readline()
+            Lc += 1
+        
+        # Figure out the number of overlap tables the user has programmed.
+        list_len = len(OL_times)
+        Ic = 1 # list Item counter
+        for item in OL_times:
+            if item[0] == 'Overlaps key':
+                nOL = list_len - Ic
+            Ic += 1
+        OL_keys = OL_times[-1*nOL:]  # Last 
+        OL_times = OL_times[:-1*nOL-1]
+        print('{0:d} overlap tables detected.'.format(nOL))
+        
+        overlap_dict = {}
+        for item in OL_keys: overlap_dict[AlphaNum[item[0].strip()]] = item[1].strip()
+        
+        OL_codes = OL_codes[flt_indx]
+        OL_times = OL_times[flt_indx]
+        
+        Ic = 0 # list Item counter
+        overlap_map = []
+        for codes, times in zip(OL_codes,OL_times):
+            if (codes == '') | (codes == '\n'): break
+            if (Ic > 0):
+                split_codes = codes.split('/')
+                split_times = times.split('/')
+                overlap_map.append( [
+                      [ DT.datetime.strptime(split_times[0],"%Y-%m-%dT%H:%M:%S"), DT.datetime.strptime(split_times[1],"%Y-%m-%dT%H:%M:%S") ], 
+                      [ AlphaNum[split_codes[1]], AlphaNum[split_codes[2]], AlphaNum[split_codes[0]] ] 
+                    ] )
+            Ic += 1
+    
+    return overlap_dict, overlap_map
+
     
 # Start main execution here <-------------------------------------------
 print('Starting main L1A execution at: ',DT.datetime.now())
+
+# File detailing how to map OLs to different portions of the flight
+overlaps_config_file = 'overlaps_configuration.csv'
 
 # Create and load file list for CLS data
 CLS_file_list = 'processing_file_list.txt'
@@ -788,6 +914,7 @@ usable_file_indicies = range(usable_file_range[0],usable_file_range[1])
 trans_bin = [0,0]
 trans_total = 0
 last_file = False 
+OL_map_indx = 0 # count thru overlap map as required
 for f in range(0,nCLS_files):
 
     if f not in usable_file_indicies:
@@ -887,9 +1014,9 @@ for f in range(0,nCLS_files):
         vrT = 1e-7 #CLS_data_1file['meta']['binwid'][0]
         # Range vector, broadcast to nc x nb for vectorized operations later
         bins_range=np.broadcast_to(np.arange(0,nb*vrZ,vrZ,dtype=np.float32),(nc,nb))
-        Y = 0.0 * (pi/180.0)                                  # Initialize YPR
-        P = 0.0 * (pi/180.0)
-        R = 0.0 * (pi/180.0)
+        Y = 0.0 * (np.pi/180.0)                                  # Initialize YPR
+        P = 0.0 * (np.pi/180.0)
+        R = 0.0 * (np.pi/180.0)
         i = 0 # counts total records of entire dataset (flight)
         g = 0
         # Create array to help compute heading if using GPS data...
@@ -904,16 +1031,24 @@ for f in range(0,nCLS_files):
         nb_ff = ffrme.shape[0] # number of bins in the fixed frame
         # Create histogram bin boundaries.
         time_bins = np.arange(CLS_UnixT_float64_orig[0],CLS_UnixT_float64_orig[-1]+3.0*secs2avg,secs2avg)
-        # Load the overlap table
-        overlap_vector = read_in_overlap_table(olap_dir+overlap_file)
-        # Overlap is one long array, where first nbins (833) are
-        # 355, next nbins are 532, and next (final) nbins are 1064.
-        overlaps = overlap_vector.reshape((nwl,nb))
         # Make the overlap_vector into an array where the 1st dim. lines up sequentially
         # with the channels
-        overlaps_chan_seq = np.ones((nc,nb),dtype=overlaps.dtype)
-        for chan in range(0,nc):
-            overlaps_chan_seq[chan,:] = overlaps[wl_map[chan],:]
+        overlaps_chan_seq = np.ones((nc,nb),dtype=np.float32)
+        # Code has option of whether to process using single or multiple overlaps  
+        if multi_OLs:
+            # Load all possible overlap tables into array [nOLs, nchans, nbins]
+            # First user-defined defined configuration for this flight
+            overlap_dict, overlap_map = load_overlap_configuration(overlaps_config_file) 
+            # Now load all the OL tables into an array
+            all_overlaps = load_all_possible_overlaps(overlap_dict,nb,nc)        
+        else: # intializations say only using 1 overlap table
+            # Load the overlap table
+            overlap_vector = read_in_overlap_table(olap_dir+overlap_file)
+            # Overlap is one long array, where first nbins (833) are
+            # 355, next nbins are 532, and next (final) nbins are 1064.
+            overlaps = overlap_vector.reshape((nwl,nb))
+            for chan in range(0,nc):
+                overlaps_chan_seq[chan,:] = overlaps[wl_map[chan],:]
         # Open the hdf5 file and create the datasets
         hdf5_fname = L1_dir+'NRB_'+proj_name+'_'+flt_date+'_'+Nav_source+'.hdf5'
         hdf5_file = h5py.File(hdf5_fname, 'a')
@@ -1016,9 +1151,10 @@ for f in range(0,nCLS_files):
             Nav_save[i1f]['GPS_alt'] = Nav_match['alt']
             time_str = gps_UTC_interp[interp2orig_indicies[i1f]].strftime("%Y-%m-%dT%H:%M:%S.%f")           
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC_Time'] # Nav_match fields dependant on dataset
             Y = 0.0# Nav_match['yaw'] * (pi/180.0) Woah! This isn't what I think yaw should be [3/22/18]
-            P = Nav_match['pitch'] * (pi/180.0)
-            R = Nav_match['roll'] * (pi/180.0) 
+            P = Nav_match['pitch'] * (np.pi/180.0)
+            R = Nav_match['roll'] * (np.pi/180.0) 
             # Write 'lat,lon,UTC' out to file
             GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['lon'],Nav_match['lat'],time_str[:19])
             GEOS_fobj.write(GEOS_out_str)            
@@ -1041,11 +1177,12 @@ for f in range(0,nCLS_files):
             Nav_save[i1f]['lat'] = Nav_match['lat']
             time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC_Time'] # Nav_match fields dependant on dataset
             # NOTE on next line: Invalids are -999.9, so max should choose valid if exists
             Nav_save[i1f]['GPS_alt'] = max(Nav_match['GPS_alt_msl'],Nav_match['GPS_alt'])
-            Y = Nav_match['drift'] * (pi/180.0) 
-            P = Nav_match['pitch'] * (pi/180.0)
-            R = Nav_match['roll'] * (pi/180.0)  
+            Y = Nav_match['drift'] * (np.pi/180.0) 
+            P = Nav_match['pitch'] * (np.pi/180.0)
+            R = Nav_match['roll'] * (np.pi/180.0)  
             # Write 'lat,lon,UTC' out to file
             GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['lon'],Nav_match['lat'],time_str[:19])
             GEOS_fobj.write(GEOS_out_str)	    
@@ -1066,10 +1203,11 @@ for f in range(0,nCLS_files):
             # byte array for IDL.
             time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")    
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC_Time'] # Nav_match fields dependant on dataset
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt']
-            Y = 0.0 #Nav_match['drift'] * (pi/180.0) 
-            P = Nav_match['pitch'] * (pi/180.0)
-            R = Nav_match['roll'] * (pi/180.0)
+            Y = 0.0 #Nav_match['drift'] * (np.pi/180.0) 
+            P = Nav_match['pitch'] * (np.pi/180.0)
+            R = Nav_match['roll'] * (np.pi/180.0)
             # Write 'lat,lon,UTC' out to file
             GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['lon'],Nav_match['lat'],time_str[:19])
             GEOS_fobj.write(GEOS_out_str)
@@ -1079,9 +1217,13 @@ for f in range(0,nCLS_files):
             # Find matching Nav data point. Use index map to match.
             # NOTE: Nav_save is an IWG1-style structure (see immutable_dat_structs.py)
             Nav_match = cls_nav_data_all[interp2orig_indicies[i1f]]
-            Nav_save[i1f]['roll'] = Nav_match['RollAngle']
-            Nav_save[i1f]['pitch'] = Nav_match['PitchAngle']
-            #Nav_save[i1f]['drift'] = Nav_match['drift']
+            Nav_save[i1f]['roll'] = (Nav_match['RollAngle'] + cpl_roll_offset)
+            Nav_save[i1f]['pitch'] = ((Nav_match['PitchAngle'] + cpl_pitch_offset) + ((Nav_match['RollAngle'] + cpl_roll_offset) * cpl_pitch_roll_factor))
+            Nav_save[i1f]['drift'] = (Nav_match['TrackAngleTrue'] - Nav_match['TrueHeading'])
+            # Need to make sure drift is in the correct units after Track/Heading Difference Calculated
+            if Nav_save[i1f]['drift'] > 180.0 :
+                Nav_save[i1f]['drift'] = (Nav_save[i1f]['drift'] - 360.0)
+            
             Nav_save[i1f]['heading'] = Nav_match['TrueHeading']
             Nav_save[i1f]['lon'] = Nav_match['GPS_Longitude']
             Nav_save[i1f]['lat'] = Nav_match['GPS_Latitude']
@@ -1090,10 +1232,11 @@ for f in range(0,nCLS_files):
             # byte array for IDL.
             time_str = Nav_match['UTC_Time'].strftime("%Y-%m-%dT%H:%M:%S.%f")
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
+            current_Nav_UTC = Nav_match['UTC_Time'] # Nav_match fields dependant on dataset
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_Altitude']
-            Y = 0.0 #Nav_match['drift'] * (pi/180.0) 
-            P = Nav_match['PitchAngle'] * (pi/180.0)
-            R = Nav_match['RollAngle'] * (pi/180.0)                        
+            Y = Nav_save[i1f]['drift'] * (np.pi/180.0) 											     #Yaw now incorporated!! 3/30/2020
+            P = ((Nav_match['PitchAngle'] + cpl_pitch_offset) + ((Nav_match['RollAngle'] + cpl_roll_offset) * cpl_pitch_roll_factor))  * (np.pi/180.0)  #Offsets added 3/30/2020
+            R = (Nav_match['RollAngle'] + cpl_roll_offset) * (np.pi/180.0)
             # Write 'lat,lon,UTC' out to file
             GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['GPS_Longitude'],Nav_match['GPS_Latitude'],time_str[:19])
             GEOS_fobj.write(GEOS_out_str)
@@ -1182,7 +1325,7 @@ for f in range(0,nCLS_files):
             print(attention_bar)
             print("!!!!!!! WARNING !!!!!!!")
             print("No data within defined background region! Using background of zero.")
-            print(Nav_save[i1f]['UTC'],' ONA: ',ONA*(180.0/pi))
+            print(Nav_save[i1f]['UTC'],' ONA: ',ONA*(180.0/np.pi))
             print("!!!!!!! WARNING !!!!!!!")
             print(attention_bar)
             bg = np.zeros((nc,nb))
@@ -1193,12 +1336,28 @@ for f in range(0,nCLS_files):
         # Apply overlap correction here. I would have applied it at the same time as the
         # deadtime, except CPL's overlaps can be funky in far ranges, which interferes with
         # background sub.
+        if multi_OLs: # Only if using multiple overlap tables
+            if (current_Nav_UTC > overlap_map[OL_map_indx][0][1]) & (OL_map_indx < len(overlap_map)-1):
+                print('UTC = '+current_Nav_UTC.strftime("%Y-%m-%dT%H:%M:%S")+'. Now using the following overlap tables...')
+                print('355 nm: '+overlap_dict[overlap_map[OL_map_indx][1][0]])
+                print('532 nm: '+overlap_dict[overlap_map[OL_map_indx][1][1]])
+                print('1064 nm: '+overlap_dict[overlap_map[OL_map_indx][1][2]]+'\n')
+                OL_map_indx += 1
+                # Just do the channels w/o a loop for now [11/20/19]
+                overlaps_chan_seq[0,:] = all_overlaps[overlap_map[OL_map_indx][1][0],0,:]
+                overlaps_chan_seq[1,:] = all_overlaps[overlap_map[OL_map_indx][1][1],1,:]
+                overlaps_chan_seq[2,:] = all_overlaps[overlap_map[OL_map_indx][1][2],2,:]
+                overlaps_chan_seq[3,:] = all_overlaps[overlap_map[OL_map_indx][1][2],3,:]
+            else:
+                overlaps_chan_seq[0,:] = all_overlaps[overlap_map[OL_map_indx][1][0],0,:]
+                overlaps_chan_seq[1,:] = all_overlaps[overlap_map[OL_map_indx][1][1],1,:]
+                overlaps_chan_seq[2,:] = all_overlaps[overlap_map[OL_map_indx][1][2],2,:]
+                overlaps_chan_seq[3,:] = all_overlaps[overlap_map[OL_map_indx][1][2],3,:]
         range_cor_af_counts_float32 = range_cor_af_counts_float32 / overlaps_chan_seq
     
         # Put the bins in the fixed altitude frame
-        #counts_ff[:,i1f,:] = put_bins_onto_fixed_frame_C(np_clib,ffrme,
-        #    bin_alts,range_cor_af_counts_float32,nc) 
-        counts_ff[:,i1f,:] = put_bins_onto_fixed_frame(ffrme,bin_alts,range_cor_af_counts_float32)
+        # Updated to use split_bins_onto_fixed_frame, as of v2 [4/22/20]
+        counts_ff[:,i1f,:] = split_bins_onto_fixed_frame(ffrme,bin_alts,range_cor_af_counts_float32)
     
         i = i + 1    # increment record counter by 1
         i1f = i1f + 1  # increment record counter for current file by 1
