@@ -246,6 +246,25 @@
 # code cpl_l1a_v1a.py, was also included in this new version.
 # The initializations file has been updated to include attitude correction
 # parameters, and parameters in file have been regrouped.
+#
+# [4/30/20] Issue with setting 'ix' using computed data rate. Improved.
+# During processing of PELIcoe_19 21Oct19 data, Andrew Kupchock noticed
+# that nudge improved the Nav sync for one part of the flight, which making
+# it worse for another portion of the flight.
+# After some discussion we think it was the result of creating the interpolated
+# Nav oordinate array, "ix," with the improper data rate. I was comparing
+# a computed data rate with the initialized one, and using the computed
+# one if it was different from the computed one by an arbitrary tolerance.
+# With a tolerance (CLS_hz_tol in initializations) set to 0.05 Hz, the
+# aforementioned PELIcoe flight's computed data rate of 0.03833 Hz slipped
+# through. A difference of 0.03833 Hz will result in a 690 record difference
+# if it's really off from the true data rate by that much! This can explain
+# the symptom Andrew Kupchock first noticed.
+# The following changes were made for now...
+# - tot_elapsed seconds now computed using Nav time instead of the CLS clock time.
+# - Data rate in initializations file is now always used to create oordinates
+#   of interpolated Nav array. User is now only warned if computed data
+#   rate differs too much from input data rate.
 
 
 # Import libraries <----------------------------------------------------
@@ -783,12 +802,7 @@ elif Nav_source == 'cls':
         Nav_unique[i] = cls_nav_data_all[ui[i]] 
 
     # Compute # of elapsed seconds since first record (float)    
-    u, ui, ncounts = np.unique(cls_meta_data_all['Header']['ExactTime'],return_index=True,return_counts=True)
-    if u[0] == bad_cls_nav_time_value:
-        u = u[1:]
-        ui = ui[1:]
-        ncounts = ncounts[1:]
-    tot_elapsed = (u.max() - u.min()).total_seconds()
+    tot_elapsed = Nav_UnixT[-1] - Nav_UnixT[0]
     if tot_elapsed > (max_flt_hours*3600.0):
         tot_hours = tot_elapsed / 3600.0
         print(attention_bar)
@@ -800,25 +814,35 @@ elif Nav_source == 'cls':
         pdb.set_trace() 
 
     # Look at the time deltas between unique, you'll use this in a little bit
+    u, ui, ncounts = np.unique(cls_meta_data_all['Header']['ExactTime'],return_index=True,return_counts=True)
+    if u[0] == bad_cls_nav_time_value:
+        u = u[1:]
+        ui = ui[1:]
+        ncounts = ncounts[1:]    
     ExactTime_ncounts = np.copy(ncounts)
     ExactTime_ui = np.copy(ui)
     inst_clk_deltas = delta_datetime_vector(u)
 
-    # Estimate the data rate from the instr. clock
+    # Estimate the data rate from the Nav time and length of data array.
+    # Warn user if computed data doesn't match initialized data rate.
     computed_CLS_hz = cls_meta_data_all.shape[0] / tot_elapsed
     if abs(computed_CLS_hz - CLS_hz) > CLS_hz_tol:
         print(attention_bar)
         print("!!!!!!! WARNING !!!!!!!")
         print("The estimated (init. file) and computed data rates differ by too much.")
         print("estimated: ",CLS_hz," computed: ",computed_CLS_hz)
+        print("Make sure CLS_hz from initializations is correct")
         print("!!!!!!! WARNING !!!!!!!")
+        print('Enter "c" to contine processing anyway.')
+        print('Enter "q" to safely quit.')
+        print('If you continue, data rate from initializations will be used.')
         print(attention_bar)
-        #pdb.set_trace()
+        pdb.set_trace()
     else:
         print('Init. file CLS data rate is sufficiently close to computed data rate.')
         print('CLS_hz: ',CLS_hz, ' computed_CLS_hz: ',computed_CLS_hz)
-        CLS_hz = computed_CLS_hz
-        m = 1.0 / CLS_hz
+        print('To be clear, code will use CLS data rate from initializations (CLS_hz)\n')
+    m = 1.0 / CLS_hz
 
     # Create x-ord array of Unix Times at which to compute interpolated values
     ix = np.arange(Nav_UnixT[0],Nav_UnixT[0]+tot_elapsed+1,m) # x coordinates of the interpolated values
@@ -846,6 +870,11 @@ elif Nav_source == 'cls':
     offset_indx=np.abs((ix - ix[0]) - interp_start_time_offset).argmin()
     if inst_clk_deltas.max() > inst_clk_rez:
         
+        print('If you are seeing this message, tell Patrick Selmer to')
+        print('investigate why this block of code is necessary.')
+        # Maybe this relates to how NEW is populated in the C code.
+        # Wish I would have take better notes about this block.
+        pdb.set_trace()
         print(attention_bar+"Time gaps in instrument clock detected. Handling it!"+attention_bar)
         UTC_ovrwrt = np.copy(nav_interp['UTC_Time'][offset_indx:])
         no_delta = True
