@@ -254,12 +254,12 @@
 # After some discussion we think it was the result of creating the interpolated
 # Nav oordinate array, "ix," with the improper data rate. I was comparing
 # a computed data rate with the initialized one, and using the computed
-# one if it was different from the computed one by an arbitrary tolerance.
+# one if it was different from the initialized one by an arbitrary tolerance.
 # With a tolerance (CLS_hz_tol in initializations) set to 0.05 Hz, the
 # aforementioned PELIcoe flight's computed data rate of 0.03833 Hz slipped
 # through. A difference of 0.03833 Hz will result in a 690 record difference
-# if it's really off from the true data rate by that much! This can explain
-# the symptom Andrew Kupchock first noticed.
+# if it's really off from the true data rate by that much, assuming a 5 hr
+# flight! This can explain the symptom Andrew Kupchock first noticed.
 # The following changes were made for now...
 # - tot_elapsed seconds now computed using Nav time instead of the CLS clock time.
 # - Data rate in initializations file is now always used to create oordinates
