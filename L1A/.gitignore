@@ -1,4 +1,9 @@
-__pycache__
+__pycache__/
+batch_code/
+engineering/
+scratch_codes/
+archived_initializations/
+archived_initializations_windows/
 dem_lid_dif_dist_20171206.png
 initializations.py
 *list*.txt
