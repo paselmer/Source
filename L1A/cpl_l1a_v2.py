@@ -265,6 +265,11 @@
 # - Data rate in initializations file is now always used to create oordinates
 #   of interpolated Nav array. User is now only warned if computed data
 #   rate differs too much from input data rate.
+#
+# [6/24/20] version 2 retired
+# Added a lot of comments to block of code that removes the interpolate
+# data from the times spanning the data gaps, if data gaps exist.
+# No actual code changes. Version 2 is retired. Version 3's reign begins!
 
 
 # Import libraries <----------------------------------------------------
@@ -865,16 +870,27 @@ elif Nav_source == 'cls':
     for k in range(0,n_interp):
         nav_interp['UTC_Time'][k] = ( cls_nav_data_all['UTC_Time'][0] + DT.timedelta(seconds=(m*k)) )
  
-    # Prepare nav_interp 'UTC_Time' array, where time gaps have been
-    # masked out, then overwrite original Nav time.
+    # The purpose of the code in this next paragraph is create the proper mapping
+    # of the CLS data to the interpolated Nav data, which comes from the CLS data
+    # itself when Nav_source=='cls', and there are gaps in the data.
+    # The UTC from the interpolated Nav data is pulled into a new array, UTC_ovrwrt.
+    # At this point, cls_meta_data_all has exactly the # of total valid (non-watchdog)
+    # records in the entire flight. But before this paragraph was written, it only did the
+    # thing in the else block - and this allows the CLS records to map to the Nav data inside
+    # itself. cls_meta_data_all is thrown into the create_cls_interp_unixt_array function
+    # in order allow the code to match the CLS data to itself (ie the interpolated Nav data). The
+    # ORIG and INTERP Unix Times that go into the C mapping function come from cls_meta_data_all['Nav']
+    # implanted into the record-space of a single CLS file via the map variable, "Navi."
+    # If there are data gaps, the interpolated data (pre-version 3) is interpolated across the gaps,
+    # resulting in a much longer (many more profiles) array than cls_meta_data_all. This means
+    # that interpolated Nav data now residing in cls_meta_data_all will map incorrectly, the error
+    # increasing after each data gap. These are large errors. By deleting the interpolated
+    # gap-spanning data, cls_meta_data_all will implant each CLS file with correctly
+    # mapped interpolated navigation (to match to itself). Simple, right?
+    # Test this code out on SEAC4RS data.
     offset_indx=np.abs((ix - ix[0]) - interp_start_time_offset).argmin()
     if inst_clk_deltas.max() > inst_clk_rez:
         
-        print('If you are seeing this message, tell Patrick Selmer to')
-        print('investigate why this block of code is necessary.')
-        # Maybe this relates to how NEW is populated in the C code.
-        # Wish I would have take better notes about this block.
-        pdb.set_trace()
         print(attention_bar+"Time gaps in instrument clock detected. Handling it!"+attention_bar)
         UTC_ovrwrt = np.copy(nav_interp['UTC_Time'][offset_indx:])
         no_delta = True
@@ -913,7 +929,6 @@ elif Nav_source == 'cls':
     #plt.plot_date(cls_meta_data_all['Nav']['UTC_Time'],cls_meta_data_all['Nav']['RollAngle'],marker='x')
     #plt.plot_date(nav_interp['UTC_Time'],nav_interp['RollAngle'],marker='o')
     #plt.show()
-    #pdb.set_trace() 
     
     # NOW, set the array that will be used in processing, cls_nav_data_all equal
     # to the interpolated array that was just created, nav_interp.
@@ -1032,7 +1047,7 @@ for f in range(0,nCLS_files):
         interp_UnixT.ctypes.strides, interp_UnixT.ctypes.shape,
         Nav_interp_T_float64.ctypes.strides, Nav_interp_T_float64.ctypes.shape,  
         interp2orig_indicies.ctypes.strides, interp2orig_indicies.ctypes.shape) 
-    # ---> END process of calling a C function <---                     
+    # ---> END process of calling a C function <---            
 
     # Save/create a few key data parameters...
     if first_read:

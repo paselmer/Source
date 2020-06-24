@@ -13,17 +13,17 @@ import matplotlib.dates as mdates
 
 # Set limits to define subset of whole dataset
 
-z0 = 18000.0  # meters
-z1 = 40000.0
+z0 = 19000.0  # meters
+z1 = 48000.0
 t0 = DT.datetime(2018,10,20,16,17,0) # times
-t1 = DT.datetime(2020,10,23,16,56,19)
+t1 = DT.datetime(2020,10,25,16,56,19)
 wl_choice = 0 # 0=355, 1=1064
-NRB_scale = 1e8
+NRB_scale = 6e9
 pdir = 'Up' # 'Up' or 'Down'
 
 # Load background-substracted counts file (NRB-style format)
 
-h5_file = L1_dir+'Roscoe_NRB_PELIcoe_19_20191021_nav_OLOnes_Up.hdf5'
+h5_file = L1_dir+'Roscoe_NRB_PELIcoe_19_20191023_nav_Up.hdf5'
 h5f = h5py.File(h5_file, 'r')
 # Keys to data...
 #['DEM_laserspot', 'DEM_laserspot_surftype', 'DEM_nadir', 'DEM_nadir_surftype', 
@@ -51,7 +51,6 @@ for i in range(0,nr):
         t[i] = bad_cls_nav_time_value
 
 # Subset the data
-
 indicies = np.arange(0,nr)
 testt0 = t >= t0
 testt1 = t <= t1
@@ -95,15 +94,19 @@ xsize = 25
 ysize = 13
 im_file_name = 'NRB.png'
 
+pdb.set_trace()
 cmea = c.mean(axis=0)
 plt.plot(cmea,z)
-plt.title('355 nm NRB, mean of whole flight, 21 Oct 19')
+plt.title('355 nm NRB, mean of whole flight, 23 Oct 19')
 plt.xlabel('NRB')
 plt.ylabel('altitude (m)')
 plt.show()
-pdb.set_trace()
 
-curtain_plot(c.transpose(), nb, 30.0/1e3, z/1e3, 0, NRB_scale, hori_cap, pdir,
+if pdir == 'Down':
+    c = c.transpose()
+else:
+    c = np.flipud(c.transpose())
+curtain_plot(c, nb, 30.0/1e3, z/1e3, 0, NRB_scale, hori_cap, pdir,
   xsize, ysize, CPpad, xtit, ytit, tit,  yax_type,[ylimits[0],ylimits[1]], xax_type,
   [xlimits[0],xlimits[1]], 1, 1, out_dir)
 pdb.set_trace()

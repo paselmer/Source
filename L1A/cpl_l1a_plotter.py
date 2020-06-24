@@ -13,16 +13,16 @@ import matplotlib.dates as mdates
 
 # Set limits to define subset of whole dataset
 
-z0 = -500.0  # meters
-z1 = 20000.0
-t0 = DT.datetime(2010,9,18,22,40,0) # times
-t1 = DT.datetime(2019,9,19,4,0,0)
-wl_choice = 2 # 0=355, 1=532, 2=1064
-NRB_scale = 1e8
+z0 = -1000.0  # meters
+z1 = 1000.0
+t0 = DT.datetime(2013,8,8,22,10,0) # times
+t1 = DT.datetime(2014,8,8,22,10,0)
+wl_choice = 1 # 0=355, 1=532, 2=1064
+NRB_scale = 3.5e8
 
 # Load background-substracted counts file (NRB-style format)
 
-h5_file = L1_dir+'NRB_PODEX_28jan13_iwg1.hdf5'
+h5_file = L1_dir+'NRB_SEAC4RS_08aug13_cls_L1A_v3.hdf5'#'NRB_PELIcoe_19_22oct19_iwg1.hdf5'
 h5f = h5py.File(h5_file, 'r')
 # Keys to data...
 #['DEM_laserspot', 'DEM_laserspot_surftype', 'DEM_nadir', 'DEM_nadir_surftype', 
@@ -36,6 +36,10 @@ nb = np.array(h5f['num_ff_bins'])
 nb = nb[0]
 c = np.array(h5f['nrb'])
 nav = np.array(h5f['nav'],dtype=nav_save_struct)
+dem = np.array(h5f['DEM_laserspot'])
+ona = np.array(h5f['ONA'])
+bg = np.array(h5f['bg'])
+ls = np.array(h5f['laserspot'])
 
 # Initialize some new variables
 t = np.zeros(nr,dtype=DT.datetime)
@@ -46,7 +50,7 @@ for i in range(0,nr):
     try:
         t[i] = DT.datetime.strptime(str_time,"%Y-%m-%dT%H:%M:%S.%f")
     except:
-        t[i] = bad_cls_nav_time_value
+        t[i] = bad_cls_nav_time_value       
 
 # Subset the data
 
@@ -85,8 +89,8 @@ xtit = 'UTC'
 xax_type = 'time' # time or recs
 ytit = 'altitude (km)'
 yax_type = 'alt'  # alt or bins
-xsize = 25
-ysize = 13
+xsize = 17
+ysize = 14
 im_file_name = 'NRB.png'
 
 curtain_plot(c.transpose(), nb, 30.0/1e3, z/1e3, 0, NRB_scale, hori_cap, pointing_dir,
