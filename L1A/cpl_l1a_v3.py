@@ -928,7 +928,7 @@ elif Nav_source == 'cls':
 
     # Added section below so that we can correctly determine the end of time in the data
     if ncounts[-1] < CLS_hz:     # Now calculated using the ncounts from NAV DATA
-        interp_end_time_offset = (ncounts[-1])/CLS_hz
+        interp_end_time_offset = (ncounts[-1] - 1)/CLS_hz
     '''
     This block of code finds the correct average frequency of the instrument for the flight based on the records 
     that were generated if there are no data gaps (and even if there are, provided there is enough time for a measurement)
@@ -940,14 +940,14 @@ elif Nav_source == 'cls':
         ratio = 2
         # Calculate mean frequency within tolerance by while loop
         while abs(ratio-1) > freq_tol:             # Limitation set to 1e-10 - could be lower for more rigidity
-            total_time = (Nav_UnixT[-1]-Nav_UnixT[0]) + (ncounts[-1] - (rough_expected_recs_sec - ncounts[0]))*m
+            total_time = (Nav_UnixT[-1]-Nav_UnixT[0]) + ((ncounts[-1] - 1) - (rough_expected_recs_sec - ncounts[0]))*m
             new_m = total_time/np.sum(ncounts)
             ratio = new_m/m
             m = new_m
             print('M equals: ', m)
             # Update time offsets for future use
             interp_start_time_offset = (rough_expected_recs_sec - ncounts[0]) * m
-            interp_end_time_offset = (ncounts[-1]) * m
+            interp_end_time_offset = (ncounts[-1] - 1) * m
         # ************************************************************** #
         if make_frequency_array:
             # Making array of time deltas based on local average data collection frequency
@@ -1007,38 +1007,78 @@ elif Nav_source == 'cls':
             Inst_Time[i] = (cls_meta_data_all['Header']['ExactTime'][ui_inst[i]] - UnixT_epoch).total_seconds()
         # Use instrument clock to find separations - index in separation is before time jump
         inst_jumps = np.where(np.diff(Inst_Time) > instrument_clk_threshold)
+        inst_jumps = inst_jumps[0]
+        separations = ui_inst[inst_jumps]
+        # steps is the number of records until the instrument time changes drastically
+        # Location of clock deltas should be placed at record numbers (separations + steps_to_the_edge + 1)
+        steps_to_the_edge = ncounts_inst[inst_jumps]-1
         # Transfer into Navigation Clock Time frame
-        separations = ui_inst[inst_jumps[0]]
-        sep_offset = 0
-        if len(separations) > 1:
-            mask = np.ones(len(separations), dtype=bool)
-            for n in np.arange(0, len(separations)-1):
-                if (separations[n+1] - separations[n]) < 2:
-                    sep_offset = max(sep_offset, (separations[n+1] - separations[n]))
-                    mask[n + 1] = False
-            # Removes jumps that immediately follow other jumps in the data
-            separations = separations[mask]
+        before_jump_times = cls_nav_data_all['UTC_Time'][separations + steps_to_the_edge]
+        after_jump_times = cls_nav_data_all['UTC_Time'][separations + steps_to_the_edge + 1]
+        # Determine subseconds of before and after jump by finding ncounts of before_jump_times and after_jump_times
+        nav_time_indices = np.zeros(len(separations), dtype=int)
+        for j in np.arange(0, len(separations)):
+            nav_time_indices[j] = np.where(ui <= (separations[j] + steps_to_the_edge[j]))[0][-1]
+        # subseconds before or after could be as many as 10, subtract 1 for 0 case
+        subseconds_before = ncounts[nav_time_indices]-1
+        subseconds_after = ncounts[nav_time_indices + 1]
+        # Makes it so there is no subsecond subtraction if there is a jump right after another
+        subseconds_after[np.concatenate(((nav_time_indices[0:-1] == nav_time_indices[1:] - 1), np.array([False])))] = rough_expected_recs_sec
+        separation_deltas = []
+        for i in np.arange(0, len(separations)):
+            separation_deltas.append((after_jump_times[i] - before_jump_times[i]).total_seconds() +
+                                     (rough_expected_recs_sec - subseconds_after[i])*m - (subseconds_before[i]*m))
         nav_jump_indices = np.zeros(len(separations), dtype=np.uint64)
         for j in np.arange(0, len(separations)):
             nav_jump_indices[j] = np.where(ui < separations[j])[0][-1]
+        inst_clk_offsets = [0]
+        if len(nav_jump_indices) > 1:
+            # Removes jumps that immediately follow other jumps in the data
+            repeat_removal = 1
+            while repeat_removal <= (len(nav_jump_indices)-1):
+                if abs(nav_jump_indices[repeat_removal] - nav_jump_indices[repeat_removal - 1]) < 2:
+                    inst_clk_offsets[repeat_removal-1] = inst_clk_offsets[repeat_removal-1] + \
+                                                         (inst_jumps[repeat_removal] - inst_jumps[repeat_removal - 1])
+                    inst_jumps = np.delete(inst_jumps, repeat_removal, axis=0)
+                    nav_jump_indices = np.delete(nav_jump_indices, repeat_removal, axis=0)
+                else:
+                    repeat_removal += 1
+                    inst_clk_offsets.append(0)
         # Add beginning and end to determine locations for analysis - note one at beginning to remove sub-second
         end_idxs = np.concatenate((nav_jump_indices, np.asarray([len(ui)-1], dtype=np.uint64)))
-        # skipping partial second from index 0 to 1;
         # Jumping over gap: 1 for gap 1 for difference between instrument and nav clock
-        start_idxs = np.concatenate((np.asarray([1], dtype=np.uint64), nav_jump_indices + sep_offset + 2))
+        start_idxs = np.asarray(nav_jump_indices + inst_clk_offsets + 2, dtype=int)
+        # skipping partial second from index 0 to 1;
+        start_idxs = np.concatenate((np.asarray([1], dtype=int), start_idxs))
         total_times = np.zeros(len(end_idxs), dtype=float)
         # Minimum number of seconds for a timespan to use the calculated m value
         # min_jump typically 400
         # Calculate mean frequency in the time spans without instrument time gaps
         for k in np.arange(0, len(end_idxs)):
-            total_times[k] = (cls_nav_data_all['UTC_Time'][ui[end_idxs[k]]] - cls_nav_data_all['UTC_Time'][ui[start_idxs[k]]]).total_seconds()
+            total_times[k] = (cls_nav_data_all['UTC_Time'][ui[end_idxs[k]]] -
+                              cls_nav_data_all['UTC_Time'][ui[start_idxs[k]]]).total_seconds()
         rec_spans = (ui[end_idxs]-ui[start_idxs])
         new_ms = total_times / rec_spans
-        span_weights = (rec_spans*(rec_spans >= (min_jump * rough_expected_recs_sec)))/np.sum(rec_spans*(rec_spans >= (min_jump * rough_expected_recs_sec)))
+        # Removes m from calculation if it is in a region where the time span is less than min_jump*inst_clk_freq
+        span_weights = (rec_spans*(rec_spans >= (min_jump * rough_expected_recs_sec)))/\
+                       np.sum(rec_spans*(rec_spans >= (min_jump * rough_expected_recs_sec)))
         new_m = np.sum(new_ms*span_weights)
         if new_m != 0:
             m = new_m
-            print('Calculated with Gaps - M average equals: ', m, ' using {0:.4f}% of the data '.format(np.sum(rec_spans*(rec_spans >= (min_jump * rough_expected_recs_sec)))/len(cls_meta_data_all)))
+            ratio = 2
+            # Calculate mean frequency within tolerance by while loop
+            while abs(ratio - 1) > freq_tol:  # Limitation set to 1e-10 - could be lower for more rigidity
+                total_time = (Nav_UnixT[-1] - Nav_UnixT[0]) - np.sum(separation_deltas) + \
+                             (ncounts[-1] - (rough_expected_recs_sec - ncounts[0])) * m
+                new_m = total_time / np.sum(ncounts)
+                ratio = new_m / m
+                m = new_m
+                print('M equals: ', m)
+                # Update time offsets for future use
+                interp_start_time_offset = (rough_expected_recs_sec - ncounts[0]) * m
+                interp_end_time_offset = (ncounts[-1]-1) * m
+            print('Calculated with Gaps - M average equals: ', m, ' using {0:.4f}% of the data '.
+                  format(np.sum(rec_spans*(rec_spans >= (min_jump * rough_expected_recs_sec)))/len(cls_meta_data_all)))
         else:
             print("The GAPS in data are too frequent to update the frequency automatically!!!")
             print("Manual effort may be required for correction")
@@ -1049,8 +1089,10 @@ elif Nav_source == 'cls':
             records_between_seconds = np.zeros(1, dtype=np.uint64)
             time_between_seconds = np.zeros(1, dtype=float)
             for idx in np.arange(0, len(end_idxs)):
-                records_between_seconds = np.concatenate((records_between_seconds, np.diff(ui[start_idxs[idx]:end_idxs[idx]])))
-                time_between_seconds = np.concatenate((time_between_seconds, np.diff(Nav_UnixT[start_idxs[idx]:end_idxs[idx]])))
+                records_between_seconds = np.concatenate((records_between_seconds,
+                                                          np.diff(ui[start_idxs[idx]:int(end_idxs[idx] + 1)])))
+                time_between_seconds = np.concatenate((time_between_seconds,
+                                                       np.diff(Nav_UnixT[start_idxs[idx]:int(end_idxs[idx] + 1)])))
             # Remove first 0 from when the array was initialized
             records_between_seconds = records_between_seconds[1:]
             time_between_seconds = time_between_seconds[1:]
@@ -1098,10 +1140,14 @@ elif Nav_source == 'cls':
             ix_variable[0] = (Nav_UnixT[0] + interp_start_time_offset)
             for element in np.arange(0, len(ix_variable) - 1):
                 ix_variable[element + 1] = ix_variable[element] + m_array[element]
+            # Recreating array of every single jump location -
+            # removed repeat items previously to generate clean array for calculating steps of m-array
+            inst_jumps = np.where(np.diff(Inst_Time) > instrument_clk_threshold)
+            inst_jumps = inst_jumps[0]
             # Adds in expected time difference from the jumps in data collection one at a time for simplicity
-            for jump_location_idx in np.arange(0, len(nav_jump_indices)):
-                ix_variable[ui_inst[inst_jumps[0][jump_location_idx]+1]:] += Nav_UnixT[int(nav_jump_indices[jump_location_idx] + 2)] - \
-                Nav_UnixT[int(nav_jump_indices[jump_location_idx] + 1)]
+            for jump_location_idx in np.arange(0, len(separation_deltas)):
+                ix_variable[ui_inst[inst_jumps[jump_location_idx] + ncounts_inst[inst_jumps[jump_location_idx]]]:] += \
+                    separation_deltas[jump_location_idx]
     '''
     This terminates the block of code where the instrument frequency is automatically calculated and an 
     m_array is created if desired with the make_frequency_array selector
@@ -1133,6 +1179,17 @@ elif Nav_source == 'cls':
     for k in range(0, n_interp):
         nav_interp['UTC_Time'][k] = (UnixT_epoch + DT.timedelta(seconds=ix[k]))
 
+    # Added 6/30/2020 to remove Data from around time jumps. Utilizes the altitude cutoff to assign an altitude below
+    # the threshold - removing the data from being utilized
+    if make_frequency_array and ('inst_jumps' in locals()):
+        nudge_offset = int(nudge/m)
+        for jump_location_idx in np.arange(0, len(inst_jumps)):
+            nav_interp['GPS_Altitude'][(ui_inst[inst_jumps[jump_location_idx] +
+                                                ncounts_inst[inst_jumps[jump_location_idx]]] + nudge_offset -
+                                        9*rough_expected_recs_sec):
+                                       (ui_inst[inst_jumps[jump_location_idx] +
+                                                ncounts_inst[inst_jumps[jump_location_idx]]] + nudge_offset +
+                                        1*rough_expected_recs_sec)] = (alt_cutoff - 100.0)
     # Prepare nav_interp 'UTC_Time' array, where time gaps have been
     # masked out, then overwrite original Nav time.
     # 5/4/2020 replaced calculation offset_indx = np.abs((ix - ix[0]) - interp_start_time_offset).argmin()

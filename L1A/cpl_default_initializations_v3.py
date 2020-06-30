@@ -17,7 +17,6 @@ process_start = DT.datetime(2000,9,1,0,0,0) #yr,mon,dy,hr,min,sec
 process_end   = DT.datetime(2020,10,13,0,0,0)
 
 
-
 # ******** FILE ATTRIBUTES AND PARAMETERS, ANC. FILE NAMES  ********
 # Each CLS data file should contain 9000 records
 file_len_recs = 9000
@@ -44,7 +43,6 @@ IWG1_file = "IWG1.30Oct2019-2040.txt"
 nav_hz = 1.0
 # The overlap file to use. Only applies for single overlap case (multi_OLs == False).
 overlap_file = 'olaptable_cpl_D150120.xdr'
-
 
 
 # ******** PARAMETERS THAT ADJUST DATA, PROCESSING  ********
@@ -108,7 +106,6 @@ freq_tol = 1e-10        # typically 1e-10, tolerance for freq. calc. loop
 min_jump = 400          # Tested at 400
 
 
-
 # ******** PARAMETERS THAT DESCRIBE INPUT LIDAR DATA  ********
 # Amazingly, the number of vertical bins is not reported in the
 # CLS data don't not include this. So, define it here.
@@ -129,7 +126,6 @@ wl_str = ['355','532','1064']
 CLS_hz = float(rep_rate) / float(nshots)
 # The resolution of CPL's instrument clock in seconds
 inst_clk_rez = 1.0
-
 
 
 # ******** FOR GUI AND/OR PLOTTING  ********
@@ -170,7 +166,6 @@ hori_cap = 20000
 CPpad = 0.1
 
 
-
 if (os.name != 'nt'): # IF UNIX-BASED MACHINE, DEFINE DIRECTORIES HERE
 
     # ******** DEFINE ALL DIRECTORIES ********
@@ -201,7 +196,6 @@ if (os.name != 'nt'): # IF UNIX-BASED MACHINE, DEFINE DIRECTORIES HERE
     # Directory and name of C++ library with functions to read in DEM
     DEM_lib_path = DEM_dir + 'JPL_DEM_CPP_SO/'
     DEM_Cpp_name = 'JPL_DEM_CPP_FUNCTIONS.so'
-    
 
 else:                 # IF WINDOWS-BASED MACHINE, DEFINE DIRECTORIES HERE
 
