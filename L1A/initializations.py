@@ -8,9 +8,9 @@ import datetime as DT
 #       for Unix vs. Windows
 
 # ******** SET THE NAME OF THE PROJECT & FLIGHT DATE ********
-proj_name = 'SEAC4RS'
-flt_date = '08aug13' # in "CPL" form, not "CAMAL" form
-sortie = '13-951'
+proj_name = 'IMPACTS_20'
+flt_date = '18jan20'  # in "CPL" form, not "CAMAL" form
+sortie = '18jan20'
 
 # ******** SET THE TIME RANGE BOUNDARIES FOR DATA PROCESSING ********
 process_start = DT.datetime(2010, 9, 1, 0, 0, 0) # yr,mon,dy,hr,min,sec
@@ -73,7 +73,7 @@ gps_roll_offset = 0.0
 gps_pitch_offset = 0.0
 # Subtract this number of seconds from CLS data to manually fudge a better
 # match to the Nav data.
-nudge = 0.0
+nudge = -0.2
 # Average the data to this time. In seconds. Set to -99.9 for no averaging.
 secs2avg = 1.0
 # Minimum number of raw profiles than can be used in an average profile
@@ -81,9 +81,9 @@ min_avg_profs = 4
 # "Up" or "Down?" Which direction is lidar pointed?
 pointing_dir = "Down"
 # For actual data processing (not the GUI), nav data source
-Nav_source = 'cls' # 'nav' 'gps' 'iwg1' or 'cls'
+Nav_source = 'cls'  # 'nav' 'gps' 'iwg1' or 'cls'
 # Don't process any data when below this alt (m). Doesn't apply to GUI.
-alt_cutoff = 500
+alt_cutoff = 15000
 # Don't process any profiles where off-nadir angle exceeds this many radians.
 ONA_cutoff = 25.0 * (const.pi/180.0)
 # Invalid/bad Nav values get overwritten with this value - datetime.datetime object.
@@ -95,15 +95,15 @@ max_flt_hours = 30
 # The number of standard deviations of EM values to keep. Can set negative to keep all.
 Estds = 4
 # The following 3 parameters correct the reported attitude
-cpl_roll_offset = 0.0#0.75
-cpl_pitch_offset = 0.0#0.45
-cpl_pitch_roll_factor = 0.0#-(1.0/80.0)
+cpl_roll_offset = 0.75
+cpl_pitch_offset = 0.45
+cpl_pitch_roll_factor = -(1.0/80.0)
 # New for cpl_l1a_v3, parameters that control computation of varying data rate
-make_frequency = 1      # set to 1 to do it
-gap = 500               # typically 500, # of recs to integrate
-step_size = 100         # typically 100, m_array updates every this # of recs
-freq_tol = 1e-10        # typically 1e-10, tolerance for freq. calc. loop
-min_jump = 400          # Tested at 400
+make_frequency_array = 1        # set to 1 to do it
+gap = 500                       # typically 500, # of recs to integrate
+step_size = 100                 # typically 100, m_array updates every this # of recs
+freq_tol = 1e-10                # typically 1e-10, tolerance for freq. calc. loop
+min_jump = 400                  # Tested at 400
 
 
 # ******** PARAMETERS THAT DESCRIBE INPUT LIDAR DATA  ********
@@ -115,7 +115,7 @@ nshots = 500
 # CLS data also don't include bin size. So define here (m).
 vrZ = 29.98
 # The laser rep rate in Hertz
-rep_rate = 5000.0
+rep_rate = 5142.0
 # The number of wavelengths
 nwl = 3
 # Which channels #'s are which wavelengths? (0=355,1=532,2=1064)
@@ -166,7 +166,7 @@ hori_cap = 20000
 CPpad = 0.1
 
 
-if os.name != 'nt':  # IF UNIX-BASED MACHINE, DEFINE DIRECTORIES HERE
+if (os.name != 'nt'): # IF UNIX-BASED MACHINE, DEFINE DIRECTORIES HERE
 
     # ******** DEFINE ALL DIRECTORIES ********
     # Set the directory of the raw data
