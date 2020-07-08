@@ -960,9 +960,9 @@ elif Nav_source == 'cls':
     if ncounts[-1] < CLS_hz:  # Now calculated using the ncounts from NAV DATA
         interp_end_time_offset = (ncounts[-1] - 1) / CLS_hz
     '''
-  This block of code finds the correct average frequency of the instrument for the flight based on the records 
-  that were generated if there are no data gaps (and even if there are, provided there is enough time for a measurement)
-  '''
+    This block of code finds the correct average frequency of the instrument for the flight based on the records 
+    that were generated if there are no data gaps (and even if there are, provided there is enough time for a measurement)
+    '''
     instrument_clk_threshold = inst_clk_rez
     # Check for gaps in instrument clock from threshold set with instrument_clk_threshold
     if np.max(np.diff(u_inst[1:])).total_seconds() <= instrument_clk_threshold:
@@ -1188,9 +1188,9 @@ elif Nav_source == 'cls':
                 ix_variable[ui_inst[inst_jumps[jump_location_idx] + ncounts_inst[inst_jumps[jump_location_idx]]]:] += \
                     separation_deltas[jump_location_idx]
     '''
-  This terminates the block of code where the instrument frequency is automatically calculated and an 
-  m_array is created if desired with the make_frequency_array selector
-  '''
+    This terminates the block of code where the instrument frequency is automatically calculated and an 
+    m_array is created if desired with the make_frequency_array selector
+    '''
     # 5/4/2020 ix array calculation updated to include start_time_offset and end_time_offset
     # Create x-ord array of Unix Times at which to compute interpolated values
     print('If frequency is manual then try ', computed_CLS_hz * float(nshots), 'Hz if no data is missing')
