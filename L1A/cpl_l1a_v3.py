@@ -276,6 +276,13 @@
 # M_array created for scenario of data missing and not missing.
 # nav_interp Time array definition was redefined. SEAC4RS campaign flights are
 # good candidates to test functionality of this code.
+#
+# [7/8/20]
+# Fixed logic in 'if' block of code that handles invalid times in the
+# Nav_source=='cls' pre-processing block. Whatever I did before didn't make
+# any sense. It seems like I was assuming that invalid times could only
+# occur at the beginning of flights. Now, a more sophisticated method of
+# patching over the invalid times takes place.
 
 # Import libraries <----------------------------------------------------
 
@@ -833,6 +840,14 @@ elif Nav_source == 'cls':
     u, ui, ncounts = np.unique(cls_nav_data_all['UTC_Time'], return_index=True, return_counts=True)
     # Bad time values will sink to the front of this "unique" array
 
+    # The follow code deals with there being bad Nav clock times in the data
+    # One example of where this code will execute is ACEPOL 18-604 25Oct17
+    # Another example is SEAC4RS 13-955 19aug13
+    # As of 7/8/2020, this code block is a sophisticated band-aid.
+    # It looks at the time before a stretch of invalid times and simply
+    # incremements the time across that stretch by assuming an integer
+    # CLS_hz. I'm hoping Andrew's new "make_frequency_array" code will
+    # wash out any small errors this may induce.
     if u[0] == bad_cls_nav_time_value:
         print(attention_bar)
         print("\nA(Some) UTC_Time(s) in the Nav record(s) was(were) invalid.")
@@ -840,14 +855,26 @@ elif Nav_source == 'cls':
         print("Setting first invalid CLS-Nav UTC_Time record equal to")
         print("the first valid CLS-Nav UTC_Time record.\n")
         print(attention_bar)
-        cls_nav_data_all['UTC_Time'][0] = u[1]
-        u = u[1:]
-        ui = ui[1:]
-        ncounts = ncounts[1:]
-        print('IF the code stops here you can proceed by pressing c and then Enter but notify Andrew/Patrick')
-        pdb.set_trace()
-        # Remove records from the beginning of the structure from the two problem cases above
-        cls_nav_data_all = cls_nav_data_all[ui[0]:-1]
+        # Hopefully there are very few bad cls times.
+        # Patch across the bad_cls_nav_time_value regions in the array
+        good_time_indexes = np.where(cls_nav_data_all['UTC_Time'] != bad_cls_nav_time_value)[0]
+        index_diffs = np.arange(good_time_indexes.shape[0],dtype=np.uint32)
+        index_diffs[0] = 0
+        index_diffs[1:] = np.diff(good_time_indexes)
+        missing_time_index = np.where(index_diffs > 1)[0]
+        for mti in missing_time_index:
+            pregap_UTC = cls_nav_data_all['UTC_Time'][good_time_indexes][mti-1]
+            posgap_UTC = cls_nav_data_all['UTC_Time'][good_time_indexes][mti]
+            secs2add = 1
+            rounded_CLS_hz = int(np.round(CLS_hz))
+            #print(cls_nav_data_all['UTC_Time'][good_time_indexes[mti-1]:good_time_indexes[mti+1]])
+            for i in range(1,index_diffs[mti]):
+                ii = i + good_time_indexes[mti-1]
+                if i % rounded_CLS_hz == 0: secs2add = secs2add + 1
+                cls_nav_data_all['UTC_Time'][ii] = pregap_UTC + DT.timedelta(seconds=secs2add)
+        # Once the bad times are seen again in the individual-file CLS data in 
+        # the file loop ('core processing'), then the process_start initializations
+        # variable should take care of things.
         # Rerun line from before the if statements to have the correct indices if there were problem records
         u, ui, ncounts = np.unique(cls_nav_data_all['UTC_Time'], return_index=True, return_counts=True)
 
@@ -859,6 +886,8 @@ elif Nav_source == 'cls':
         print("Attempt is being made to take care of this.") 
         print("Setting first stale CLS-Nav UTC_Time record equal to")
         print("the first non-stale CLS-Nav UTC_Time record.\n")
+        print('IF the code stops here you can proceed by pressing c and then Enter but notify Andrew/Patrick')
+        pdb.set_trace()        
         cls_nav_data_all['UTC_Time'][0] = u[1]
         u = u[1:]
         ui = ui[1:]

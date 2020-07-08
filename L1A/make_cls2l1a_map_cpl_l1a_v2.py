@@ -4,7 +4,10 @@
 # This is needed for developing Convolutional Neural Network that predicts
 # Level 2 data from raw data.
 #
-# Last modified: 25 June 2020
+# I tried to flag all places I edited with the following comment...
+# "######## CLS 2 L1A MAP-SAVING CODE ########"
+#
+# Last modified: 01 July 2020
 
 
 # Import libraries <----------------------------------------------------
@@ -694,6 +697,7 @@ trans_bin = [0,0]
 trans_total = 0
 last_file = False 
 OL_map_indx = 0 # count thru overlap map as required
+######## CLS 2 L1A MAP-SAVING CODE ########
 true_undoctored_num_CLS_recs = 0      # not a typical L1A variable
 last_true_undoctored_num_CLS_recs = 0 # not a typical L1A variable
 n_L1A = 0 # counts the number of L1A-resolution records
@@ -1229,18 +1233,9 @@ for f in range(0,nCLS_files):
     # computed differently for the edge versus middle files. The reason averaging
     # is done one file at a time is to limit usage of RAM on the computer.
     if secs2avg > 0.0: # if < 0, don't average
-
-        # At this point, no more raw CLS records will be deleted. So now, concatenate
-        # rectrack_master with rectrack_1file.
-        if 'rectrack_master' in locals():
-            rectrack_master = np.concatenate((rectrack_master,rectrack_1file))
-            L1Arec_nums = np.concatenate((L1Arec_nums, L1Arec_nums_1file))
-        else:
-            rectrack_master = np.copy(rectrack_1file)
-            L1Arec_nums = np.empty_like(rectrack_1file)
-        # Later in this section there is more code to handle the min_avg_profs
-        # constraint that causes some L1A rez records to be deleted.
         
+        ######## CLS 2 L1A MAP-SAVING CODE ########
+        L1Arec_nums_1file = np.empty_like(rectrack_1file)
 
         bin_numbers = np.digitize(CLS_UnixT_float64_new,time_bins)
         u, ui, ncounts = np.unique(bin_numbers,return_index=True,return_counts=True)
@@ -1257,8 +1252,6 @@ for f in range(0,nCLS_files):
         saturate_ht_max = np.zeros((nc,u.shape[0]),dtype=saturate_ht.dtype)
         rr = 0 # raw record number
         perfectly_aligned = False # True if trans_total == 0
-        print(u.shape, ui.shape, ncounts.shape)
-        pdb.set_trace()
     
         ei = ui.shape[0]-1
         if last_file: ei = ui.shape[0]
@@ -1286,9 +1279,11 @@ for f in range(0,nCLS_files):
             ######## CLS 2 L1A MAP-SAVING CODE ########
             # This block of code is where the transfer bin is carried over,
             # so set the current L1A record number equal to the last value
-            # from the previous file iteration.
-            L1Arec_nums[rr:rr+ncounts[0] = n_L1A - 1
+            # from the previous file iteration. In the transfer save block,
+            # n_L1A is not incremented, so the following line is good.
+            L1Arec_nums_1file[rr:rr+ncounts[0]] = n_L1A 
             # Now increment n_L1A because you're done with the transfer record
+            n_L1A += 1
             print('trans_ncounts = ',trans_ncounts)
             rr += ncounts[0]
         else:
@@ -1317,7 +1312,8 @@ for f in range(0,nCLS_files):
             bg_save_avg[:,tb] = np.mean(bg_save[:,rr:rr+ncounts[tb]],axis=1)
             saturate_ht_max[:,tb] = np.max(saturate_ht[:,rr:rr+ncounts[tb]],axis=1)
             ######## CLS 2 L1A MAP-SAVING CODE ########
-            L1Arecs_nums[rr:rr+ncounts[0]
+            L1Arec_nums_1file[rr:rr+ncounts[tb]] = n_L1A
+            n_L1A += 1
             #print('iter: ',u[tb],CLS_UnixT_float64_new[rr])
             rr += ncounts[tb]
 
@@ -1339,6 +1335,8 @@ for f in range(0,nCLS_files):
             NRB_sum = NRB[:,rr:rr+ncounts[-1],:].sum(axis=1)
             bg_save_sum = bg_save[:,rr:rr+ncounts[-1]].sum(axis=1)
             saturate_ht_carryover = saturate_ht[:,rr:rr+ncounts[-1]]
+            ######## CLS 2 L1A MAP-SAVING CODE ########
+            L1Arec_nums_1file[rr:rr+ncounts[-1]] = n_L1A
             # following line defines the "trasfer" bin; trans_bin
             trans_bin = time_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
             trans_ncounts = ncounts[-1]
@@ -1364,6 +1362,19 @@ for f in range(0,nCLS_files):
             ncounts = ncounts[big_enough_mask]
             ui = ui[big_enough_mask]
             u = u[big_enough_mask]
+            pdb.set_trace()
+            ######## CLS 2 L1A MAP-SAVING CODE ########
+            # 1) Identify the L1A rec #'s that have been deleted.
+            # 2) Find where the L1Arec_nums_1file array == those rec #'s
+            # 3) Remove those elements from L1Arec_nums_1file & rectrack_master_1file
+            deleted_L1A_indicies = np.arange(0,big_enough_mask.shape[0], dtype=np.uint32)
+            too_small_mask = np.invert(big_enough_mask)
+            deleted_L1A_indicies = deleted_L1A_indicies[too_small_mask]
+            for di in deleted_L1A_indicies:
+                mask = L1Arec_nums_1file != di # locations not equal to deleted index
+                L1Arec_nums_1file = L1Arec_nums_1file[mask]
+                rectrack_1file = rectrack_1file[mask]
+            pdb.set_trace()
             print("\nAvg'd profiles eliminated due to min_avg_profs constraint.")
             print(np.argwhere(big_enough_mask == False))
             print(big_enough_mask.shape," reduced to ", u.shape, "\n")
@@ -1403,8 +1414,6 @@ for f in range(0,nCLS_files):
         bg_dset[:,expanded_length-n_expand:expanded_length] = bg_save_avg[:,cutbegin:n_expand+cutbegin]
         saturate_ht_dset[:,expanded_length-n_expand:expanded_length] = saturate_ht_max[:,cutbegin:n_expand+cutbegin]
         nrecs = expanded_length
-        print(u.shape, ui.shape, ncounts.shape)
-        pdb.set_trace()
 
     else: # No averaging
 
@@ -1434,7 +1443,18 @@ for f in range(0,nCLS_files):
         bg_dset[:,i-nr_1file:i] = bg_save
         saturate_ht_dset[:,i-nr_1file:i] = saturate_ht
         nrecs = i
+        print('** WARNING ** WARNING ** WARNING ** WARNING ** WARNING **')
+        print('No code written to deal with no averaging')
 
+    # At this point, no more raw CLS records will be deleted. So now, concatenate
+    # rectrack_master with rectrack_1file.
+    if 'rectrack_master' in locals():
+        rectrack_master = np.concatenate((rectrack_master,rectrack_1file))
+        L1Arec_nums = np.concatenate((L1Arec_nums, L1Arec_nums_1file))
+    else:
+        rectrack_master = np.copy(rectrack_1file)
+        L1Arec_nums = np.copy(L1Arec_nums_1file)
+    
     first_read = False
         
     print('\n**********************************')
