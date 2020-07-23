@@ -284,6 +284,24 @@
 # occur at the beginning of flights. Now, a more sophisticated method of
 # patching over the invalid times takes place.
 # Also in this update, minor tweak to 'make_frequency_array' code.
+#
+# [7/22/20] Flaw in averaging code logic
+# I fixed a flaw in the averaging code logic today.
+# This flaw was caused by the band-aid created on [1/31/19].
+# In those situations, I actually want it to go into the "not last_file"
+# IF block because it is unknown whether the data in the last averaging bin
+# (aka time bin) needs to go into the first averaging bin of the next file.
+# The flaw caused the code to lock out of using a transfer bin (trans_bin)
+# after the first instance that an averaging bin boundary was exactly 
+# synced with a file boundary.
+# I changed the logic so that a transfer bin is used EVERY file, except
+# the last file (not last_file condition block). The first averaging bin,
+# corresponding to element zero in the averaged-data arrays, is ALWAYS
+# reserved for data from the last file's bin. Now, when the time boundary
+# and file boundary line up, the array's get expanded to accomodate the
+# transfer bin. So it's now possible for a transfer bin to contain a full
+# secs2avg worth of raw profiles.
+# ALSO, posgap_Nav now used in CPL Nav pre-processing block.
 
 # Import libraries <----------------------------------------------------
 
@@ -698,8 +716,7 @@ if Nav_source == 'gps':
     # Now handle population of interp time field
     for k in range(0, n_interp):
         gps_UTC_interp[k] = gps_UTC[0] + DT.timedelta(seconds=ix[k])
-        Nav_interp_T_float64[k] = (gps_UTC_interp[k] - UnixT_epoch +
-                                   time_offset_UnixT).total_seconds()
+        Nav_interp_T_float64[k] = (gps_UTC_interp[k] - UnixT_epoch + time_offset_UnixT).total_seconds()
 
     # NOW, set the array that will be used in processing, gps_data_all equal
     # to the interpolated array that was just created, gps_interp.
@@ -757,8 +774,7 @@ elif Nav_source == 'nav':
     for k in range(0, n_interp):
         # nav_interp['UnixT'][k] = nav_data_all['UnixT'][0] + DT.timedelta(seconds=ix[k])
         # offsets in following line convert to CLS UTC
-        nav_interp['UTC'][k] = (nav_data_all['UTC'][0] + DT.timedelta(seconds=ix[k])
-                                + DT.timedelta(seconds=nudge))
+        nav_interp['UTC'][k] = (nav_data_all['UTC'][0] + DT.timedelta(seconds=ix[k]) + DT.timedelta(seconds=nudge))
         Nav_interp_T_float64[k] = (nav_interp['UTC'][k] - UnixT_epoch).total_seconds()
 
     # NOW, set the array that will be used in processing, nav_data_all equal
@@ -870,7 +886,7 @@ elif Nav_source == 'cls':
             posgap_Nav = cls_nav_data_all[good_time_indexes][mti]
             for i in range(1, index_diffs[mti]):
                 ii = i + good_time_indexes[mti - 1]
-                cls_nav_data_all[ii] = pregap_Nav
+                cls_nav_data_all[ii] = posgap_Nav
         # Once the bad times are seen again in the individual-file CLS data in
         # the file loop ('core processing'), then the process_start initializations
         # variable should take care of things.
@@ -914,8 +930,7 @@ elif Nav_source == 'cls':
 
         # Look at the time deltas between unique, you'll use this in a little bit
     # On 5/4/2020 updated to separate Instrument time from Nav Time u ui and ncounts arrays
-    u_inst, ui_inst, ncounts_inst = np.unique(cls_meta_data_all['Header']['ExactTime'], return_index=True,
-                                              return_counts=True)
+    u_inst, ui_inst, ncounts_inst = np.unique(cls_meta_data_all['Header']['ExactTime'], return_index=True, return_counts=True)
     if u_inst[0] == bad_cls_nav_time_value:
         u_inst = u_inst[1:]
         ui_inst = ui_inst[1:]
@@ -953,8 +968,7 @@ elif Nav_source == 'cls':
     rough_expected_recs_sec = int(CLS_hz)
     interp_start_time_offset = 0.0
     # if ncounts[0] < CLS_hz:      # 5/5/2020 Removed for instances that ncounts is larger than expected 1 second
-    interp_start_time_offset = (rough_expected_recs_sec - ncounts[
-        0]) / CLS_hz  # Now calculated using the ncounts from NAV DATA
+    interp_start_time_offset = (rough_expected_recs_sec - ncounts[0]) / CLS_hz  # Now calculated using the ncounts from NAV DATA
 
     # Added section below so that we can correctly determine the end of time in the data
     if ncounts[-1] < CLS_hz:  # Now calculated using the ncounts from NAV DATA
@@ -970,8 +984,7 @@ elif Nav_source == 'cls':
         ratio = 2
         # Calculate mean frequency within tolerance by while loop
         while abs(ratio - 1) > freq_tol:  # Limitation set to 1e-10 - could be lower for more rigidity
-            total_time = (Nav_UnixT[-1] - Nav_UnixT[0]) + (
-                        (ncounts[-1] - 1) - (rough_expected_recs_sec - ncounts[0])) * m
+            total_time = (Nav_UnixT[-1] - Nav_UnixT[0]) + ((ncounts[-1] - 1) - (rough_expected_recs_sec - ncounts[0])) * m
             new_m = total_time / np.sum(ncounts)
             ratio = new_m / m
             m = new_m
@@ -1223,12 +1236,10 @@ elif Nav_source == 'cls':
     if make_frequency_array and ('inst_jumps' in locals()):
         nudge_offset = int(nudge / m)
         for jump_location_idx in np.arange(0, len(inst_jumps)):
-            nav_interp['GPS_Altitude'][(ui_inst[inst_jumps[jump_location_idx] +
-                                                ncounts_inst[inst_jumps[jump_location_idx]]] + nudge_offset -
-                                        9 * rough_expected_recs_sec):
-                                       (ui_inst[inst_jumps[jump_location_idx] +
-                                                ncounts_inst[inst_jumps[jump_location_idx]]] + nudge_offset +
-                                        1 * rough_expected_recs_sec)] = (alt_cutoff - 100.0)
+            nav_interp['GPS_Altitude'][(ui_inst[inst_jumps[jump_location_idx] + 
+            ncounts_inst[inst_jumps[jump_location_idx]]] + 
+            nudge_offset - 9 * rough_expected_recs_sec):(ui_inst[inst_jumps[jump_location_idx] + 
+            ncounts_inst[inst_jumps[jump_location_idx]]] + nudge_offset + 1 * rough_expected_recs_sec)] = (alt_cutoff - 100.0)
     # Prepare nav_interp 'UTC_Time' array, where time gaps have been
     # masked out, then overwrite original Nav time.
     # 5/4/2020 replaced calculation offset_indx = np.abs((ix - ix[0]) - interp_start_time_offset).argmin()
@@ -1492,11 +1503,9 @@ for f in range(0, nCLS_files):
             nb_ff_dset = hdf5_file.create_dataset("num_ff_bins", (1,), np.uint32)
             num_recs_dset = hdf5_file.create_dataset("num_recs", (1,), np.uint32)
             DEM_nadir_dset = hdf5_file.create_dataset("DEM_nadir", (1,), maxshape=(None,), dtype=np.float32)
-            DEM_nadir_surftype_dset = hdf5_file.create_dataset("DEM_nadir_surftype", (1,), maxshape=(None,),
-                                                               dtype=np.int8)
+            DEM_nadir_surftype_dset = hdf5_file.create_dataset("DEM_nadir_surftype", (1,), maxshape=(None,),dtype=np.int8)
             DEM_laserspot_dset = hdf5_file.create_dataset("DEM_laserspot", (1,), maxshape=(None,), dtype=np.float32)
-            DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,),
-                                                                   dtype=np.int8)
+            DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,), dtype=np.int8)
             EM_dset = hdf5_file.create_dataset("EM", (1, nwl), maxshape=(None, nwl), dtype=np.float32)
             NRB_dset = hdf5_file.create_dataset("nrb", (nc, 1, nb_ff), maxshape=(nc, None, nb_ff), dtype=np.float32)
             bg_dset = hdf5_file.create_dataset("bg", (nc, 1), maxshape=(nc, None), dtype=np.float32)
@@ -1514,11 +1523,9 @@ for f in range(0, nCLS_files):
             nb_ff_dset = hdf5_file.create_dataset("num_ff_bins", (1,), np.uint32)
             num_recs_dset = hdf5_file.create_dataset("num_recs", (1,), np.uint32)
             DEM_nadir_dset = hdf5_file.create_dataset("DEM_nadir", (1,), maxshape=(None,), dtype=np.float32)
-            DEM_nadir_surftype_dset = hdf5_file.create_dataset("DEM_nadir_surftype", (1,), maxshape=(None,),
-                                                               dtype=np.int8)
+            DEM_nadir_surftype_dset = hdf5_file.create_dataset("DEM_nadir_surftype", (1,), maxshape=(None,), dtype=np.int8)
             DEM_laserspot_dset = hdf5_file.create_dataset("DEM_laserspot", (1,), maxshape=(None,), dtype=np.float32)
-            DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,),
-                                                                   dtype=np.int8)
+            DEM_laserspot_surftype_dset = hdf5_file.create_dataset("DEM_laserspot_surftype", (1,), maxshape=(None,), dtype=np.int8)
             EM_dset = hdf5_file.create_dataset("EM", (1, nwl), maxshape=(None, nwl), dtype=np.float32)
             NRB_dset = hdf5_file.create_dataset("nrb", (nc, 1, nb_ff), maxshape=(nc, None, nb_ff), dtype=np.float32)
             bg_dset = hdf5_file.create_dataset("bg", (nc, 1), maxshape=(nc, None), dtype=np.float32)
@@ -1649,8 +1656,7 @@ for f in range(0, nCLS_files):
             # NOTE: Nav_save is an IWG1-style structure (see immutable_dat_structs.py)
             Nav_match = cls_nav_data_all[interp2orig_indicies[i1f]]
             Nav_save[i1f]['roll'] = (Nav_match['RollAngle'] + cpl_roll_offset)
-            Nav_save[i1f]['pitch'] = ((Nav_match['PitchAngle'] + cpl_pitch_offset) +
-                                      ((Nav_match['RollAngle'] + cpl_roll_offset) * cpl_pitch_roll_factor))
+            Nav_save[i1f]['pitch'] = ((Nav_match['PitchAngle'] + cpl_pitch_offset) + ((Nav_match['RollAngle'] + cpl_roll_offset) * cpl_pitch_roll_factor))
             Nav_save[i1f]['drift'] = (Nav_match['TrackAngleTrue'] - Nav_match['TrueHeading'])
             # Need to make sure drift is in the correct units after Track/Heading Difference Calculated
             if Nav_save[i1f]['drift'] > 180.0:
@@ -1667,9 +1673,7 @@ for f in range(0, nCLS_files):
             current_Nav_UTC = Nav_match['UTC_Time']  # Nav_match fields dependant on data set
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_Altitude']
             Y = Nav_save[i1f]['drift'] * (np.pi / 180.0)  # Yaw now incorporated!! 3/30/2020
-            P = ((Nav_match['PitchAngle'] + cpl_pitch_offset) + (
-                        (Nav_match['RollAngle'] + cpl_roll_offset) * cpl_pitch_roll_factor)) * (
-                            np.pi / 180.0)  # Offsets added 3/30/2020
+            P = ((Nav_match['PitchAngle'] + cpl_pitch_offset) + ((Nav_match['RollAngle'] + cpl_roll_offset) * cpl_pitch_roll_factor)) * (np.pi / 180.0)  # Offsets added 3/30/2020
             R = (Nav_match['RollAngle'] + cpl_roll_offset) * (np.pi / 180.0)
             # Write 'lat,lon,UTC' out to file
             GEOS_out_str = '{0:.4f},{1:.4f},{2}\n'.format(Nav_match['GPS_Longitude'], Nav_match['GPS_Latitude'],
@@ -1819,8 +1823,7 @@ for f in range(0, nCLS_files):
             CLS_data_1file['meta']['Engineering']['LaserEnergyMonitors'][BadE[0], :] = medianEs
 
     # Compute NRB & populate saturate_ht array
-    EMs = convert_raw_energy_monitor_values(CLS_data_1file['meta']['Engineering']['LaserEnergyMonitors'], nwl, 'CPL',
-                                            e_flg)
+    EMs = convert_raw_energy_monitor_values(CLS_data_1file['meta']['Engineering']['LaserEnergyMonitors'], nwl, 'CPL',e_flg)
     ff_bg_st_bin = np.argwhere(ffrme <= bg_st_alt)[0][0]
     ff_bg_ed_bin = np.argwhere(ffrme >= bg_ed_alt)[-1][0]
     for chan in range(0, nc):
@@ -1828,7 +1831,7 @@ for f in range(0, nCLS_files):
         # Patch over bad EM readings
         EMsubmit = patch_outliers(EMsubmit, Estds)
         NRB[chan, :, :] = correct_raw_counts(counts_ff[chan, :, :], EMsubmit, None,
-                                             i1f, nb_ff, ff_bg_st_bin, ff_bg_ed_bin, 'NRB_no_range')
+                            i1f, nb_ff, ff_bg_st_bin, ff_bg_ed_bin, 'NRB_no_range')
 
     # Delete bad records from output arrays
     tot_good_recs = good_rec_bool.sum()
@@ -1882,10 +1885,17 @@ for f in range(0, nCLS_files):
         bg_save_avg = np.zeros((nc, u.shape[0]), dtype=bg_save.dtype)
         saturate_ht_max = np.zeros((nc, u.shape[0]), dtype=saturate_ht.dtype)
         rr = 0  # raw record number
-        perfectly_aligned = False  # True if trans_total == 0
+        perfectly_aligned = False 
 
-        ei = ui.shape[0] - 1
-        if last_file: ei = ui.shape[0]
+        ei = ui.shape[0] - 1           # End Index (ei) set only in 
+        if last_file: ei = ui.shape[0] # these two lines.
+        # Three different types of cases in following chain of IF blocks...
+        # 1 - It's the first file.
+        # 2 - You're in the middle of processing and a time bin spans across files
+        # 3 - You're in the middle of processing and a time bin doesn't span files
+        # If it's the last file, 2 or 3 could be executed with additional
+        # controls on the end index and trans_bin (via "last_file") outside
+        # these IF blocks.
         if first_read:
             si = 0
         # Gotta do an elif cuz cur file might not have any vals within last bin of prev file
@@ -1894,28 +1904,64 @@ for f in range(0, nCLS_files):
             trans_total = float(trans_ncounts + ncounts[0])
             for field in Nav_save_avg.dtype.names:
                 if field == 'UTC': continue
-                Nav_save_avg[field][0] = ((Nav_save_sum[field] +
-                                           Nav_save[field][rr:rr + ncounts[0]].sum()) / trans_total)
-            Nav_save_avg['UTC'] = Nav_UTC_carryover
+                Nav_save_avg[field][0] = ((Nav_save_sum[field] + Nav_save[field][rr:rr + ncounts[0]].sum()) / trans_total)
+            Nav_save_avg['UTC'][0,:] = Nav_UTC_carryover
             laserspot_avg[0, :] = (laserspot_sum + laserspot[rr:rr + ncounts[0], :].sum(axis=0)) / trans_total
             ONA_save_avg[0] = (ONA_save_sum + ONA_save[rr:rr + ncounts[0]].sum()) / trans_total
             DEM_nadir_avg[0] = (DEM_nadir_sum + DEM_nadir[rr:rr + ncounts[0]].sum()) / trans_total
-            DEM_nadir_surftype_avg[0] = stats.mode(np.concatenate((DEM_nadir_surftype_carryover,
-                                                                   DEM_nadir_surftype[rr:rr + ncounts[0]])))[0][0]
+            DEM_nadir_surftype_avg[0] = stats.mode(np.concatenate((DEM_nadir_surftype_carryover,DEM_nadir_surftype[rr:rr + ncounts[0]])))[0][0]
             DEM_laserspot_avg[0] = (DEM_laserspot_sum + DEM_laserspot[rr:rr + ncounts[0]].sum()) / trans_total
-            DEM_laserspot_surftype_avg[0] = stats.mode(np.concatenate((DEM_laserspot_surftype_carryover,
-                                                                       DEM_laserspot_surftype[rr:rr + ncounts[0]])))[0][
-                0]
+            DEM_laserspot_surftype_avg[0] = stats.mode(np.concatenate((DEM_laserspot_surftype_carryover,DEM_laserspot_surftype[rr:rr + ncounts[0]])))[0][0]
             EMs_avg[0, :] = (EMs_sum + EMs[rr:rr + ncounts[0], :].sum(axis=0)) / trans_total
             NRB_avg[:, 0, :] = (NRB_sum + NRB[:, rr:rr + ncounts[0], :].sum(axis=1)) / trans_total
             bg_save_avg[:, 0] = (bg_save_sum + bg_save[:, rr:rr + ncounts[0]].sum(axis=1)) / trans_total
-            saturate_ht_max[:, 0] = np.asarray((saturate_ht_carryover.max(axis=1),
-                                                saturate_ht[:, rr:rr + ncounts[0]].max(axis=1))).max(axis=0)
+            saturate_ht_max[:, 0] = np.asarray((saturate_ht_carryover.max(axis=1),saturate_ht[:, rr:rr + ncounts[0]].max(axis=1))).max(axis=0)
             print('trans_ncounts = ', trans_ncounts)
             rr += ncounts[0]
         else:
-            si = 0
-            ei = ui.shape[0]
+            # So the 'time bin' of the first record of this file does not
+            # match the 'time bin' of the last record of the previous file
+            # (aka "trans_bin"). BUT we still have the saved trans_bin data
+            # from the previous file. We need to put it into our current avg
+            # arrays. First, we'll expand the size of our averaged arrays by one.
+            # Then we'll feed the data from the trans_bin (remember, previous file)
+            # into the first element (element zero). We'll then set si (start index)
+            # to one and code outside this block should proceed normally.
+            Nav_save_avg = np.zeros(u.shape[0]+1, dtype=Nav_save.dtype)
+            laserspot_avg = np.zeros((u.shape[0]+1, 2), dtype=laserspot.dtype)
+            ONA_save_avg = np.zeros(u.shape[0]+1, dtype=ONA_save.dtype)
+            DEM_nadir_avg = np.zeros(u.shape[0]+1, dtype=DEM_nadir.dtype)
+            DEM_nadir_surftype_avg = np.zeros(u.shape[0]+1, dtype=DEM_nadir_surftype.dtype)
+            DEM_laserspot_avg = np.zeros(u.shape[0]+1, dtype=DEM_laserspot.dtype)
+            DEM_laserspot_surftype_avg = np.zeros(u.shape[0]+1, dtype=DEM_laserspot_surftype.dtype)
+            EMs_avg = np.zeros((u.shape[0]+1, nwl), dtype=EMs.dtype)
+            NRB_avg = np.zeros((nc, u.shape[0]+1, nb_ff), dtype=NRB.dtype)
+            bg_save_avg = np.zeros((nc, u.shape[0]+1), dtype=bg_save.dtype)
+            saturate_ht_max = np.zeros((nc, u.shape[0]+1), dtype=saturate_ht.dtype)
+            # Now insert trans_bin data into element zero. NOTE rr remains zero.
+            trans_total = float(trans_ncounts)
+            for field in Nav_save_avg.dtype.names:
+                if field == 'UTC': continue
+                Nav_save_avg[field][0] = Nav_save_sum[field] / trans_total
+            Nav_save_avg['UTC'][0,:] = Nav_UTC_carryover
+            laserspot_avg[0, :] = laserspot_sum / trans_total
+            ONA_save_avg[0] = ONA_save_sum / trans_total
+            DEM_nadir_avg[0] = DEM_nadir_sum / trans_total
+            DEM_nadir_surftype_avg[0] = stats.mode(DEM_nadir_surftype_carryover)[0][0]
+            DEM_laserspot_avg[0] = DEM_laserspot_sum / trans_total
+            DEM_laserspot_surftype_avg[0] = stats.mode(DEM_laserspot_surftype_carryover)[0][0]
+            EMs_avg[0, :] = EMs_sum / trans_total
+            NRB_avg[:, 0, :] = NRB_sum / trans_total
+            bg_save_avg[:, 0] = bg_save_sum / trans_total
+            saturate_ht_max[:, 0] = saturate_ht_carryover.max(axis=1)
+            # Now do these critical arrays as well
+            u = np.concatenate(([-99],u))        # now elem 0 corr. with trans_bin
+            ui = np.concatenate(([-99],ui))
+            ncounts = np.concatenate(([trans_ncounts],ncounts))          
+            print('trans_ncounts = ', trans_ncounts)                       
+            si = 1
+            ei = Nav_save_avg.shape[0] - 1 # You expanded the array in this block
+            if last_file: ei = Nav_save_avg.shape[0] # loop thru til end if last file
             perfectly_aligned = True
             print(attention_bar)
             print("I guess the time_bins lined up perfectly with edge of previous file")
@@ -1943,7 +1989,7 @@ for f in range(0, nCLS_files):
 
         # Save the sum and ncounts of last populated time bin to string averaging
         # together between multiple files.
-        if (not last_file) and (ei != ui.shape[0]):
+        if not last_file:
             Nav_save_sum = np.zeros(1, dtype=Nav_save.dtype)
             for field in Nav_save_avg.dtype.names:
                 if field == 'UTC': continue
@@ -2015,16 +2061,13 @@ for f in range(0, nCLS_files):
         laserspot_dset[expanded_length - n_expand:expanded_length, :] = laserspot_avg[cutbegin:n_expand + cutbegin, :]
         ONA_dset[expanded_length - n_expand:expanded_length] = ONA_save_avg[cutbegin:n_expand + cutbegin]
         DEM_nadir_dset[expanded_length - n_expand:expanded_length] = DEM_nadir_avg[cutbegin:n_expand + cutbegin]
-        DEM_nadir_surftype_dset[expanded_length - n_expand:expanded_length] = DEM_nadir_surftype_avg[
-                                                                              cutbegin:n_expand + cutbegin]
+        DEM_nadir_surftype_dset[expanded_length - n_expand:expanded_length] = DEM_nadir_surftype_avg[cutbegin:n_expand + cutbegin]
         DEM_laserspot_dset[expanded_length - n_expand:expanded_length] = DEM_laserspot_avg[cutbegin:n_expand + cutbegin]
-        DEM_laserspot_surftype_dset[expanded_length - n_expand:expanded_length] = DEM_laserspot_surftype_avg[
-                                                                                  cutbegin:n_expand + cutbegin]
+        DEM_laserspot_surftype_dset[expanded_length - n_expand:expanded_length] = DEM_laserspot_surftype_avg[cutbegin:n_expand + cutbegin]
         EM_dset[expanded_length - n_expand:expanded_length, :] = EMs_avg[cutbegin:n_expand + cutbegin, :]
         NRB_dset[:, expanded_length - n_expand:expanded_length, :] = NRB_avg[:, cutbegin:n_expand + cutbegin, :]
         bg_dset[:, expanded_length - n_expand:expanded_length] = bg_save_avg[:, cutbegin:n_expand + cutbegin]
-        saturate_ht_dset[:, expanded_length - n_expand:expanded_length] = saturate_ht_max[:,
-                                                                          cutbegin:n_expand + cutbegin]
+        saturate_ht_dset[:, expanded_length - n_expand:expanded_length] = saturate_ht_max[:,cutbegin:n_expand + cutbegin]
         nrecs = expanded_length
 
     else:  # No averaging

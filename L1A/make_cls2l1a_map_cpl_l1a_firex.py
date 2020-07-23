@@ -501,19 +501,19 @@ elif Nav_source == 'cls':
 
     # Load the entire nav dataset into memory. This data will be used in both
     # the 'cls' Nav block and later on in the main file loop.
-    cls_meta_data_all, nav2cls_indx, FL_trunc, usable_file_range = read_entire_cls_meta_dataset(raw_dir,file_len_recs,nbins,flt_date,bad_cls_nav_time_value)
-    #meta_save = np.copy(cls_meta_data_all) #uncomment to compare processed to original
+    cls_meta_data_all, nav2cls_indx, FL_trunc, usable_file_range = read_entire_cls_meta_dataset(raw_dir, file_len_recs, nbins, flt_date, bad_cls_nav_time_value)
+    # meta_save = np.copy(cls_meta_data_all) #uncomment to compare processed to original
     cls_nav_data_all = np.copy(cls_meta_data_all['Nav'])
 
-    UnixT_epoch = DT.datetime(1970,1,1)
+    UnixT_epoch = DT.datetime(1970, 1, 1)
     m = 1.0 / CLS_hz
     
     # Identify all the unique UTC_Times and their starting indexes
-    u, ui, ncounts = np.unique(cls_nav_data_all['UTC_Time'],return_index=True,return_counts=True)
+    u, ui, ncounts = np.unique(cls_nav_data_all['UTC_Time'], return_index=True, return_counts=True)
     # Bad time values will sink to the front of this "unique" array
     if u[0] == bad_cls_nav_time_value:
         print(attention_bar)
-        print("\nSome(A) UTC_Time(s) in the Nav records were(was) invalid.")
+        print("\nA(Some) UTC_Time(s) in the Nav record(s) was(were) invalid.")
         print("Attempt is being made to take care of this.") 
         print("Setting first invalid CLS-Nav UTC_Time record equal to")
         print("the first valid CLS-Nav UTC_Time record.\n")
@@ -538,9 +538,9 @@ elif Nav_source == 'cls':
     n_u = u.shape[0]      
     
     # Convert the unique UTC_Times to Unix Times
-    Nav_UnixT = np.zeros(n_u,dtype=np.float64)
-    Nav_unique = np.zeros(n_u,dtype=CLS_decoded_nav_struct)
-    for i in range(0,n_u): 
+    Nav_UnixT = np.zeros(n_u, dtype=np.float64)
+    Nav_unique = np.zeros(n_u, dtype=CLS_decoded_nav_struct)
+    for i in range(0, n_u):
         Nav_UnixT[i] = (cls_nav_data_all['UTC_Time'][ui[i]] - UnixT_epoch).total_seconds()
         Nav_unique[i] = cls_nav_data_all[ui[i]] 
 
@@ -551,20 +551,21 @@ elif Nav_source == 'cls':
         print(attention_bar)
         print("HEY! The data span "+str(tot_hours).strip()+" hours!")
         print("Consider trimming processing time range in init. file.")
-        print('Enter "c" to contine processing anyway.')
+        print('Enter "c" to continue processing anyway.')
         print('Enter "q" to safely quit.')
         print(attention_bar)
         pdb.set_trace() 
 
     # Look at the time deltas between unique, you'll use this in a little bit
-    u, ui, ncounts = np.unique(cls_meta_data_all['Header']['ExactTime'],return_index=True,return_counts=True)
-    if u[0] == bad_cls_nav_time_value:
-        u = u[1:]
-        ui = ui[1:]
-        ncounts = ncounts[1:]    
-    ExactTime_ncounts = np.copy(ncounts)
-    ExactTime_ui = np.copy(ui)
-    inst_clk_deltas = delta_datetime_vector(u)
+    # On 5/4/2020 updated to separate Instrument time from Nav Time u ui and ncounts arrays
+    u_inst, ui_inst, ncounts_inst = np.unique(cls_meta_data_all['Header']['ExactTime'], return_index=True, return_counts=True)
+    if u_inst[0] == bad_cls_nav_time_value:
+        u_inst = u_inst[1:]
+        ui_inst = ui_inst[1:]
+        ncounts_inst = ncounts_inst[1:]
+    ExactTime_ncounts = np.copy(ncounts_inst)
+    ExactTime_ui = np.copy(ui_inst)
+    inst_clk_deltas = delta_datetime_vector(u_inst)
 
     # Estimate the data rate from the Nav time and length of data array.
     # Warn user if computed data doesn't match initialized data rate.
@@ -573,66 +574,69 @@ elif Nav_source == 'cls':
         print(attention_bar)
         print("!!!!!!! WARNING !!!!!!!")
         print("The estimated (init. file) and computed data rates differ by too much.")
-        print("estimated: ",CLS_hz," computed: ",computed_CLS_hz)
+        print("estimated: ", CLS_hz, " computed: ", computed_CLS_hz)
         print("Make sure CLS_hz from initializations is correct")
         print("!!!!!!! WARNING !!!!!!!")
-        print('Enter "c" to contine processing anyway.')
+        print('Enter "c" to continue processing anyway.')
         print('Enter "q" to safely quit.')
         print('If you continue, data rate from initializations will be used.')
         print(attention_bar)
         pdb.set_trace()
     else:
         print('Init. file CLS data rate is sufficiently close to computed data rate.')
-        print('CLS_hz: ',CLS_hz, ' computed_CLS_hz: ',computed_CLS_hz)
+        print('CLS_hz: ', CLS_hz, ' computed_CLS_hz: ', computed_CLS_hz)
         print('To be clear, code will use CLS data rate from initializations (CLS_hz)\n')
     m = 1.0 / CLS_hz
 
-    # Create x-ord array of Unix Times at which to compute interpolated values
-    ix = np.arange(Nav_UnixT[0],Nav_UnixT[0]+tot_elapsed+1,m) # x coordinates of the interpolated values
-
+    # interp_start_time_offset calculation moved up on 5/4/2020 for availability in ix generation
     # Create the x-coordinates for the interp data, which will have units of Unix Time
     print("Making the reasonably dangerous assumption that earliest time is first rec")
     print("and latest time is last rec.")
     rough_expected_recs_sec = int(CLS_hz)
     interp_start_time_offset = 0.0
-    if ncounts[0] < CLS_hz:
-        interp_start_time_offset = (rough_expected_recs_sec - ncounts[0])/CLS_hz
-        
+    # if ncounts[0] < CLS_hz:      # 5/5/2020 Removed for instances that ncounts is larger than expected 1 second
+    interp_start_time_offset = (rough_expected_recs_sec - ncounts[0]) / CLS_hz  # Now calculated using the ncounts from NAV DATA
+
+    # Added section below so that we can correctly determine the end of time in the data
+    if ncounts[-1] < CLS_hz:     # Now calculated using the ncounts from NAV DATA
+        interp_end_time_offset = (ncounts[-1])/CLS_hz
+
+    # 5/4/2020 ix array calculation updated to include start_time_offset and end_time_offset
+    # and updated addition of 8*m instead of 1
+    # Create x-ord array of Unix Times at which to compute interpolated values
+    print('Try ', (cls_meta_data_all.shape[0] / (((Nav_UnixT[-1] + interp_end_time_offset) - (Nav_UnixT[0] + \
+        interp_start_time_offset) + 1))) * float(nshots), ' for CLS_hz')
+    ix = np.arange((Nav_UnixT[0] + interp_start_time_offset), ((Nav_UnixT[-1] + interp_end_time_offset) + 10*m),
+                   m)  # x coordinates of the interpolated values
+    # ix = np.arange(Nav_UnixT[0], Nav_UnixT[0]+tot_elapsed+1, m)
+
     n_interp = ix.shape[0]
-    nav_interp = np.zeros(n_interp,dtype=CLS_decoded_nav_struct)
+    nav_interp = np.zeros(n_interp, dtype=CLS_decoded_nav_struct)
     Nav_interp_T_float64 = ix
     for field in cls_nav_data_all.dtype.names:
-        if (field == 'UTC_Time'): continue
+        if field == 'UTC_Time': continue
         nav_interp[field] = np.interp(ix, Nav_UnixT, Nav_unique[field])
     # Now handle population of interp time field
-    for k in range(0,n_interp):
-        nav_interp['UTC_Time'][k] = ( cls_nav_data_all['UTC_Time'][0] + DT.timedelta(seconds=(m*k)) )
+    # 5/4/2020 added timedelta of interp_start_time_offset to nav_interp UTC Time values
+    for k in range(0, n_interp):
+        nav_interp['UTC_Time'][k] = (cls_nav_data_all['UTC_Time'][0] + DT.timedelta(seconds=interp_start_time_offset)
+                                     + DT.timedelta(seconds=(m*k)))
  
-    # The purpose of the code in this next paragraph is create the proper mapping
-    # of the CLS data to the interpolated Nav data, which comes from the CLS data
-    # itself when Nav_source=='cls', and there are gaps in the data.
-    # The UTC from the interpolated Nav data is pulled into a new array, UTC_ovrwrt.
-    # At this point, cls_meta_data_all has exactly the # of total valid (non-watchdog)
-    # records in the entire flight. But before this paragraph was written, it only did the
-    # thing in the else block - and this allows the CLS records to map to the Nav data inside
-    # itself. cls_meta_data_all is thrown into the create_cls_interp_unixt_array function
-    # in order allow the code to match the CLS data to itself (ie the interpolated Nav data). The
-    # ORIG and INTERP Unix Times that go into the C mapping function come from cls_meta_data_all['Nav']
-    # implanted into the record-space of a single CLS file via the map variable, "Navi."
-    # If there are data gaps, the interpolated data (pre-version 3) is interpolated across the gaps,
-    # resulting in a much longer (many more profiles) array than cls_meta_data_all. This means
-    # that interpolated Nav data now residing in cls_meta_data_all will map incorrectly, the error
-    # increasing after each data gap. These are large errors. By deleting the interpolated
-    # gap-spanning data, cls_meta_data_all will implant each CLS file with correctly
-    # mapped interpolated navigation (to match to itself). Simple, right?
-    # Test this code out on SEAC4RS data.
-    offset_indx=np.abs((ix - ix[0]) - interp_start_time_offset).argmin()
+    # Prepare nav_interp 'UTC_Time' array, where time gaps have been
+    # masked out, then overwrite original Nav time.
+    # 5/4/2020 replaced calculation offset_indx = np.abs((ix - ix[0]) - interp_start_time_offset).argmin()
+    offset_indx = (rough_expected_recs_sec - ncounts[0])   # Uses Nav Time for ncounts
     if inst_clk_deltas.max() > inst_clk_rez:
         
+        print('If you are seeing this message, tell Patrick Selmer to')
+        print('investigate why this block of code is necessary.')
+        # Maybe this relates to how NEW is populated in the C code.
+        # Wish I would have take better notes about this block.
+        pdb.set_trace()
         print(attention_bar+"Time gaps in instrument clock detected. Handling it!"+attention_bar)
         UTC_ovrwrt = np.copy(nav_interp['UTC_Time'][offset_indx:])
         no_delta = True
-        for k in range(0,inst_clk_deltas.shape[0]):
+        for k in range(0, inst_clk_deltas.shape[0]):
             if inst_clk_deltas[k] > inst_clk_rez:
                 if no_delta: 
                     delta_indx = ExactTime_ui[k-1]+ExactTime_ncounts[k-1]
@@ -643,7 +647,7 @@ elif Nav_source == 'cls':
                 #print('A')
                 #pdb.set_trace()
                 delta_indx += skip_recs
-            elif ((not no_delta) and (inst_clk_deltas[k] <= inst_clk_rez)):
+            elif (not no_delta) and (inst_clk_deltas[k] <= inst_clk_rez):
                 delta_indx += ExactTime_ncounts[k] #int(CLS_hz)
                 #print(delta_indx,ExactTime_ui[k],k)
                 #print('B')
@@ -662,18 +666,22 @@ elif Nav_source == 'cls':
     else:
         
         print('\nYou are lucky. No time gaps detected in the middle of the flight! :-)\n')
-        cls_meta_data_all['Nav']['UTC_Time'] = nav_interp['UTC_Time'][offset_indx:offset_indx+cls_meta_data_all.shape[0]]
+        # 5/4/2020 offset_indx removed from assignment below and will need to be checked for lines above
+        print(cls_meta_data_all['Nav']['UTC_Time'].shape[0])
+        print(nav_interp['UTC_Time'].shape[0])
+        cls_meta_data_all['Nav']['UTC_Time'] = nav_interp['UTC_Time'][0:cls_meta_data_all.shape[0]]
 
-    #plt.plot_date(cls_meta_data_all['Nav']['UTC_Time'],cls_meta_data_all['Nav']['RollAngle'],marker='x')
-    #plt.plot_date(nav_interp['UTC_Time'],nav_interp['RollAngle'],marker='o')
-    #plt.show()
+    # plt.plot_date(cls_meta_data_all['Nav']['UTC_Time'],cls_meta_data_all['Nav']['RollAngle'],marker='x')
+    # plt.plot_date(nav_interp['UTC_Time'],nav_interp['RollAngle'],marker='o')
+    # plt.show()
+    # pdb.set_trace()
     
     # NOW, set the array that will be used in processing, cls_nav_data_all equal
     # to the interpolated array that was just created, nav_interp.
     cls_nav_data_all = nav_interp
     
     # This variable will be the same no matter what the Nav_source
-    Nav_hz = CLS_hz    
+    Nav_hz = CLS_hz      
     
 else:
     
@@ -1294,7 +1302,7 @@ for f in range(0,nCLS_files):
             print("I guess the time_bins lined up perfectly with edge of previous file")
             print("because there are no values in the previous file's last time bin.")
             print(trans_bin)
-            print(attention_bar)
+            print(attention_bar)         
 
         for tb in range(si,ei):
             for field in Nav_save_avg.dtype.names:
@@ -1474,13 +1482,16 @@ print('Main L1A execution finished at: ',DT.datetime.now())
 print('Shape of rectrack_master: ',rectrack_master.shape)
 print('Shape of L1Arec_nums: ',L1Arec_nums.shape)
 print('Shape of L1A_Time: ',L1A_Time.shape)
+testdt = []
 index_map_file = L1_dir + 'CLS2L1A_map_'+proj_name+'_'+flt_date+'_'+Nav_source+'.csv'
 with open(index_map_file, 'w') as map_f_obj:
     for CLSi, L1Ai in zip(rectrack_master, L1Arec_nums):
         str_time = str( L1A_Time[L1Ai,:].view('S26') )[3:29]
+        testdt.append(DT.datetime.strptime(str_time,"%Y-%m-%dT%H:%M:%S.%f"))
         string2write = str(CLSi)+','+str(L1Ai)+','+str_time+'\n'
         map_f_obj.write(string2write)
-
+#testdt = np.asarray(testdt)
+#pdb.set_trace()
 # Write out any final parameters to the HDF5 file that needed to wait
 
 num_recs_dset[:] = nrecs
