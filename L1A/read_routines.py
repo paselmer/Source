@@ -1489,3 +1489,51 @@ def read_in_cats_l0_data(cats_l0_fname, nchans, nbins):
     
     return l0_data
      
+
+def read_entire_cls_dataset_clean(file_len_recs,raw_dir,nbins,flt_date,bad_cls_nav_time_value):
+    """ This function reads in all the CLS data from the entire flight.
+    """
+    
+    # NOTES:
+    #
+    # [5/24/18]
+    # Fcontrol, or file control, added to ease recycling of CAMAL GUI code
+    # to create CPL GUI
+    #
+    # [10/9/19]
+    # Retooled slightly to accomodate the removal of the initializations
+    # import from this module.
+    #
+    # [7/24/20] Made the "clean" version to get rid of that GUI Fcontrol input.
+
+    cls_file_list = 'cls_file_list_for_nav_only.txt'
+    search_str = '*.cls'
+    create_a_file_list(cls_file_list,search_str,raw_dir)    
+            
+    with open(cls_file_list) as cls_list_fobj:
+        all_cls_files = cls_list_fobj.readlines()
+    n_cls = len(all_cls_files)
+    ncls_files = len(all_cls_files)
+    Fnumbers = [x for x in range(0,ncls_files)]
+    
+    est_cls_recs = file_len_recs*ncls_files
+    file_indx = np.zeros((ncls_files,2),dtype=np.uint32)
+    j = 0
+    k = 0
+    for i in Fnumbers:
+        cls_file = all_cls_files[k]
+        cls_file = cls_file.strip()
+        cls_data_1file, Nav_dict = read_in_cls_data(cls_file,nbins,flt_date,bad_cls_nav_time_value,True)
+        if j == 0:
+             max_chan = cls_data_1file['meta']['Header']['NumChannels'][0]
+             cls_data_all = np.zeros(est_cls_recs,dtype=define_CLS_decoded_structure(max_chan,nbins))
+        try:
+            cls_data_all[j:j+cls_data_1file.shape[0]] = cls_data_1file
+        except:
+            pdb.set_trace()
+        j += cls_data_1file.shape[0]
+        k += 1
+        print('Finshed ingesting file: '+cls_file)
+    cls_data_all = cls_data_all[0:j] # trim the fat
+
+    return cls_data_all # NOTE: It is decoded.

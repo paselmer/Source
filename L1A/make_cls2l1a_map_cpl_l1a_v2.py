@@ -1455,10 +1455,12 @@ for f in range(0,nCLS_files):
         rectrack_master = np.concatenate((rectrack_master,rectrack_1file))
         L1Arec_nums = np.concatenate((L1Arec_nums, L1Arec_nums_1file))
         L1A_Time = np.concatenate((L1A_Time, Nav_save_avg['UTC'][cutbegin:n_expand+cutbegin]), axis=0)
+        Plane_Alt = np.concatenate((Plane_Alt, Nav_save_avg['GPS_alt'][cutbegin:n_expand+cutbegin]))
     else:
         rectrack_master = np.copy(rectrack_1file)
         L1Arec_nums = np.copy(L1Arec_nums_1file)
         L1A_Time = np.copy(Nav_save_avg['UTC'][cutbegin:n_expand+cutbegin])
+        Plane_Alt = np.copy(Nav_save_avg['GPS_alt'][cutbegin:n_expand+cutbegin])
     
     first_read = False
         
@@ -1478,7 +1480,8 @@ index_map_file = L1_dir + 'CLS2L1A_map_'+proj_name+'_'+flt_date+'_'+Nav_source+'
 with open(index_map_file, 'w') as map_f_obj:
     for CLSi, L1Ai in zip(rectrack_master, L1Arec_nums):
         str_time = str( L1A_Time[L1Ai,:].view('S26') )[3:29]
-        string2write = str(CLSi)+','+str(L1Ai)+','+str_time+'\n'
+        str_alt = '{0:11.4f}'.format( Plane_Alt[L1Ai] )
+        string2write = str(CLSi)+','+str(L1Ai)+','+str_time+','+str_alt+'\n'
         map_f_obj.write(string2write)
 
 # Write out any final parameters to the HDF5 file that needed to wait
