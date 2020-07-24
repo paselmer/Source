@@ -30,6 +30,10 @@ CLS_rn = np.zeros(nr_CLS, dtype=np.uint32)
 L1A_rn = np.zeros(nr_CLS, dtype=np.uint32)
 UTC = np.zeros(nr_CLS, dtype=DT.datetime)
 PAlt = np.zeros(nr_CLS, dtype=np.float64)
+ONA = np.zeros(nr_CLS, dtype=np.float64)
+E0 = np.zeros(nr_CLS, dtype=np.float64)
+E1 = np.zeros(nr_CLS, dtype=np.float64)
+E2 = np.zeros(nr_CLS, dtype=np.float64)
 i = 0
 for CLS_rec in raw2L1A:
     split_line = CLS_rec.split(',')
@@ -40,6 +44,10 @@ for CLS_rec in raw2L1A:
     except:
         pdb.set_trace()
     PAlt[i] = float(split_line[3].strip())
+    ONA[i] = float(split_line[4].strip())
+    E0[i] = float(split_line[5].strip())
+    E1[i] = float(split_line[6].strip())
+    E2[i] = float(split_line[7].strip())
     i += 1
     
 # Apply the L1B_offset
@@ -49,6 +57,10 @@ if L1B_offset > 0:
     L1A_rn = L1A_rn[mask]
     UTC = UTC[mask]
     PAlt = PAlt[mask]
+    ONA = ONA[mask]
+    E0 = E0[mask]
+    E1 = E1[mask]
+    E2 = E2[mask]
     
 # Convert UTC to Julian Day (JDay)
 
@@ -135,7 +147,7 @@ L1A_rn_v2 = L1A_rn_v2[:j] + L1A_rn.min() # add offset
 name_body = input_file.split(sch)[-1][7:]
 master_map_file = output_file_path + 'CLS2L2' + name_body
 f_obj = open(master_map_file,'w')
-f_obj.write('CLS, L1A, L2, L1A_Plane_Alt\n')
+f_obj.write('CLS, L1A, L2, L1A_Plane_Alt, L1A_ONA, L1A_E0, L1A_E1, L1A_E2\n')
 
 for k in range(0,uq_L1A_rn.shape[0]):
     
@@ -149,7 +161,11 @@ for k in range(0,uq_L1A_rn.shape[0]):
         for m in range(ui[k],ui[k]+ncounts[k]):
             CLS_rec_str = str(CLS_rn[m])
             PAlt_str = str(PAlt[m])
-            outlist = [CLS_rec_str, L1A_rec_str, L2_rec_str, PAlt_str]
+            ONA_str = str(ONA[m])
+            E0_str = str(E0[m])
+            E1_str = str(E1[m])
+            E2_str = str(E2[m])
+            outlist = [CLS_rec_str, L1A_rec_str, L2_rec_str, PAlt_str, ONA_str, E0_str, E1_str, E2_str]
             str2write = ','.join(outlist) + '\n'
             f_obj.write(str2write)
             

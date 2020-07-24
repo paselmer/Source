@@ -1464,11 +1464,15 @@ for f in range(0,nCLS_files):
         L1Arec_nums = np.concatenate((L1Arec_nums, L1Arec_nums_1file))
         L1A_Time = np.concatenate((L1A_Time, Nav_save_avg['UTC'][cutbegin:n_expand+cutbegin]), axis=0)
         Plane_Alt = np.concatenate((Plane_Alt, Nav_save_avg['GPS_alt'][cutbegin:n_expand+cutbegin]))
+        ONA_4map = np.concatenate((ONA_4map,ONA_save_avg[cutbegin:n_expand+cutbegin]))
+        E_4map = np.concatenate((E_4map,EMs_avg[cutbegin:n_expand+cutbegin,:]),axis=0)
     else:
         rectrack_master = np.copy(rectrack_1file)
         L1Arec_nums = np.copy(L1Arec_nums_1file)
         L1A_Time = np.copy(Nav_save_avg['UTC'][cutbegin:n_expand+cutbegin])
         Plane_Alt = np.copy(Nav_save_avg['GPS_alt'][cutbegin:n_expand+cutbegin])
+        ONA_4map = np.copy(ONA_save_avg[cutbegin:n_expand+cutbegin])
+        E_4map = np.copy(EMs_avg[cutbegin:n_expand+cutbegin,:])
     
     first_read = False
         
@@ -1489,7 +1493,12 @@ with open(index_map_file, 'w') as map_f_obj:
     for CLSi, L1Ai in zip(rectrack_master, L1Arec_nums):
         str_time = str( L1A_Time[L1Ai,:].view('S26') )[3:29]
         str_alt = '{0:11.4f}'.format( Plane_Alt[L1Ai] )
-        string2write = str(CLSi)+','+str(L1Ai)+','+str_time+','+str_alt+'\n'
+        str_ONA = '{0:13.9f}'.format( ONA_4map[L1Ai] )
+        str_E0 = '{0:21.6f}'.format( E_4map[L1Ai,0] )
+        str_E1 = '{0:21.6f}'.format( E_4map[L1Ai,1] )
+        str_E2 = '{0:21.6f}'.format( E_4map[L1Ai,2] )
+        outlist = [str(CLSi),str(L1Ai),str_time,str_alt,str_ONA,str_E0,str_E1,str_E2]
+        string2write = ','.join(outlist) + '\n'
         map_f_obj.write(string2write)
 
 num_recs_dset[:] = nrecs
