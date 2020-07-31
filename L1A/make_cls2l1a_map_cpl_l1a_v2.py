@@ -701,6 +701,7 @@ OL_map_indx = 0 # count thru overlap map as required
 true_undoctored_num_CLS_recs = 0      # not a typical L1A variable
 last_true_undoctored_num_CLS_recs = 0 # not a typical L1A variable
 n_L1A = 0 # counts the number of L1A-resolution records
+n_expand_runsum = 0
 for f in range(0,nCLS_files):
 
     if f not in usable_file_indicies:
@@ -1374,6 +1375,9 @@ for f in range(0,nCLS_files):
                 mask = L1Arec_nums_1file != di # locations not equal to deleted index
                 L1Arec_nums_1file = L1Arec_nums_1file[mask] # running count of # of L1A records
                 rectrack_1file = rectrack_1file[mask]
+                pushback_mask = L1Arec_nums_1file > di 
+                L1Arec_nums_1file[pushback_mask] = L1Arec_nums_1file[pushback_mask] - 1
+                n_L1A -= 1
             print("\nAvg'd profiles eliminated due to min_avg_profs constraint.")
             print(np.argwhere(big_enough_mask == False))
             print(big_enough_mask.shape," reduced to ", u.shape, "\n")
@@ -1382,7 +1386,13 @@ for f in range(0,nCLS_files):
         cutbegin = 0
         if ((first_read) and (ncounts[0] < min_avg_profs)): cutbegin = 1
         n_expand = u.shape[0]-1-cutbegin
-        if ( (last_file) and (ncounts[-1] > min_avg_profs) ): n_expand = u.shape[0]
+        if ( (last_file) and (ncounts[-1] > min_avg_profs) ): 
+            n_expand = u.shape[0]
+        elif ((last_file) and (ncounts[-1] <= min_avg_profs)):
+            # added 7/30/2020 cuz PELIcoe 22oct19 flight did not have min_avg_profs in last rec.
+            L1Arec_nums_1file = L1Arec_nums_1file[:-1*ncounts[-1]]
+            rectrack_1file = rectrack_1file[:-1*ncounts[-1]]
+            n_L1A -= 1
         expanded_length = nav_dset.shape[0]+n_expand
         # Now, if it's the first_read, nav_dset has an initialized length of 1; therefore,
         # if you use the expanded_length in the previous line the first_read, you'll 
@@ -1413,10 +1423,14 @@ for f in range(0,nCLS_files):
         bg_dset[:,expanded_length-n_expand:expanded_length] = bg_save_avg[:,cutbegin:n_expand+cutbegin]
         saturate_ht_dset[:,expanded_length-n_expand:expanded_length] = saturate_ht_max[:,cutbegin:n_expand+cutbegin]
         nrecs = expanded_length
+        n_expand_runsum = n_expand + n_expand_runsum
         print('Nav_save_avg shape: ',Nav_save_avg.shape)
         print('cutbegin: ',cutbegin)
         print('n_expand: ',n_expand)
+        print('n_expand_runsum: ',n_expand_runsum)
         print('n_L1A: ',n_L1A)
+        print(L1Arec_nums_1file.shape)
+        print(rectrack_1file.shape)
 
     else: # No averaging
 
@@ -1480,7 +1494,7 @@ print('Main L1A execution finished at: ',DT.datetime.now())
 print('Shape of rectrack_master: ',rectrack_master.shape)
 print('Shape of L1Arec_nums: ',L1Arec_nums.shape)
 print('Shape of L1A_Time: ',L1A_Time.shape)
-index_map_file = L1_dir + 'CLS2L1A_map_'+proj_name+'_'+flt_date+'_'+Nav_source+'.csv'
+index_map_file = raw_dir + 'CLS2L1A_map_'+proj_name+'_'+flt_date+'_'+Nav_source+'.csv'
 with open(index_map_file, 'w') as map_f_obj:
     for CLSi, L1Ai in zip(rectrack_master, L1Arec_nums):
         str_time = str( L1A_Time[L1Ai,:].view('S26') )[3:29]
@@ -1507,4 +1521,4 @@ print("cpl_l1a.py has finished normally.")
 
 
 ######################################################################### BELOW THIS LINE SHALL NOT BE PART OF L1A PROCESS
-pdb.set_trace()
+#pdb.set_trace()
