@@ -743,11 +743,11 @@ for f in range(0,nCLS_files):
     good_rec_bool = np.ones(CLS_data_1file.shape[0],dtype=bool) # is 'True' for good records, 'False' for bad
     satur_flag = False # Will turn True if any bin in current file is potentially saturated.
     ################## MASTER CLS RECORD TRACKER FOR SINGLE FILE ###############################
-    if FL_flag == -1:  # first file of flight
+    if (FL_flag == -1) and (Nav_source != 'iwg1'):  # first file of flight
         true_undoctored_num_CLS_recs = nr_1file + FL_trunc[0] + last_true_undoctored_num_CLS_recs
         rectrack_1file = np.arange(last_true_undoctored_num_CLS_recs, true_undoctored_num_CLS_recs, dtype=np.uint32)
         rectrack_1file = rectrack_1file[FL_trunc[0]:] 
-    elif FL_flag == 1: # last file of flight
+    elif (FL_flag == 1) and (Nav_source != 'iwg1'): # last file of flight
         true_undoctored_num_CLS_recs = nr_1file + FL_trunc[1] + last_true_undoctored_num_CLS_recs
         rectrack_1file = np.arange(last_true_undoctored_num_CLS_recs, true_undoctored_num_CLS_recs, dtype=np.uint32)
         rectrack_1file = rectrack_1file[:int(-1*FL_trunc[1])]
@@ -1020,7 +1020,7 @@ for f in range(0,nCLS_files):
             # byte array for IDL.
             time_str = Nav_match['UTC'].strftime("%Y-%m-%dT%H:%M:%S.%f")    
             Nav_save[i1f]['UTC'] = np.asarray(list(time_str.encode('utf8')),dtype=np.uint8)
-            current_Nav_UTC = Nav_match['UTC_Time'] # Nav_match fields dependant on dataset
+            current_Nav_UTC = Nav_match['UTC'] # Nav_match fields dependant on dataset
             Nav_save[i1f]['GPS_alt'] = Nav_match['GPS_alt']
             Y = 0.0 #Nav_match['drift'] * (np.pi/180.0) 
             P = Nav_match['pitch'] * (np.pi/180.0)
@@ -1396,7 +1396,12 @@ for f in range(0,nCLS_files):
 
         # Expand dataset sizes to accomodate next input CLS file
         cutbegin = 0
-        if ((first_read) and (ncounts[0] < min_avg_profs)): cutbegin = 1
+        if ((first_read) and (ncounts[0] < min_avg_profs)): 
+            cutbegin = 1
+            L1Arec_nums_1file = L1Arec_nums_1file[ncounts[0]:]
+            L1Arec_nums_1file = L1Arec_nums_1file - 1
+            n_L1A -= 1
+            rectrack_1file = rectrack_1file[ncounts[0]:]
         n_expand = u.shape[0]-1-cutbegin
         if ( (last_file) and (ncounts[-1] > min_avg_profs) ): 
             n_expand = u.shape[0]
@@ -1507,7 +1512,7 @@ print('Shape of rectrack_master: ',rectrack_master.shape)
 print('Shape of L1Arec_nums: ',L1Arec_nums.shape)
 print('Shape of L1A_Time: ',L1A_Time.shape)
 index_map_file = raw_dir + 'CLS2L1A_map_'+proj_name+'_'+flt_date+'_'+Nav_source+'.csv'
-
+pdb.set_trace()
 with open(index_map_file, 'w') as map_f_obj:
     for CLSi, L1Ai in zip(rectrack_master, L1Arec_nums):
         str_time = str( L1A_Time[L1Ai,:].view('S26') )[3:29]

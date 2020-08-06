@@ -198,30 +198,51 @@ L2_configs = [L1B_offset, nhori, l1b_rate, cutoff_last, cutoff]
                    
 
 
-input_files = [ 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-901\\CLS2L1A_map_firex_01aug19_cls.csv',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-902\\CLS2L1A_map_firex_02aug19_cls.csv',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-903\\CLS2L1A_map_firex_06aug19_cls.csv',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-904\\CLS2L1A_map_firex_07aug19_cls.csv',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-905\\CLS2L1A_map_firex_08aug19_cls.csv',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-907\\CLS2L1A_map_firex_13aug19_cls.csv',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-908\\CLS2L1A_map_firex_15aug19_cls.csv',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-909\\CLS2L1A_map_firex_16aug19_cls.csv',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-910\\CLS2L1A_map_firex_19aug19_cls.csv',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-911\\CLS2L1A_map_firex_20aug19_cls.csv',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-912\\CLS2L1A_map_firex_21aug19_cls.csv']
-output_file_paths = [ 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-901\\',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-902\\',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-903\\',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-904\\',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-905\\',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-907\\',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-908\\',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-909\\',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-910\\',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-911\\',
-                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-912\\']
+#input_files = [ 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-901\\CLS2L1A_map_firex_01aug19_cls.csv',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-902\\CLS2L1A_map_firex_02aug19_cls.csv',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-903\\CLS2L1A_map_firex_06aug19_cls.csv',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-904\\CLS2L1A_map_firex_07aug19_cls.csv',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-905\\CLS2L1A_map_firex_08aug19_cls.csv',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-907\\CLS2L1A_map_firex_13aug19_cls.csv',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-908\\CLS2L1A_map_firex_15aug19_cls.csv',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-909\\CLS2L1A_map_firex_16aug19_cls.csv',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-910\\CLS2L1A_map_firex_19aug19_cls.csv',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-911\\CLS2L1A_map_firex_20aug19_cls.csv',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-912\\CLS2L1A_map_firex_21aug19_cls.csv']
+#output_file_paths = [ 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-901\\',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-902\\',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-903\\',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-904\\',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-905\\',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-907\\',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-908\\',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-909\\',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-910\\',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-911\\',
+                    #'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-912\\']
+# Short flight with primarily clear air ==> 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-906\\',                    
+input_files = [ 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-012\\CLS2L1A_map_IMPACTS_20_16dec19_cls.csv',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-013\\CLS2L1A_map_IMPACTS_20_15jan20_iwg1.csv',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-014\\CLS2L1A_map_IMPACTS_20_18jan20_cls.csv',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-016\\CLS2L1A_map_IMPACTS_20_01feb20_cls.csv',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-017\\CLS2L1A_map_IMPACTS_20_05feb20_cls.csv',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-018\\CLS2L1A_map_IMPACTS_20_07feb20_cls.csv',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-019\\CLS2L1A_map_IMPACTS_20_23feb20_cls.csv',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-020\\CLS2L1A_map_IMPACTS_20_25feb20_cls.csv',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-022\\CLS2L1A_map_IMPACTS_20_02mar20_cls.csv']
+output_file_paths = [ 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-012\\',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-013\\',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-014\\',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-016\\',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-017\\',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-018\\',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-019\\',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-020\\',
+                    'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-022\\']     
+# 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-015\\CLS2L1A_map_IMPACTS_20_25jan20_cls.csv',
+# 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\IMPACTS_20\\20-021\\CLS2L1A_map_IMPACTS_20_27feb20_cls.csv',                    
 
-# Short flight with primarily clear air ==> 'C:\\Users\\pselmer\\Documents\\CPL_stuff\\firex\\19-906\\',
+
 
 
 for input_file, output_file_path in zip(input_files, output_file_paths):
