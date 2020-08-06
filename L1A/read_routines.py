@@ -545,16 +545,17 @@ def decode_er2_nav_string(Nav_fields, signs, flt_date, bad_cls_nav_time_value, r
         CLS_decoded_nav_data['SunAzimuth'][0] = -999.9
     # This removes the records by adjusting the altitude of some of the other required data is not available and
     # shows the discrepancy
-    if CLS_decoded_nav_data['RollAngle'][0] == -999.99 or \
-            CLS_decoded_nav_data['PitchAngle'][0] == -999.99 or \
-            CLS_decoded_nav_data['GPS_Latitude'][0] == -999.99 or \
-            CLS_decoded_nav_data['GPS_Longitude'][0] == -999.99:
+    if CLS_decoded_nav_data['RollAngle'][0] == np.float32(-999.9) or \
+            CLS_decoded_nav_data['PitchAngle'][0] == np.float32(-999.9) or \
+            CLS_decoded_nav_data['GPS_Latitude'][0] == np.float32(-999.9) or \
+            CLS_decoded_nav_data['GPS_Longitude'][0] == np.float32(-999.9):
         print("ERROR IN CLS DATA - REMOVING RECORD! USE IWG1 INPUT IF YOU ARE NOT ALREADY")
         print('Current Format: ' + raw_nav_string)
         print('Correct Format: ' + 'G 228:14:32:04 N29.55769 W095.78087 120.49 +1.8402  -3.4882  171.50 118.66 12.9 ' +
               '147.0 +0.027 +0.004 -0.017 -0.2  -0.0  +0.5  +7.18  15771.5 N29.55494 W095.77675 nan      nan      nan' +
               '    -49.56 -66.48 nan     0.640 184.03 13.8 324.0 +33.37 +92.91 4.167  4.0')
         CLS_decoded_nav_data['GPS_Altitude'][0] = -999999999999999999999999999999.9
+        CLS_decoded_nav_data['UTC_Time'][0] = bad_cls_nav_time_value
 
     return CLS_decoded_nav_data
 
