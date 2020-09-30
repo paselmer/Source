@@ -1380,14 +1380,14 @@ for f in range(0, nCLS_files):
     good_rec_bool = np.ones(CLS_data_1file.shape[0], dtype=bool)  # is 'True' for good records, 'False' for bad
     satur_flag = False  # Will turn True if any bin in current file is potentially saturated.
     ################## MASTER CLS RECORD TRACKER FOR SINGLE FILE ###############################
-    if FL_flag == -1:  # first file of flight
+    if (FL_flag == -1) and (Nav_source != 'iwg1'):  # first file of flight
         true_undoctored_num_CLS_recs = nr_1file + FL_trunc[0] + last_true_undoctored_num_CLS_recs
         rectrack_1file = np.arange(last_true_undoctored_num_CLS_recs, true_undoctored_num_CLS_recs, dtype=np.uint32)
         rectrack_1file = rectrack_1file[FL_trunc[0]:] 
-    elif FL_flag == 1: # last file of flight
+    elif (FL_flag == 1) and (Nav_source != 'iwg1'): # last file of flight
         true_undoctored_num_CLS_recs = nr_1file + FL_trunc[1] + last_true_undoctored_num_CLS_recs
         rectrack_1file = np.arange(last_true_undoctored_num_CLS_recs, true_undoctored_num_CLS_recs, dtype=np.uint32)
-        rectrack_1file = rectrack_1file[:int(-1*FL_trunc[1])]
+        if FL_trunc[1] != 0: rectrack_1file = rectrack_1file[:int(-1*FL_trunc[1])]
     else:              # flight in the middle
         true_undoctored_num_CLS_recs = nr_1file + last_true_undoctored_num_CLS_recs
         rectrack_1file = np.arange(last_true_undoctored_num_CLS_recs, true_undoctored_num_CLS_recs, dtype=np.uint32)
@@ -1510,7 +1510,7 @@ for f in range(0, nCLS_files):
             for chan in range(0, nc):
                 overlaps_chan_seq[chan, :] = overlaps[wl_map[chan], :]
         # Open the hdf5 file and create the data sets
-        hdf5_fname = L1_dir + 'NRB_' + proj_name + '_' + flt_date + '_' + Nav_source + '.hdf5'
+        hdf5_fname = L1_dir + 'NRBX_' + proj_name + '_' + flt_date + '_' + Nav_source + '.hdf5'
         hdf5_file = h5py.File(hdf5_fname, 'a')
         # Open the lat/lon GEOS met data sampling CSV file
         GEOS_samp_fname = L1_dir + 'lon_lat_UTC_' + proj_name + '_' + flt_date + '_' + Nav_source + '.txt'
@@ -1896,6 +1896,9 @@ for f in range(0, nCLS_files):
         
         ######## CLS 2 L1A MAP-SAVING CODE ########
         L1Arec_nums_1file = np.empty_like(rectrack_1file)
+        ONA_1file = np.zeros(rectrack_1file.shape[0], dtype=ONA_save.dtype)
+        Plane_Alt_1file = np.zeros(rectrack_1file.shape[0], dtype=np.float32)
+        E_1file = np.zeros((rectrack_1file.shape[0], 3), dtype=EMs.dtype)        
 
         bin_numbers = np.digitize(CLS_UnixT_float64_new, time_bins)
         u, ui, ncounts = np.unique(bin_numbers, return_index=True, return_counts=True)
@@ -1950,6 +1953,9 @@ for f in range(0, nCLS_files):
             L1Arec_nums_1file[rr:rr+ncounts[0]] = n_L1A 
             # Now increment n_L1A because you're done with the transfer record
             n_L1A += 1
+            ONA_1file[rr:rr+ncounts[0]] = ONA_save[rr:rr+ncounts[0]]
+            Plane_Alt_1file[rr:rr+ncounts[0]] = Nav_save['GPS_alt'][rr:rr+ncounts[0]]
+            E_1file[rr:rr+ncounts[0],:] = EMs[rr:rr+ncounts[0],:]            
             print('trans_ncounts = ', trans_ncounts)
             rr += ncounts[0]
         else:
@@ -2000,6 +2006,9 @@ for f in range(0, nCLS_files):
             L1Arec_nums_1file[rr:rr+ncounts[0]] = n_L1A 
             # Now increment n_L1A because you're done with the transfer record
             n_L1A += 1            
+            ONA_1file[rr:rr+ncounts[0]] = ONA_save[rr:rr+ncounts[0]]
+            Plane_Alt_1file[rr:rr+ncounts[0]] = Nav_save['GPS_alt'][rr:rr+ncounts[0]]
+            E_1file[rr:rr+ncounts[0],:] = EMs[rr:rr+ncounts[0],:]            
             print('trans_ncounts = ', trans_ncounts)                       
             si = 1
             ei = Nav_save_avg.shape[0] - 1 # You expanded the array in this block
@@ -2028,7 +2037,10 @@ for f in range(0, nCLS_files):
             saturate_ht_max[:, tb] = np.max(saturate_ht[:, rr:rr + ncounts[tb]], axis=1)
             ######## CLS 2 L1A MAP-SAVING CODE ########
             L1Arec_nums_1file[rr:rr+ncounts[tb]] = n_L1A
-            n_L1A += 1            
+            n_L1A += 1    
+            ONA_1file[rr:rr+ncounts[tb]] = ONA_save[rr:rr+ncounts[tb]]
+            Plane_Alt_1file[rr:rr+ncounts[tb]] = Nav_save['GPS_alt'][rr:rr+ncounts[tb]]
+            E_1file[rr:rr+ncounts[tb],:] = EMs[rr:rr+ncounts[tb],:]   
             # print('iter: ',u[tb], CLS_UnixT_float64_new[rr])
             rr += ncounts[tb]
 
@@ -2051,7 +2063,10 @@ for f in range(0, nCLS_files):
             bg_save_sum = bg_save[:, rr:rr + ncounts[-1]].sum(axis=1)
             saturate_ht_carryover = saturate_ht[:, rr:rr + ncounts[-1]]
             ######## CLS 2 L1A MAP-SAVING CODE ########
-            L1Arec_nums_1file[rr:rr+ncounts[-1]] = n_L1A            
+            L1Arec_nums_1file[rr:rr+ncounts[-1]] = n_L1A     
+            ONA_1file[rr:rr+ncounts[-1]] = ONA_save[rr:rr+ncounts[-1]]
+            Plane_Alt_1file[rr:rr+ncounts[-1]] = Nav_save['GPS_alt'][rr:rr+ncounts[-1]]
+            E_1file[rr:rr+ncounts[-1],:] = EMs[rr:rr+ncounts[-1],:]
             # following line defines the "transfer" bin; trans_bin
             trans_bin = time_bins[bin_numbers[ui[-1]] - 1: bin_numbers[ui[-1]] + 1]
             trans_ncounts = ncounts[-1]
@@ -2088,6 +2103,9 @@ for f in range(0, nCLS_files):
                 mask = L1Arec_nums_1file != di # locations not equal to deleted index
                 L1Arec_nums_1file = L1Arec_nums_1file[mask] # running count of # of L1A records
                 rectrack_1file = rectrack_1file[mask]
+                ONA_1file = ONA_1file[mask]
+                Plane_Alt_1file = Plane_Alt_1file[mask]
+                E_1file = E_1file[mask,:]                
                 pushback_mask = L1Arec_nums_1file > di 
                 L1Arec_nums_1file[pushback_mask] = L1Arec_nums_1file[pushback_mask] - 1
                 n_L1A -= 1
@@ -2097,7 +2115,15 @@ for f in range(0, nCLS_files):
 
         # Expand data set sizes to accommodate next input CLS file
         cutbegin = 0
-        if (first_read) and (ncounts[0] < min_avg_profs): cutbegin = 1
+        if (first_read) and (ncounts[0] < min_avg_profs): 
+            cutbegin = 1
+            L1Arec_nums_1file = L1Arec_nums_1file[ncounts[0]:]
+            L1Arec_nums_1file = L1Arec_nums_1file - 1
+            n_L1A -= 1
+            rectrack_1file = rectrack_1file[ncounts[0]:]
+            ONA_1file = ONA_1file[ncounts[0]:]
+            Plane_Alt_1file = Plane_Alt_1file[ncounts[0]:]
+            E_1file = E_1file[ncounts[0]:,:]              
         n_expand = u.shape[0] - 1 - cutbegin
         if ( (last_file) and (ncounts[-1] > min_avg_profs) ): 
             n_expand = u.shape[0]
@@ -2105,6 +2131,9 @@ for f in range(0, nCLS_files):
             # added 7/30/2020 cuz PELIcoe 22oct19 flight did not have min_avg_profs in last rec.
             L1Arec_nums_1file = L1Arec_nums_1file[:-1*ncounts[-1]]
             rectrack_1file = rectrack_1file[:-1*ncounts[-1]]
+            ONA_1file = ONA_1file[:-1*ncounts[-1]]
+            Plane_Alt_1file = Plane_Alt_1file[:-1*ncounts[-1]]
+            E_1file = E_1file[:-1*ncounts[-1],:]             
             n_L1A -= 1
         expanded_length = nav_dset.shape[0] + n_expand
         # Now, if it's the first_read, nav_dset has an initialized length of 1; therefore,
@@ -2182,16 +2211,16 @@ for f in range(0, nCLS_files):
         rectrack_master = np.concatenate((rectrack_master,rectrack_1file))
         L1Arec_nums = np.concatenate((L1Arec_nums, L1Arec_nums_1file))
         L1A_Time = np.concatenate((L1A_Time, Nav_save_avg['UTC'][cutbegin:n_expand+cutbegin]), axis=0)
-        Plane_Alt = np.concatenate((Plane_Alt, Nav_save_avg['GPS_alt'][cutbegin:n_expand+cutbegin]))
-        ONA_4map = np.concatenate((ONA_4map,ONA_save_avg[cutbegin:n_expand+cutbegin]))
-        E_4map = np.concatenate((E_4map,EMs_avg[cutbegin:n_expand+cutbegin,:]),axis=0)
+        Plane_Alt = np.concatenate((Plane_Alt, Plane_Alt_1file))
+        ONA_4map = np.concatenate((ONA_4map, ONA_1file))
+        E_4map = np.concatenate((E_4map, E_1file),axis=0)
     else:
         rectrack_master = np.copy(rectrack_1file)
         L1Arec_nums = np.copy(L1Arec_nums_1file)
         L1A_Time = np.copy(Nav_save_avg['UTC'][cutbegin:n_expand+cutbegin])
-        Plane_Alt = np.copy(Nav_save_avg['GPS_alt'][cutbegin:n_expand+cutbegin])
-        ONA_4map = np.copy(ONA_save_avg[cutbegin:n_expand+cutbegin])
-        E_4map = np.copy(EMs_avg[cutbegin:n_expand+cutbegin,:])
+        Plane_Alt = np.copy(Plane_Alt_1file)
+        ONA_4map = np.copy(ONA_1file)
+        E_4map = np.copy(E_1file)
     
     first_read = False
         
@@ -2207,22 +2236,22 @@ print('Main L1A execution finished at: ',DT.datetime.now())
 print('Shape of rectrack_master: ',rectrack_master.shape)
 print('Shape of L1Arec_nums: ',L1Arec_nums.shape)
 print('Shape of L1A_Time: ',L1A_Time.shape)
-index_map_file = L1_dir + 'CLS2L1A_map_'+proj_name+'_'+flt_date+'_'+Nav_source+'.csv'
+index_map_file = raw_dir + 'CLS2L1A_map_'+proj_name+'_'+flt_date+'_'+Nav_source+'.csv'
+
 with open(index_map_file, 'w') as map_f_obj:
-    for CLSi, L1Ai in zip(rectrack_master, L1Arec_nums):
+    oord = np.arange(0, rectrack_master.shape[0])
+    for CLSi, L1Ai, x in zip(rectrack_master, L1Arec_nums, oord):
         str_time = str( L1A_Time[L1Ai,:].view('S26') )[3:29]
-        str_alt = '{0:11.4f}'.format( Plane_Alt[L1Ai] )
-        str_ONA = '{0:13.9f}'.format( ONA_4map[L1Ai] )
-        str_E0 = '{0:21.6f}'.format( E_4map[L1Ai,0] )
-        str_E1 = '{0:21.6f}'.format( E_4map[L1Ai,1] )
-        str_E2 = '{0:21.6f}'.format( E_4map[L1Ai,2] )
+        str_alt = '{0:11.4f}'.format( Plane_Alt[x] )
+        str_ONA = '{0:13.9f}'.format( ONA_4map[x] )
+        str_E0 = '{0:21.6f}'.format( E_4map[x,0] )
+        str_E1 = '{0:21.6f}'.format( E_4map[x,1] )
+        str_E2 = '{0:21.6f}'.format( E_4map[x,2] )
         outlist = [str(CLSi),str(L1Ai),str_time,str_alt,str_ONA,str_E0,str_E1,str_E2]
         string2write = ','.join(outlist) + '\n'
         map_f_obj.write(string2write)
 
-# Write out any final parameters to the HDF5 file that needed to wait
-#testdt = np.asarray(testdt)
-#pdb.set_trace()
+
 num_recs_dset[:] = nrecs
 hdf5_file.close()
 GEOS_fobj.close()

@@ -85,7 +85,7 @@ def compute_time_offset_IWG1_CLS(cls_files):
         print("The time offsets between 2 sample files differs by too much.")
         print("Enter 0 for first time offset, 1 for second.")
         print("Time offsets: ",time_offsets)
-        choice = int( input("Enter your choice.") )
+        choice = 1#int( input("Enter your choice.") ) #Hard-coded choice 8/18/20
         time_offset = time_offsets[choice]
     else:
         time_offset = np.mean(time_offsets)
@@ -554,7 +554,7 @@ elif Nav_source == 'cls':
         print('Enter "c" to continue processing anyway.')
         print('Enter "q" to safely quit.')
         print(attention_bar)
-        pdb.set_trace() 
+        #pdb.set_trace()  # Removed for batching [8/18/20]
 
     # Look at the time deltas between unique, you'll use this in a little bit
     # On 5/4/2020 updated to separate Instrument time from Nav Time u ui and ncounts arrays
@@ -581,7 +581,7 @@ elif Nav_source == 'cls':
         print('Enter "q" to safely quit.')
         print('If you continue, data rate from initializations will be used.')
         print(attention_bar)
-        pdb.set_trace()
+        #pdb.set_trace() # Removed for batching [8/18/20]
     else:
         print('Init. file CLS data rate is sufficiently close to computed data rate.')
         print('CLS_hz: ', CLS_hz, ' computed_CLS_hz: ', computed_CLS_hz)
@@ -632,7 +632,7 @@ elif Nav_source == 'cls':
         print('investigate why this block of code is necessary.')
         # Maybe this relates to how NEW is populated in the C code.
         # Wish I would have take better notes about this block.
-        pdb.set_trace()
+        #pdb.set_trace() # Removed for batching [8/18/20]
         print(attention_bar+"Time gaps in instrument clock detected. Handling it!"+attention_bar)
         UTC_ovrwrt = np.copy(nav_interp['UTC_Time'][offset_indx:])
         no_delta = True
@@ -750,7 +750,7 @@ for f in range(0,nCLS_files):
     elif (FL_flag == 1) and (Nav_source != 'iwg1'): # last file of flight
         true_undoctored_num_CLS_recs = nr_1file + FL_trunc[1] + last_true_undoctored_num_CLS_recs
         rectrack_1file = np.arange(last_true_undoctored_num_CLS_recs, true_undoctored_num_CLS_recs, dtype=np.uint32)
-        rectrack_1file = rectrack_1file[:int(-1*FL_trunc[1])]
+        if FL_trunc[1] != 0: rectrack_1file = rectrack_1file[:int(-1*FL_trunc[1])]
     else:              # flight in the middle
         true_undoctored_num_CLS_recs = nr_1file + last_true_undoctored_num_CLS_recs
         rectrack_1file = np.arange(last_true_undoctored_num_CLS_recs, true_undoctored_num_CLS_recs, dtype=np.uint32)
@@ -1249,6 +1249,9 @@ for f in range(0,nCLS_files):
         
         ######## CLS 2 L1A MAP-SAVING CODE ########
         L1Arec_nums_1file = np.empty_like(rectrack_1file)
+        ONA_1file = np.zeros(rectrack_1file.shape[0], dtype=ONA_save.dtype)
+        Plane_Alt_1file = np.zeros(rectrack_1file.shape[0], dtype=np.float32)
+        E_1file = np.zeros((rectrack_1file.shape[0], 3), dtype=EMs.dtype)
 
         bin_numbers = np.digitize(CLS_UnixT_float64_new,time_bins)
         u, ui, ncounts = np.unique(bin_numbers,return_index=True,return_counts=True)
@@ -1294,9 +1297,12 @@ for f in range(0,nCLS_files):
             # so set the current L1A record number equal to the last value
             # from the previous file iteration. In the transfer save block,
             # n_L1A is not incremented, so the following line is good.
-            L1Arec_nums_1file[rr:rr+ncounts[0]] = n_L1A 
+            L1Arec_nums_1file[rr:rr+ncounts[0]] = n_L1A
             # Now increment n_L1A because you're done with the transfer record
             n_L1A += 1
+            ONA_1file[rr:rr+ncounts[0]] = ONA_save[rr:rr+ncounts[0]]
+            Plane_Alt_1file[rr:rr+ncounts[0]] = Nav_save['GPS_alt'][rr:rr+ncounts[0]]
+            E_1file[rr:rr+ncounts[0],:] = EMs[rr:rr+ncounts[0],:]
             print('trans_ncounts = ',trans_ncounts)
             rr += ncounts[0]
         else:
@@ -1328,6 +1334,14 @@ for f in range(0,nCLS_files):
             # NOTE: Compensating for flawed code here...
             L1Arec_nums_1file[rr:rr+ncounts[tb]] = n_L1A
             n_L1A += 1
+            try:
+              ONA_1file[rr:rr+ncounts[tb]] = ONA_save[rr:rr+ncounts[tb]]
+              Plane_Alt_1file[rr:rr+ncounts[tb]] = Nav_save['GPS_alt'][rr:rr+ncounts[tb]]
+              E_1file[rr:rr+ncounts[tb],:] = EMs[rr:rr+ncounts[tb],:]            
+            except:
+              print(attention_bar)
+              print('ONA_1file.shape ', ONA_1file.shape)
+              print(attention_bar)
             if (perfectly_aligned) and (tb == (ei-1)): n_L1A -= 1
             rr += ncounts[tb]
 
@@ -1351,6 +1365,9 @@ for f in range(0,nCLS_files):
             saturate_ht_carryover = saturate_ht[:,rr:rr+ncounts[-1]]
             ######## CLS 2 L1A MAP-SAVING CODE ########
             L1Arec_nums_1file[rr:rr+ncounts[-1]] = n_L1A
+            ONA_1file[rr:rr+ncounts[-1]] = ONA_save[rr:rr+ncounts[-1]]
+            Plane_Alt_1file[rr:rr+ncounts[-1]] = Nav_save['GPS_alt'][rr:rr+ncounts[-1]]
+            E_1file[rr:rr+ncounts[-1],:] = EMs[rr:rr+ncounts[-1],:]
             # following line defines the "trasfer" bin; trans_bin
             trans_bin = time_bins[ bin_numbers[ ui[-1] ]-1 : bin_numbers[ ui[-1] ]+1 ]
             trans_ncounts = ncounts[-1]
@@ -1387,6 +1404,9 @@ for f in range(0,nCLS_files):
                 mask = L1Arec_nums_1file != di # locations not equal to deleted index
                 L1Arec_nums_1file = L1Arec_nums_1file[mask] # running count of # of L1A records
                 rectrack_1file = rectrack_1file[mask]
+                ONA_1file = ONA_1file[mask]
+                Plane_Alt_1file = Plane_Alt_1file[mask]
+                E_1file = E_1file[mask,:]
                 pushback_mask = L1Arec_nums_1file > di 
                 L1Arec_nums_1file[pushback_mask] = L1Arec_nums_1file[pushback_mask] - 1
                 n_L1A -= 1
@@ -1402,6 +1422,9 @@ for f in range(0,nCLS_files):
             L1Arec_nums_1file = L1Arec_nums_1file - 1
             n_L1A -= 1
             rectrack_1file = rectrack_1file[ncounts[0]:]
+            ONA_1file = ONA_1file[ncounts[0]:]
+            Plane_Alt_1file = Plane_Alt_1file[ncounts[0]:]
+            E_1file = E_1file[ncounts[0]:,:]            
         n_expand = u.shape[0]-1-cutbegin
         if ( (last_file) and (ncounts[-1] > min_avg_profs) ): 
             n_expand = u.shape[0]
@@ -1409,6 +1432,9 @@ for f in range(0,nCLS_files):
             # added 7/30/2020 cuz PELIcoe 22oct19 flight did not have min_avg_profs in last rec.
             L1Arec_nums_1file = L1Arec_nums_1file[:-1*ncounts[-1]]
             rectrack_1file = rectrack_1file[:-1*ncounts[-1]]
+            ONA_1file = ONA_1file[:-1*ncounts[-1]]
+            Plane_Alt_1file = Plane_Alt_1file[:-1*ncounts[-1]]
+            E_1file = E_1file[:-1*ncounts[-1],:]            
             n_L1A -= 1
         expanded_length = nav_dset.shape[0]+n_expand
         # Now, if it's the first_read, nav_dset has an initialized length of 1; therefore,
@@ -1486,16 +1512,16 @@ for f in range(0,nCLS_files):
         rectrack_master = np.concatenate((rectrack_master,rectrack_1file))
         L1Arec_nums = np.concatenate((L1Arec_nums, L1Arec_nums_1file))
         L1A_Time = np.concatenate((L1A_Time, Nav_save_avg['UTC'][cutbegin:n_expand+cutbegin]), axis=0)
-        Plane_Alt = np.concatenate((Plane_Alt, Nav_save_avg['GPS_alt'][cutbegin:n_expand+cutbegin]))
-        ONA_4map = np.concatenate((ONA_4map,ONA_save_avg[cutbegin:n_expand+cutbegin]))
-        E_4map = np.concatenate((E_4map,EMs_avg[cutbegin:n_expand+cutbegin,:]),axis=0)
+        Plane_Alt = np.concatenate((Plane_Alt, Plane_Alt_1file))
+        ONA_4map = np.concatenate((ONA_4map, ONA_1file))
+        E_4map = np.concatenate((E_4map, E_1file),axis=0)
     else:
         rectrack_master = np.copy(rectrack_1file)
         L1Arec_nums = np.copy(L1Arec_nums_1file)
         L1A_Time = np.copy(Nav_save_avg['UTC'][cutbegin:n_expand+cutbegin])
-        Plane_Alt = np.copy(Nav_save_avg['GPS_alt'][cutbegin:n_expand+cutbegin])
-        ONA_4map = np.copy(ONA_save_avg[cutbegin:n_expand+cutbegin])
-        E_4map = np.copy(EMs_avg[cutbegin:n_expand+cutbegin,:])
+        Plane_Alt = np.copy(Plane_Alt_1file)
+        ONA_4map = np.copy(ONA_1file)
+        E_4map = np.copy(E_1file)
     
     first_read = False
         
@@ -1512,15 +1538,16 @@ print('Shape of rectrack_master: ',rectrack_master.shape)
 print('Shape of L1Arec_nums: ',L1Arec_nums.shape)
 print('Shape of L1A_Time: ',L1A_Time.shape)
 index_map_file = raw_dir + 'CLS2L1A_map_'+proj_name+'_'+flt_date+'_'+Nav_source+'.csv'
-pdb.set_trace()
+
 with open(index_map_file, 'w') as map_f_obj:
-    for CLSi, L1Ai in zip(rectrack_master, L1Arec_nums):
+    oord = np.arange(0, rectrack_master.shape[0])
+    for CLSi, L1Ai, x in zip(rectrack_master, L1Arec_nums, oord):
         str_time = str( L1A_Time[L1Ai,:].view('S26') )[3:29]
-        str_alt = '{0:11.4f}'.format( Plane_Alt[L1Ai] )
-        str_ONA = '{0:13.9f}'.format( ONA_4map[L1Ai] )
-        str_E0 = '{0:21.6f}'.format( E_4map[L1Ai,0] )
-        str_E1 = '{0:21.6f}'.format( E_4map[L1Ai,1] )
-        str_E2 = '{0:21.6f}'.format( E_4map[L1Ai,2] )
+        str_alt = '{0:11.4f}'.format( Plane_Alt[x] )
+        str_ONA = '{0:13.9f}'.format( ONA_4map[x] )
+        str_E0 = '{0:21.6f}'.format( E_4map[x,0] )
+        str_E1 = '{0:21.6f}'.format( E_4map[x,1] )
+        str_E2 = '{0:21.6f}'.format( E_4map[x,2] )
         outlist = [str(CLSi),str(L1Ai),str_time,str_alt,str_ONA,str_E0,str_E1,str_E2]
         string2write = ','.join(outlist) + '\n'
         map_f_obj.write(string2write)
