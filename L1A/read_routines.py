@@ -1297,10 +1297,10 @@ def read_entire_cls_meta_dataset(raw_dir, file_len_recs, nbins, flt_date, bad_cl
     if fi > 0: 
         # Don't shrink array. "beg_file_indx" will tell L1A main what to do.
         beg_file_indx = fi
-        print(attention_bar)
+        print('****************')
         print("Insufficient usable records are in the first ",
              beg_file_indx, " file(s).")
-        print(attention_bar)
+        print('****************')
     interim_ncls_files = file_indx.shape[0]
     fi = interim_ncls_files - 1
     file_indx[fi, 1] = file_indx[fi, 1] - skip_list[1]
@@ -1312,10 +1312,10 @@ def read_entire_cls_meta_dataset(raw_dir, file_len_recs, nbins, flt_date, bad_cl
     if fi < (interim_ncls_files - 1): 
         file_indx = file_indx[:fi+1, :]
         end_file_indx = fi+1
-        print(attention_bar)
+        print('****************')
         print("Insufficient usable records are in the last ",
               ncls_files - end_file_indx, " file(s).")
-        print(attention_bar)
+        print('****************')
 
     usable_file_range = [beg_file_indx,end_file_indx]
     return meta_data_all, file_indx, skip_list, usable_file_range
