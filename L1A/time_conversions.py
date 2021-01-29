@@ -139,7 +139,7 @@ def gpstime(gpstime, msec, direction):
         Converts GPS time to Year,Month,Day,HH:MM:SS, and Fractional Day
         
         Output list:
-        [hour, minute, second, msec, month, day, year, fractional_day]
+        [hour, minute, second, month, day, year, fractional_day]
     """
     
     #************
