@@ -301,6 +301,21 @@
 # and file boundary line up, the array's get expanded to accomodate the
 # transfer bin. So it's now possible for a transfer bin to contain a full
 # secs2avg worth of raw profiles.
+# ALSO, posgap_Nav now used in  CPL Nav pre-processing block.
+#
+# [1/29/21]
+# New cpl_l1a version? 
+# I am writing this note from "make_cls2l1a_map_cpl_l1a_v3.py."
+# This code is cpl_l1a_v3.py, but with additional arrays that track 
+# exactly which CLS records go to which L1A records.
+# I fixed an error with this code that occurred when the time bin boundaries
+# line up with a file boundary. In this case, trans_bin and first bin become
+# separate L1A records instead of merging. This created havoc tracking CLS-to-L1A.
+# Even more special care around masking out min_avg_profs records had to be 
+# taken with the tracking arrays (L1Arec_nums_1file!).
+# This code will form the underpinnings of cpl_l1a_v4.py because I want this
+# record mapping functionality to be part of the standard L1A process.
+
 
 # Import libraries <----------------------------------------------------
 
@@ -885,7 +900,7 @@ elif Nav_source == 'cls':
             posgap_Nav = cls_nav_data_all[good_time_indexes][mti]
             for i in range(1, index_diffs[mti]):
                 ii = i + good_time_indexes[mti - 1]
-                cls_nav_data_all[ii] = pregap_Nav
+                cls_nav_data_all[ii] = posgap_Nav
         # Once the bad times are seen again in the individual-file CLS data in
         # the file loop ('core processing'), then the process_start initializations
         # variable should take care of things.
@@ -1510,7 +1525,7 @@ for f in range(0, nCLS_files):
             for chan in range(0, nc):
                 overlaps_chan_seq[chan, :] = overlaps[wl_map[chan], :]
         # Open the hdf5 file and create the data sets
-        hdf5_fname = L1_dir + 'NRBX_' + proj_name + '_' + flt_date + '_' + Nav_source + '.hdf5'
+        hdf5_fname = L1_dir + 'NRB_' + proj_name + '_' + flt_date + '_' + Nav_source + '.hdf5'
         hdf5_file = h5py.File(hdf5_fname, 'a')
         # Open the lat/lon GEOS met data sampling CSV file
         GEOS_samp_fname = L1_dir + 'lon_lat_UTC_' + proj_name + '_' + flt_date + '_' + Nav_source + '.txt'
@@ -2000,15 +2015,18 @@ for f in range(0, nCLS_files):
             ncounts = np.concatenate(([trans_ncounts],ncounts))
             ######## CLS 2 L1A MAP-SAVING CODE ########
             # This block of code is where the transfer bin is carried over,
-            # so set the current L1A record number equal to the last value
+            # so set the current L1A record number equal the last value
             # from the previous file iteration. In the transfer save block,
-            # n_L1A is not incremented, so the following line is good.
-            L1Arec_nums_1file[rr:rr+ncounts[0]] = n_L1A 
-            # Now increment n_L1A because you're done with the transfer record
-            n_L1A += 1            
-            ONA_1file[rr:rr+ncounts[0]] = ONA_save[rr:rr+ncounts[0]]
-            Plane_Alt_1file[rr:rr+ncounts[0]] = Nav_save['GPS_alt'][rr:rr+ncounts[0]]
-            E_1file[rr:rr+ncounts[0],:] = EMs[rr:rr+ncounts[0],:]            
+            # n_L1A is not incremented. But THIS is a SPECIAL CASE. Just above
+            # alignment with the file boundary essentially added a new record.
+            # Therefore n_L1A needs to be incremented both before AND after
+            # assignment into array!!! [1/27/21]
+            n_L1A += 1
+            #L1Arec_nums_1file[rr:rr+ncounts[0]] = n_L1A    
+            # Now increment n_L1A because you're done with the transfer record           
+            #ONA_1file[rr:rr+ncounts[0]] = ONA_save[rr:rr+ncounts[0]]
+            #Plane_Alt_1file[rr:rr+ncounts[0]] = Nav_save['GPS_alt'][rr:rr+ncounts[0]]
+            #E_1file[rr:rr+ncounts[0],:] = EMs[rr:rr+ncounts[0],:]            
             print('trans_ncounts = ', trans_ncounts)                       
             si = 1
             ei = Nav_save_avg.shape[0] - 1 # You expanded the array in this block
@@ -2063,7 +2081,9 @@ for f in range(0, nCLS_files):
             bg_save_sum = bg_save[:, rr:rr + ncounts[-1]].sum(axis=1)
             saturate_ht_carryover = saturate_ht[:, rr:rr + ncounts[-1]]
             ######## CLS 2 L1A MAP-SAVING CODE ########
-            L1Arec_nums_1file[rr:rr+ncounts[-1]] = n_L1A     
+            L1Arec_nums_1file[rr:rr+ncounts[-1]] = n_L1A   
+            print(L1Arec_nums_1file[rr:rr+ncounts[-1]])
+            print('n_L1A = ',n_L1A)
             ONA_1file[rr:rr+ncounts[-1]] = ONA_save[rr:rr+ncounts[-1]]
             Plane_Alt_1file[rr:rr+ncounts[-1]] = Nav_save['GPS_alt'][rr:rr+ncounts[-1]]
             E_1file[rr:rr+ncounts[-1],:] = EMs[rr:rr+ncounts[-1],:]
@@ -2071,13 +2091,21 @@ for f in range(0, nCLS_files):
             trans_bin = time_bins[bin_numbers[ui[-1]] - 1: bin_numbers[ui[-1]] + 1]
             trans_ncounts = ncounts[-1]
 
+        # [1/28/21]
+        if perfectly_aligned:
+            L1Arec_nums_for_current_L1Aarrs = np.concatenate((L1Arec_nums[-1*ncounts[0]:],L1Arec_nums_1file))
+            mo = ncounts[0]# mask offset. will apply to mask that filters out min_avg_profs profs.
+        else:
+            L1Arec_nums_for_current_L1Aarrs = np.copy(L1Arec_nums_1file)
+            mo = 0
+
         # Eliminate those avg'd profiles that contain less than min_avg_profs raw
         # profiles right here, exclusively in this single paragraph.
         big_enough_mask = ncounts >= min_avg_profs
         big_enough_mask[0] = True
         big_enough_mask[-1] = True
         if (not first_read) and (not perfectly_aligned) and (trans_total < min_avg_profs): big_enough_mask[0] = False
-        if big_enough_mask.sum() < ncounts.shape[0]:
+        if big_enough_mask.sum() < ncounts.shape[0]:	
             Nav_save_avg = Nav_save_avg[big_enough_mask]
             laserspot_avg = laserspot_avg[big_enough_mask, :]
             ONA_save_avg = ONA_save_avg[big_enough_mask]
@@ -2096,18 +2124,24 @@ for f in range(0, nCLS_files):
             # 1) Identify the L1A rec #'s that have been deleted.
             # 2) Find where the L1Arec_nums_1file array == those rec #'s
             # 3) Remove those elements from L1Arec_nums_1file & rectrack_master_1file
-            unique_L1Arec_nums = np.unique(L1Arec_nums_1file)
+            unique_L1Arec_nums = np.unique(L1Arec_nums_for_current_L1Aarrs)
             too_small_mask = np.invert(big_enough_mask)
             deleted_L1A_indicies = unique_L1Arec_nums[too_small_mask]
             for di in deleted_L1A_indicies:
-                mask = L1Arec_nums_1file != di # locations not equal to deleted index
-                L1Arec_nums_1file = L1Arec_nums_1file[mask] # running count of # of L1A records
-                rectrack_1file = rectrack_1file[mask]
-                ONA_1file = ONA_1file[mask]
-                Plane_Alt_1file = Plane_Alt_1file[mask]
-                E_1file = E_1file[mask,:]                
-                pushback_mask = L1Arec_nums_1file > di 
+                mask = L1Arec_nums_for_current_L1Aarrs != di # locations not equal to deleted index
+                L1Arec_nums_for_current_L1Aarrs = L1Arec_nums_for_current_L1Aarrs[mask]
+                L1Arec_nums_1file = L1Arec_nums_1file[mask[mo:]] # running count of # of L1A records
+                rectrack_1file = rectrack_1file[mask[mo:]]
+                ONA_1file = ONA_1file[mask[mo:]]
+                Plane_Alt_1file = Plane_Alt_1file[mask[mo:]]
+                E_1file = E_1file[mask[mo:],:]                
+                # Some L1A recs were deleted, so decrement appropriately.
+                # pushback_mask shouldn't need an offset.
+                pushback_mask = L1Arec_nums_1file > di
                 L1Arec_nums_1file[pushback_mask] = L1Arec_nums_1file[pushback_mask] - 1
+                # Now, you also have to apply diff-length pushback_mask to array that matches L1A-rez variables
+                pushback_mask = L1Arec_nums_for_current_L1Aarrs > di
+                L1Arec_nums_for_current_L1Aarrs[pushback_mask] = L1Arec_nums_for_current_L1Aarrs[pushback_mask] - 1
                 n_L1A -= 1
             print("\nAvg'd profiles eliminated due to min_avg_profs constraint.")
             print(np.argwhere(big_enough_mask == False))
@@ -2253,6 +2287,7 @@ with open(index_map_file, 'w') as map_f_obj:
 
 
 num_recs_dset[:] = nrecs
+print('nrecs: ',nrecs)
 hdf5_file.close()
 GEOS_fobj.close()
 print("NRB has been written to the HDF5 file:" + hdf5_fname)
