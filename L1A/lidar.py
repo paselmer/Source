@@ -1737,3 +1737,77 @@ def custom_curtain_plot(counts_imgarr, nb, vrZ, z, cb_min, cb_max, hori_cap, poi
     plt.close(fig1)
     
     return None
+
+
+def compute_geodetic(X, Y, Z):
+    """
+    Takes the CTRS X,Y,Z values and computes the Geodetic Longitude, Latitude, Height
+    Follows from computegeodetic.pro
+    ----------
+    X : array
+        Array of X values
+    Y : array
+        Array of Y values
+    Z : array
+        Array of Z values
+    Returns
+    -------
+    geodetic : M x 3 array
+        array of Longitude, Latitude, and Height values
+    """
+    alpha = 6378.137
+    beta = 6356.752
+    esquared = (alpha**2 - beta**2) / alpha**2
+    e = np.sqrt(esquared)
+    # f = 1.0 - np.sqrt(1.0-esquared)
+    # oneoverf = 1/f
+    dtr = np.pi/180
+    p_var = ((X**2) + (Y**2)) / (alpha**2)
+    q_var = ((1 - esquared)/(alpha**2)) * (Z**2)
+    r_var = (p_var + q_var-(esquared**2)) / 6.0
+    s_var = ((esquared**2) * p_var * q_var) / (4.0 * (r_var**3))
+    t_var = (1 + s_var + np.sqrt(s_var*(2.0 + s_var)))**(1 / 3)
+    u_var = r_var * (1.0 + t_var + (1.0 / t_var))
+    v_var = np.sqrt((u_var**2) + ((esquared**2) * q_var))
+    w_var = esquared * ((u_var + v_var-q_var)/(2.0 * v_var))
+    k_var = np.sqrt(u_var + v_var + (w_var**2)) - w_var
+    D_var = (k_var * np.sqrt((X**2) + (Y**2)))/(k_var + esquared)
+    lon = 2.0 * np.arctan(Y / (X + np.sqrt((X**2) + (Y**2))))
+    lat = 2.0 * np.arctan(Z / (D_var + np.sqrt((D_var**2) + (Z**2))))
+    h_var = ((k_var + esquared - 1.0) / k_var) * np.sqrt((D_var**2) + (Z**2))
+    mask_for_nan = np.isnan(lon)
+    if np.sum(np.isnan(lon)) > 0:
+        nan_value_locations = np.where(mask_for_nan)
+        if nan_value_locations[0][0] == 0:
+            lon[0] = lon[1] - (lon[2] - lon[1])
+            nan_value_locations[0] = np.delete(nan_value_locations[0], 0, axis=0)
+        if nan_value_locations[0][-1] == (len(lon)-1):
+            lon[(len(lon)-1)] = lon[(len(lon)-2)] - (lon[(len(lon)-3)] - lon[(len(lon)-2)])
+            nan_value_locations[0] = np.delete(nan_value_locations[0], len(nan_value_locations[0])-1, axis=0)
+        for idx in np.arange(0, len(nan_value_locations[0])):
+            lon[int(nan_value_locations[0][idx])] = np.mean([lon[int(nan_value_locations[0][idx]) - 1],
+                                                             lon[int(nan_value_locations[0][idx]) + 1]])
+        if np.sum(np.isnan(lon)) > 0:
+            print(nan_value_locations)
+            print(len(lon))
+            # Lon screening didn't work...
+            pdb.set_trace()
+    mask_for_nan = np.isnan(lat)
+    if np.sum(np.isnan(lat)) > 0:
+        nan_value_locations = np.where(mask_for_nan)
+        if nan_value_locations[0][0] == 0:
+            lat[0] = lat[1] - (lat[2] - lat[1])
+            nan_value_locations[0] = np.delete(nan_value_locations[0], 0, axis=0)
+        if nan_value_locations[0][-1] == (len(lat) - 1):
+            lat[(len(lat) - 1)] = lat[(len(lat) - 2)] - (lat[(len(lat) - 3)] - lat[(len(lat) - 2)])
+            nan_value_locations[0] = np.delete(nan_value_locations[0], len(nan_value_locations[0]) - 1, axis=0)
+        for idx in np.arange(0, len(nan_value_locations[0])):
+            lat[int(nan_value_locations[0][idx])] = np.mean([lat[int(nan_value_locations[0][idx]) - 1],
+                                                             lat[int(nan_value_locations[0][idx]) + 1]])
+        if np.sum(np.isnan(lat)) > 0:
+            print(nan_value_locations)
+            print(len(lat))
+            # Lat screening didn't work...
+            pdb.set_trace()
+        print('Lat and/or Lon value corrected for nan value')
+    geodetic = [lon / d
