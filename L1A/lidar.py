@@ -1810,4 +1810,6 @@ def compute_geodetic(X, Y, Z):
             # Lat screening didn't work...
             pdb.set_trace()
         print('Lat and/or Lon value corrected for nan value')
-    geodetic = [lon / d
+    geodetic = [lon / dtr, lat / dtr, h_var]
+    return geodetic
+    
