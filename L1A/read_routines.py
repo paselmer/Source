@@ -1615,3 +1615,30 @@ def read_in_cats_l0_data(cats_l0_fname, nchans, nbins):
     
     return l0_data
 
+
+def drop_errors(raw_l0_array):
+    """
+    Parameters
+    ----------
+    raw_l0_array : ndarray
+        Numpy array of raw data.
+        Expects shape (profs, chans, bins)
+    Returns
+    -------
+    raw_l0_array : ndarray
+        data with flagged profiles removed
+    profs : list of ints
+        list of indices of the original file where profiles were removed
+    """
+    # Function reworked for speed by Patrick Selmer [2/1/21]
+
+    print('Maximum value before is ',raw_l0_array.max())
+
+    max_per_prof = np.max(raw_l0_array.max(axis=2),axis=1)
+    good_prof_mask = max_per_prof != 2 ** 14
+    profs = np.arange(0,good_prof_mask.shape[0])[np.invert(good_prof_mask)]
+    raw_l0_array = raw_l0_array[good_prof_mask]
+    print('Maximum value after is ', raw_l0_array.max())
+    print('Drop Counter: ', good_prof_mask.sum(), ' shape of remaining array:', raw_l0_array.shape)
+
+    return raw_l0_array, profs
