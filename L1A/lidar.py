@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import math as math
 from scipy import constants as const
+from scipy.interpolate import interp1d
 import ctypes
 import matplotlib.dates as mdates
 from read_routines import read_in_raw_data
@@ -1755,6 +1756,9 @@ def compute_geodetic(X, Y, Z):
     geodetic : M x 3 array
         array of Longitude, Latitude, and Height values
     """
+    total_nans = 1  # must be zero to conclude routine
+    max_iters = 100 # Something's seriously wrong with data if it tries this many times. 
+    iter_count = 0
     alpha = 6378.137
     beta = 6356.752
     esquared = (alpha**2 - beta**2) / alpha**2
@@ -1762,54 +1766,143 @@ def compute_geodetic(X, Y, Z):
     # f = 1.0 - np.sqrt(1.0-esquared)
     # oneoverf = 1/f
     dtr = np.pi/180
-    p_var = ((X**2) + (Y**2)) / (alpha**2)
-    q_var = ((1 - esquared)/(alpha**2)) * (Z**2)
-    r_var = (p_var + q_var-(esquared**2)) / 6.0
-    s_var = ((esquared**2) * p_var * q_var) / (4.0 * (r_var**3))
-    t_var = (1 + s_var + np.sqrt(s_var*(2.0 + s_var)))**(1 / 3)
-    u_var = r_var * (1.0 + t_var + (1.0 / t_var))
-    v_var = np.sqrt((u_var**2) + ((esquared**2) * q_var))
-    w_var = esquared * ((u_var + v_var-q_var)/(2.0 * v_var))
-    k_var = np.sqrt(u_var + v_var + (w_var**2)) - w_var
-    D_var = (k_var * np.sqrt((X**2) + (Y**2)))/(k_var + esquared)
-    lon = 2.0 * np.arctan(Y / (X + np.sqrt((X**2) + (Y**2))))
-    lat = 2.0 * np.arctan(Z / (D_var + np.sqrt((D_var**2) + (Z**2))))
-    h_var = ((k_var + esquared - 1.0) / k_var) * np.sqrt((D_var**2) + (Z**2))
-    mask_for_nan = np.isnan(lon)
-    if np.sum(np.isnan(lon)) > 0:
-        nan_value_locations = np.where(mask_for_nan)
-        if nan_value_locations[0][0] == 0:
-            lon[0] = lon[1] - (lon[2] - lon[1])
-            nan_value_locations[0] = np.delete(nan_value_locations[0], 0, axis=0)
-        if nan_value_locations[0][-1] == (len(lon)-1):
-            lon[(len(lon)-1)] = lon[(len(lon)-2)] - (lon[(len(lon)-3)] - lon[(len(lon)-2)])
-            nan_value_locations[0] = np.delete(nan_value_locations[0], len(nan_value_locations[0])-1, axis=0)
-        for idx in np.arange(0, len(nan_value_locations[0])):
-            lon[int(nan_value_locations[0][idx])] = np.mean([lon[int(nan_value_locations[0][idx]) - 1],
-                                                             lon[int(nan_value_locations[0][idx]) + 1]])
-        if np.sum(np.isnan(lon)) > 0:
-            print(nan_value_locations)
-            print(len(lon))
-            # Lon screening didn't work...
-            pdb.set_trace()
-    mask_for_nan = np.isnan(lat)
-    if np.sum(np.isnan(lat)) > 0:
-        nan_value_locations = np.where(mask_for_nan)
-        if nan_value_locations[0][0] == 0:
-            lat[0] = lat[1] - (lat[2] - lat[1])
-            nan_value_locations[0] = np.delete(nan_value_locations[0], 0, axis=0)
-        if nan_value_locations[0][-1] == (len(lat) - 1):
-            lat[(len(lat) - 1)] = lat[(len(lat) - 2)] - (lat[(len(lat) - 3)] - lat[(len(lat) - 2)])
-            nan_value_locations[0] = np.delete(nan_value_locations[0], len(nan_value_locations[0]) - 1, axis=0)
-        for idx in np.arange(0, len(nan_value_locations[0])):
-            lat[int(nan_value_locations[0][idx])] = np.mean([lat[int(nan_value_locations[0][idx]) - 1],
-                                                             lat[int(nan_value_locations[0][idx]) + 1]])
-        if np.sum(np.isnan(lat)) > 0:
-            print(nan_value_locations)
-            print(len(lat))
-            # Lat screening didn't work...
-            pdb.set_trace()
-        print('Lat and/or Lon value corrected for nan value')
+    
+    # Hard-coded expected max record-to-record differences (derivates)
+    # Example of how these were determined in raw-rez CATS data...
+    # diff = np.diff(X[41000:41500]) # plot to make sure they're all valid values
+    X_diff_lim = 5.0
+    Y_diff_lim = 5.0
+    Z_diff_lim = 5.0
+    
+    # The following 'while' loop attempts to filter out bad CTRS values
+    # as indicated by NaNs in the core calculations above.
+    # Ideally, the following loop shouldn't be entered, but our beloved 
+    # CATS data is a wild child.
+    while (total_nans > 0) and (iter_count < max_iters):
+      p_var = ((X**2) + (Y**2)) / (alpha**2)
+      q_var = ((1 - esquared)/(alpha**2)) * (Z**2)
+      r_var = (p_var + q_var-(esquared**2)) / 6.0
+      s_var = ((esquared**2) * p_var * q_var) / (4.0 * (r_var**3))
+      t_var = (1 + s_var + np.sqrt(s_var*(2.0 + s_var)))**(1 / 3)
+      u_var = r_var * (1.0 + t_var + (1.0 / t_var))
+      v_var = np.sqrt((u_var**2) + ((esquared**2) * q_var))
+      w_var = esquared * ((u_var + v_var-q_var)/(2.0 * v_var))
+      k_var = np.sqrt(u_var + v_var + (w_var**2)) - w_var
+      D_var = (k_var * np.sqrt((X**2) + (Y**2)))/(k_var + esquared)
+      lon = 2.0 * np.arctan(Y / (X + np.sqrt((X**2) + (Y**2))))
+      lat = 2.0 * np.arctan(Z / (D_var + np.sqrt((D_var**2) + (Z**2))))
+      h_var = ((k_var + esquared - 1.0) / k_var) * np.sqrt((D_var**2) + (Z**2))
+      mask_for_nan = np.isnan(lon)
+      total_nans = mask_for_nan.sum()
+      # If there are Nans, all the X, Y, Z values at certain points are
+      # likely == zero. Try to interpolate across those points.
+      if total_nans > 0:
+        print('\n\n******************************************\n')
+        print('                  NOTICE                       ')
+        print('  Bad CTRS coordinates are being filtered      ')           
+        print('\n******************************************\n\n')
+        xoords = np.arange(0,X.shape[0])
+        # X patching ---
+        good_mask = np.logical_not(mask_for_nan)
+        X_func = interp1d(xoords[good_mask],X[good_mask],fill_value='extrapolate')
+        X_interps = X_func(xoords[mask_for_nan])
+        #X_orig = np.copy(X) # for debug
+        X[mask_for_nan] = X_interps
+        # Now test for erroneous blips using point differences
+        X_diff = np.diff(X)
+        bad_diffs_mask = np.zeros(X.shape,dtype=np.bool)
+        bad_diffs_mask[:-1] = np.abs(X_diff) > X_diff_lim
+        if bad_diffs_mask.sum() > 0:
+          mask_for_bad_diffs = np.zeros(X.shape[0],dtype=np.bool)
+          mask_for_bad_diffs[bad_diffs_mask] = True           # Delete both before &
+          mask_for_bad_diffs[xoords[bad_diffs_mask]+1] = True # after point just to be safe
+          # Note, I am overwritting the good_mask from earlier in this block.
+          good_mask = np.logical_not(mask_for_bad_diffs)
+          X_func = interp1d(xoords[good_mask],X[good_mask],fill_value='extrapolate')
+          X_interps = X_func(xoords[mask_for_bad_diffs])
+          X[mask_for_bad_diffs] = X_interps
+        # --- Y patching ---
+        good_mask = np.logical_not(mask_for_nan)
+        Y_func = interp1d(xoords[good_mask],Y[good_mask],fill_value='extrapolate')
+        Y_interps = Y_func(xoords[mask_for_nan])
+        #Y_orig = np.copy(Y) # for debug
+        Y[mask_for_nan] = Y_interps
+        # Now test for erroneous blips using point differences
+        Y_diff = np.diff(Y)
+        bad_diffs_mask = np.zeros(Y.shape,dtype=np.bool)
+        bad_diffs_mask[:-1] = np.abs(Y_diff) > Y_diff_lim
+        if bad_diffs_mask.sum() > 0:
+          mask_for_bad_diffs = np.zeros(Y.shape[0],dtype=np.bool)
+          mask_for_bad_diffs[bad_diffs_mask] = True           # Delete both before &
+          mask_for_bad_diffs[xoords[bad_diffs_mask]+1] = True # after point just to be safe
+          # Note, I am overwritting the good_mask from earlier in this block.
+          good_mask = np.logical_not(mask_for_bad_diffs)
+          Y_func = interp1d(xoords[good_mask],Y[good_mask],fill_value='extrapolate')
+          Y_interps = Y_func(xoords[mask_for_bad_diffs])
+          Y[mask_for_bad_diffs] = Y_interps
+        # --- Z patching ---
+        good_mask = np.logical_not(mask_for_nan)
+        Z_func = interp1d(xoords[good_mask],Z[good_mask],fill_value='extrapolate')
+        Z_interps = Z_func(xoords[mask_for_nan])
+        #Z_orig = np.copy(Z) # for debug
+        Z[mask_for_nan] = Z_interps
+        # Now test for erroneous blips using point differences
+        Z_diff = np.diff(Z)
+        bad_diffs_mask = np.zeros(Z.shape,dtype=np.bool)
+        bad_diffs_mask[:-1] = np.abs(Z_diff) > Z_diff_lim
+        if bad_diffs_mask.sum() > 0:
+          mask_for_bad_diffs = np.zeros(Z.shape[0],dtype=np.bool)
+          mask_for_bad_diffs[bad_diffs_mask] = True           # Delete both before &
+          mask_for_bad_diffs[xoords[bad_diffs_mask]+1] = True # after point just to be safe
+          # Note, I am overwritting the good_mask from earlier in this block.
+          good_mask = np.logical_not(mask_for_bad_diffs)
+          Z_func = interp1d(xoords[good_mask],Z[good_mask],fill_value='extrapolate')
+          Z_interps = Z_func(xoords[mask_for_bad_diffs])
+          Z[mask_for_bad_diffs] = Z_interps          
+      iter_count += 1
+      
+    if max_iters > max_iters:
+        print('\n\n\nAAAAHHHHHHH!!!!\n')
+        print('Max iteration limit exceeded. Look at this crappy CTRS data...')
+        pdb.set_trace()
+    
+    # Previous NaN-patching code, commented out. [3/12/21]
+    #if np.sum(np.isnan(lon)) > 0:
+    #    nan_value_locations = np.where(mask_for_nan)
+    #    if nan_value_locations[0][0] == 0:
+    #        lon[0] = lon[1] - (lon[2] - lon[1])
+    #        nan_value_locations[0] = np.delete(nan_value_locations[0], 0, axis=0)
+    #    if nan_value_locations[0][-1] == (len(lon)-1):
+    #        lon[(len(lon)-1)] = lon[(len(lon)-2)] - (lon[(len(lon)-3)] - lon[(len(lon)-2)])
+    #        nan_value_locations[0] = np.delete(nan_value_locations[0], len(nan_value_locations[0])-1, axis=0)
+    #    for idx in np.arange(0, len(nan_value_locations[0])):
+    #        lon[int(nan_value_locations[0][idx])] = np.mean([lon[int(nan_value_locations[0][idx]) - 1],
+    #                                                         lon[int(nan_value_locations[0][idx]) + 1]])
+    #    if np.sum(np.isnan(lon)) > 0:
+    #        print(nan_value_locations)
+    #        print(len(lon))
+    #        # Lon screening didn't work...
+    #        pdb.set_trace()
+    #mask_for_nan = np.isnan(lat)
+    #if np.sum(np.isnan(lat)) > 0:
+    #    nan_value_locations = np.where(mask_for_nan)
+    #    if nan_value_locations[0][0] == 0:
+    #        lat[0] = lat[1] - (lat[2] - lat[1])
+    #        nan_value_locations[0] = np.delete(nan_value_locations[0], 0, axis=0)
+    #    if nan_value_locations[0][-1] == (len(lat) - 1):
+    #        lat[(len(lat) - 1)] = lat[(len(lat) - 2)] - (lat[(len(lat) - 3)] - lat[(len(lat) - 2)])
+    #        nan_value_locations[0] = np.delete(nan_value_locations[0], len(nan_value_locations[0]) - 1, axis=0)
+    #    for idx in np.arange(0, len(nan_value_locations[0])):
+    #        lat[int(nan_value_locations[0][idx])] = np.mean([lat[int(nan_value_locations[0][idx]) - 1],
+    #                                                         lat[int(nan_value_locations[0][idx]) + 1]])
+    #    if np.sum(np.isnan(lat)) > 0:
+    #        print(nan_value_locations)
+    #        print(len(lat))
+    #        # Lat screening didn't work...
+    #        pdb.set_trace()
+    #    print('Lat and/or Lon value corrected for nan value')
+        
+        
     geodetic = [lon / dtr, lat / dtr, h_var]
     return geodetic
     
