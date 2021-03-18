@@ -1906,3 +1906,60 @@ def compute_geodetic(X, Y, Z):
     geodetic = [lon / dtr, lat / dtr, h_var]
     return geodetic
     
+
+def compute_height_above_ellipsoid(X,Y,Z):
+    """ Compute the height above the ellipoidal Earth using CTRS
+        coordinates.
+        You should be able to pass scalar or vector inputs.
+        *** CTRS COORDINATES MUST BE IN KM!!! ***
+        Based heavily on one of Bill Hart's CATS-ISS functions, ComputeHgc.
+    """
+    a = 6378.137 # major axis (km)
+    b = 6356.752 # minor axis (km)
+    AsqdBsqd=(a**2)*(b**2)
+    XYcomp=np.sqrt(X**2+Y**2)
+    rho=Z/XYcomp
+    Resqd=AsqdBsqd*((1.0+rho**2)/(((a**2)*rho**2)+b**2))
+    Re=np.sqrt(Resqd)
+    RISS = np.sqrt(X**2 + Y**2 + Z**2)
+    Hgc=RISS-Re
+    return Hgc
+    
+
+def compute_range_from_sat_to_specific_ellipsoidal_alt():
+    """ Follows Bill Hart's code, so as to replicate results seen in
+        actual raw CATS data.
+        His code uses some small-angle approximations.
+    """
+
+
+def lon_lat_to_ctrs(lon,lat,h):
+    """ Does the reverse of compute_geodetic function. 
+        Feed it lon, lat, h, and get back CTRS X, Y, Z.
+        
+        INPUT:
+        lon, lat in degrees
+        h in kilometers (elipsoidal height)
+    """
+    
+    alpha = 6378.137
+    beta = 6356.752
+    esquared = (alpha**2 - beta**2) / alpha**2
+    # e = np.sqrt(esquared)
+    # f = 1.0 - np.sqrt(1.0-esquared)
+    # oneoverf = 1/f
+    dtr = np.pi/180
+    lat = lat * dtr
+    lon = lon * dtr
+    
+    # Equation 4 in paper
+    n = alpha / np.sqrt(1 - esquared * np.sin(lat)**2)
+    
+    X = (h + n) * np.cos(lat) * np.cos(lon)
+    Y = (h + n) * np.cos(lat) * np.sin(lon)
+    Z = (h + n - n*esquared) * np.sin(lat)
+    
+    return [X, Y, Z]
+    
+
+   

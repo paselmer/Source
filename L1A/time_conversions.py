@@ -132,14 +132,24 @@ def delta_datetime_vector(dt_vect):
     return del_secs
     
 
-def gpstime(gpstime, msec, direction):
+def gpstime(inputs, direction):
     """ Direct translation of Steve Palm's gpstime IDL procedure used
         in the CATS-ISS L1A process.
     
         Converts GPS time to Year,Month,Day,HH:MM:SS, and Fractional Day
+        or vice versa
+        
+        Input list:
+        [gpstime, msec] if direction == 2
+        [hour, minute, second, month, day, year] if direction == 1
+        
         
         Output list:
-        [hour, minute, second, month, day, year, fractional_day]
+        [hour, minute, second, month, day, year, fractional_day] if direction == 2
+        [gpstime] if direction == 1
+        
+        As of 3/18/2021, you can still verfiy results using this web tool:
+        https://www.andrews.edu/~tzs/timeconv/timedisplay.php
     """
     
     #************
@@ -153,18 +163,27 @@ def gpstime(gpstime, msec, direction):
     # The GPS time defined by "anchor" is 1/1/2009 at 00:00:00 UTC
     anchor = 914803215
     anchor_year = 2009
-    leap_seconds_since_2009 = 0
-    if gpstime > 1025136013: leap_seconds_since_2009 = 1 # June 30, 2012, 23:59:58 UTC
-    if gpstime > 1119744014: leap_seconds_since_2009 = 2 # June 30, 2015, 23:59:58 UTC
-    if gpstime > 1167264015: leap_seconds_since_2009 = 3 # December 31, 2016, 23:59:58 UTC
-    hour = -1
-    minute = -1
-    second = -1
-    month = -1
-    day = -1
-    year = -1
-    fractional_day = -999.99
-    null_list = [hour, minute, second, month, day, year, fractional_day]
+    leap_seconds_since_2009 = 0    
+    
+    if direction == 1:
+        null_list = [-1]
+        hour, minute, second, month, day, year = inputs
+    elif direction == 2:
+        gpstime, msec = inputs
+        if gpstime > 1025136013: leap_seconds_since_2009 = 1 # June 30, 2012, 23:59:58 UTC
+        if gpstime > 1119744014: leap_seconds_since_2009 = 2 # June 30, 2015, 23:59:58 UTC
+        if gpstime > 1167264015: leap_seconds_since_2009 = 3 # December 31, 2016, 23:59:58 UTC
+        hour = -1
+        minute = -1
+        second = -1
+        month = -1
+        day = -1
+        year = -1
+        fractional_day = -999.99
+        null_list = [hour, minute, second, month, day, year, fractional_day]
+    else:
+        print('Invalid direction: {}'.format(direction))
+        pdb.set_trace()
     
     # define days in a year for years 2000 to 2020
     days_year = [366, 365, 365, 365, 366, 365, 365, 365, 366, 365, 365, 365, 366, 365, 365, 365, 366, 365, 365, 365, 366]
@@ -191,6 +210,12 @@ def gpstime(gpstime, msec, direction):
             for i in range(i1,i2+1):
                 sum1 = sum1 + (seconds_in_day * days_year[i])
                 
+            i1 = 0
+            i2 = month - 2
+            sum2 = 0
+            for i in range(i1,i2+1):
+                sum2 = sum2 + days_month[i]                
+                
             sum2 = sum2 * seconds_in_day
             sum3 = (day - 1) * seconds_in_day
             sum4 = hour * 3600 + minute*60 + second
@@ -206,6 +231,7 @@ def gpstime(gpstime, msec, direction):
             if (year > 2012): gpstime += 1   # leap second 6/30 23:59:60  2015
             if (year == 2015) and (month > 6): gpstime += 1 # leap second on 6/30 23:59:60  2015
             if (year > 2015): gpstime += 1  # leap second on 6/30 23:59:60  2015
+            if (year > 2016): gpstime += 1 # leap second on 12/31 23:59:60  2016
             
         else:
             
@@ -231,7 +257,8 @@ def gpstime(gpstime, msec, direction):
             gpstime = anchor - sum1 - sum2 - sum3 - sum4
             if (year == 2015) and (month > 6): gpstime += 1 # leap second on 6/30 23:59:60  2015
             if (year > 2015): gpstime += 1  # leap second on 6/30 23:59:60  2015
-            
+
+        return [gpstime]    
             
     if direction == 2: # GPS time to year, month, day, fraction day
         
@@ -290,7 +317,7 @@ def gpstime(gpstime, msec, direction):
             day = 29
             month -= 1
             
-    return [hour, minute, second, msec, month, day, year, fractional_day]
+        return [hour, minute, second, msec, month, day, year, fractional_day]
                         
             
 
