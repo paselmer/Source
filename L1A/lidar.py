@@ -1924,13 +1924,6 @@ def compute_height_above_ellipsoid(X,Y,Z):
     RISS = np.sqrt(X**2 + Y**2 + Z**2)
     Hgc=RISS-Re
     return Hgc
-    
-
-def compute_range_from_sat_to_specific_ellipsoidal_alt():
-    """ Follows Bill Hart's code, so as to replicate results seen in
-        actual raw CATS data.
-        His code uses some small-angle approximations.
-    """
 
 
 def lon_lat_to_ctrs(lon,lat,h):
@@ -1962,4 +1955,122 @@ def lon_lat_to_ctrs(lon,lat,h):
     return [X, Y, Z]
     
 
+def WYPRtoquat(yaw, pitch, roll):
+    """ Translation of a Bill Hart IDL function.
+        This function should convert input attitude angles (yaw, pitch,
+        roll) to quaternions. Inputs must be in radians.
+        
+        TEST IT using CATS example...
+        # Fore FOV offset of 8 mr can think of as +pitch.
+        y = 0.0 * (np.pi/180.0)
+        p = 0.4583662361046586 * (np.pi/180.0) # 8 milli-radians
+        r = 0.0        
+        qx, qy, qz, qw = WYPRtoquat(y,p,r)
+        # Result should be:
+        # (0.0, 0.003999989333341867, 0.0, 0.9999920000106667)
+    """
+    y2 = yaw/2.0
+    p2 = pitch/2.0
+    r2 = roll/2.0
+    qw = np.cos(r2)*np.cos(p2)*np.cos(y2)+np.sin(r2)*np.sin(p2)*np.sin(y2)
+    qx = np.sin(r2)*np.cos(p2)*np.cos(y2)-np.cos(r2)*np.sin(p2)*np.sin(y2)
+    qy = np.cos(r2)*np.sin(p2)*np.cos(y2)+np.sin(r2)*np.cos(p2)*np.sin(y2)
+    qz = np.cos(r2)*np.cos(p2)*np.sin(y2)-np.sin(r2)*np.sin(p2)*np.cos(y2)    
+    return [qx, qy, qz, qw]
+    
+    
+def WQuattoYPRSA(q):
+    """ Translation of a Bill Hart IDL function.
+        This function should convert a quaternion vector to yaw, pitch, roll.
+        q -> [qx, qy, qz, qw]
+    """
+    
+    qx, qy, qz, qw = q
+    
+    dPI=np.arccos(-1.0)
+    R=np.arctan2((2.0*(qy*qz + qw*qx)),(qw*qw - qx*qx - qy*qy + qz*qz))
+    P=np.arcsin(-2.0*(qx*qz - qw*qy))
+    Y=np.arctan2((2.0*(qx*qy + qw*qz)),(qw*qw + qx*qx - qy*qy - qz*qz))
+    
+    return [Y, P, R]
+    
+
    
+def compute_range_from_sat_to_first_data_bin(q1, q2, X, Y, Z, DataFrameSize, AnchorAlt):
+    """ Follows Bill Hart's code, so as to replicate results seen in
+        actual raw CATS data.
+        His code might use some small-angle approximations.
+        
+        ---> Any lengths shall be in km, any angles in radians. <---
+        
+        INPUTS:
+        q1 -> 4 element numpy array, preferrably float, [qx, qy, qz, qw]
+        q2 -> 4 element numpy array, preferrably float, [qx, qy, qz, qw]
+        X -> X CTRS coordinate, in km
+        Y -> Y CTRS coordinate, in km
+        Z -> Z CTRS coordinate, in km
+        DataFrameSize -> Length (range-wise) of data frame, in km
+        AnchorAlt -> Bottom ellipsoidal altitude of data frame, in km
+        
+        OUTPUT(S):
+        TimingVec -> The time, in seconds, that it takes for the laser pulse
+          (light) to travel from the instrument to the top of the data frame
+          (first data bin).
+        
+        Variable name key:
+        Rb represents range to bin or bottom. This is my guess.
+        Hgc - Height of satellite above ellipsoid
+        Hbg - Distance below ellipsoid surface that is bottom of data frame        
+        
+    """
+    
+    # Any initializations
+    #c = 3e8 * 1e-3 # speed of light in km / s
+    c = 2.99792458e5 # speed of light in km / s # produced better match [3/19/21]
+    
+
+    # --- Quaternion product ---
+    # Need to multiply ISS Quaternions by CATS angle offset quaternions (8 milli rad)
+    # Result is the "effective" quaternion rotation of CATS.
+    qprod = np.zeros(4) # [qx, qy, qz, qw]
+    qprod[0]=q1[0]*q2[0]-q1[1]*q2[1]-q1[2]*q2[2]-q1[3]*q2[3]           #see 19jun12
+    qprod[1]=q1[0]*q2[1]+q1[1]*q2[0]+q1[2]*q2[3]-q1[3]*q2[2]           #see 19jun12
+    qprod[2]=q1[0]*q2[2]-q1[1]*q2[3]+q1[2]*q2[0]+q1[3]*q2[1]           #see 19jun12
+    qprod[3]=q1[0]*q2[3]+q1[1]*q2[2]-q1[2]*q2[1]+q1[3]*q2[0]           #see 19jun12
+    qprod[0]=min(max(qprod[0],-1.0),1.0) #prevent following test from producing NAN;03aug12
+    qprod[1]=min(max(qprod[1],-1.0),1.0) #prevent following test from producing NAN;03aug12
+    qprod[2]=min(max(qprod[2],-1.0),1.0) #prevent following test from producing NAN;03aug12
+    qprod[3]=min(max(qprod[3],-1.0),1.0) #prevent following test from producing NAN;03aug12
+    costhetaprod=-1.0+2.0*qprod[0]**2                               #see 15jun12
+    sinthetaprod=2.0*qprod[0]*np.sqrt(1.0 - qprod[0]**2)#see 22jun12;preferable method base on DS16 sample results.
+    
+    # --- Compute altitude of satellite above ellipsoid ---
+    Hgc = compute_height_above_ellipsoid(X,Y,Z)
+    Hbg = AnchorAlt
+    
+    # --- Compute attitude in YPR form, from quaternion vector ---
+    Y,P,R = WQuattoYPRSA(qprod)
+    
+    # --- Compute range to top of data frame, assuming AnchorAlt ---
+    SinVA = np.sqrt(1.0-(1.0/((1.0+np.tan(P)**2)*(1.0+np.tan(R)**2))))
+    CosVA = np.sqrt(1.0 - SinVA**2)
+    dPI=np.arccos(-1.0)
+    dre=6371.22 # r(km) earth volume equivalent sphere
+    alphas=np.arcsin(SinVA)
+    sindeltas=((dre+Hgc)/(dre+Hbg))*SinVA
+    deltas=dPI-np.arcsin(sindeltas) #abiguous situation;we know alpha>90
+    beta=dPI-deltas-alphas
+    cosbeta=np.sqrt(1.0-np.sin(beta)**2)
+    Rbsqd=(dre+Hgc)**2+(dre+Hbg)**2-2.0*(dre+Hgc)*(dre+Hbg)*cosbeta
+    RbVec=np.sqrt(Rbsqd)
+    Rbsina=(np.sin(beta)/SinVA)*(dre+Hbg)
+    Rbsind=(np.sin(beta)/sindeltas)*(dre+Hgc)
+
+    # --- Convert that range into "there and back" time of the laser pulse ---
+    LOSRangeTopDataFrame = RbVec - DataFrameSize
+    TimingVec = ( 2.0 * LOSRangeTopDataFrame ) / c
+    
+    return TimingVec
+    
+
+    
