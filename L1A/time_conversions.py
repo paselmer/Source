@@ -321,7 +321,20 @@ def gpstime(inputs, direction):
                         
             
 
+def djul_day_inv_v2(jday):
+    """ Transcription of Dennis Hlavka's IDL code. Original description follows.
     
+        This subroutine calculates the hour, minute, and second of the fractional
+        day-of-year (pc) and returns the three parms to the calling program.
+        The 'second' parameter includs a fractional part.
+    """
+    
+    secs = jday * 86400
+    hour = np.int32(secs / 3600)
+    min = np.int32((secs - (hour*3600)) / 60)
+    sec = secs - (hour*3600+min*60)
+
+    return [hour, min, sec]    
     
     
 # Commented out code below is for testing of above conversion algorithms 
